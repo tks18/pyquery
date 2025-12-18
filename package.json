@@ -1,0 +1,35 @@
+{
+  "name": "pyquery",
+  "description": "PyQuery is a low-code ETL app that actually slaps",
+  "version": "0.1.0",
+  "repository": "https://github.com/tks18/pyquery",
+  "author": "tks18 <tksudharshan@gmail.com>",
+  "license": "GPL-3.0-only",
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "commitizen": "^4.3.1",
+    "conventional-recommended-bump": "^11.2.0",
+    "cz-conventional-changelog": "^3.3.0",
+    "eslint": "^9.36.0",
+    "husky": "^9.1.7",
+    "standard-version": "^9.5.0"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "scripts": {
+    "prepare": "husky",
+    "init:cz": "commitizen init cz-conventional-changelog --yarn --dev --exact",
+    "git:stage": "git add",
+    "git:commit": "cz",
+    "git:push": "git push --follow-tags origin dev",
+    "release:pre": "standard-version --prerelease",
+    "release:patch": "standard-version --release-as patch",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major"
+  },
+  "packageManager": "yarn@4.12.0"
+}
