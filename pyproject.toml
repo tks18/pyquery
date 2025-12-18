@@ -1,0 +1,14 @@
+[project]
+name = "pyquery"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastexcel>=0.18.0",
+    "output>=1.0.1",
+    "polars>=1.36.1",
+    "pyarrow>=22.0.0",
+    "streamlit>=1.52.1",
+    "xlsxwriter>=3.2.9",
+]
