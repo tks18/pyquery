@@ -5,10 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "connectorx>=0.4.4",
     "fastexcel>=0.18.0",
     "output>=1.0.1",
     "polars>=1.36.1",
     "pyarrow>=22.0.0",
+    "requests>=2.32.5",
+    "sqlalchemy>=2.0.45",
     "streamlit>=1.52.1",
     "xlsxwriter>=3.2.9",
 ]

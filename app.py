@@ -3,6 +3,8 @@ import polars as pl
 import os
 import glob
 import json
+import io
+import requests
 import threading
 import time
 from datetime import datetime
@@ -40,6 +42,34 @@ def get_files_from_path(path_input):
     if os.path.isdir(path_input):
         return os.path.join(path_input, "*")
     return path_input
+
+def load_from_sql(connection_string, query):
+    try:
+        # Requires connectorx
+        return pl.read_database_uri(query=query, uri=connection_string).lazy()
+    except Exception as e:
+        st.error(f"SQL Load Error: {e}")
+        return None
+
+def load_from_api(url):
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        content = r.content
+        # Try JSON first
+        try:
+            return pl.read_json(io.BytesIO(content)).lazy()
+        except:
+            pass
+        # Try CSV
+        try:
+            return pl.read_csv(io.BytesIO(content)).lazy()
+        except:
+            st.error("Could not parse API response as JSON or CSV.")
+            return None
+    except Exception as e:
+        st.error(f"API Request Error: {e}")
+        return None
 
 
 def load_lazy_frame(source_path, sheet_name="Sheet1"):
@@ -179,11 +209,20 @@ def export_worker(lazy_frame, path, fmt, compression, result_container):
                     or ".", exist_ok=True)
         if fmt == "Parquet":
             lazy_frame.sink_parquet(
-                path, compression=compression, engine="streaming")
+                path, compression=compression)
         elif fmt == "CSV":
-            lazy_frame.sink_csv(path, engine="streaming")
+            lazy_frame.sink_csv(path)
         elif fmt == "Excel":
             lazy_frame.collect().write_excel(path)
+        elif fmt == "SQL":
+            # path here acts as table name, we need connection string from somewhere?
+            # We will pass connection string as 'compression' arg hack or a new struct?
+            # Let's refactor export_worker signature or use a result_container to pass args?
+            # For simplicity, we assume 'path' is table name and 'compression' is connection URI
+            # This is a bit hacky but keeps signature same.
+            table_name = path
+            conn_uri = compression
+            lazy_frame.collect().write_database(table_name=table_name, connection=conn_uri, if_table_exists="append")
         result_container['status'] = 'success'
         result_container['message'] = f"Success! Time: {datetime.now() - start_time}"
     except Exception as e:
@@ -229,26 +268,53 @@ with st.sidebar:
 
     st.header("1. Project Datasets")
     with st.expander("Import Dataset", expanded=True):
-        f_path = st.text_input(
-            "Path / Glob", placeholder="data/sales.csv", key="fp_input")
-        f_name = st.text_input(
-            "Dataset Alias", placeholder="e.g. Sales", key="fn_input")
-        f_sheet = st.text_input("Sheet (Excel Only)", "Sheet1", key="fs_input")
+        tab_file, tab_sql, tab_api = st.tabs(["File", "SQL", "API"])
+        
+        with tab_file:
+            f_path = st.text_input(
+                "Path / Glob", placeholder="data/sales.csv", key="fp_input")
+            f_name_file = st.text_input(
+                "Dataset Alias", placeholder="e.g. Sales", key="fn_input_file")
+            f_sheet = st.text_input("Sheet (Excel Only)", "Sheet1", key="fs_input")
+            if st.button("Add File", type="primary"):
+                if f_path and f_name_file:
+                    resolved = get_files_from_path(f_path)
+                    lf = load_lazy_frame(resolved, f_sheet)
+                    if lf is not None:
+                        st.session_state.datasets[f_name_file] = lf
+                        if len(st.session_state.datasets) == 1:
+                            st.session_state.active_base_dataset = f_name_file
+                        st.success(f"Added '{f_name_file}'")
+                        st.rerun()
+                    else:
+                        st.error("Could not load file.")
 
-        if st.button("Add to Project", type="primary"):
-            if f_path and f_name:
-                resolved = get_files_from_path(f_path)
-                lf = load_lazy_frame(resolved, f_sheet)
-                if lf is not None:
-                    st.session_state.datasets[f_name] = lf
-                    if len(st.session_state.datasets) == 1:
-                        st.session_state.active_base_dataset = f_name
-                    st.success(f"Added '{f_name}'")
-                    st.rerun()
-                else:
-                    st.error("Could not load file.")
-            else:
-                st.error("Path and Alias required.")
+        with tab_sql:
+            s_conn = st.text_input("Connection URI", placeholder="postgresql://user:pass@localhost:5432/db", key="sql_conn")
+            s_query = st.text_area("SQL Query / Table", placeholder="SELECT * FROM sales", key="sql_query")
+            f_name_sql = st.text_input("Dataset Alias", placeholder="e.g. Sales_SQL", key="fn_input_sql")
+            if st.button("Add SQL", type="primary"):
+                if s_conn and s_query and f_name_sql:
+                    lf = load_from_sql(s_conn, s_query)
+                    if lf is not None:
+                        st.session_state.datasets[f_name_sql] = lf
+                        if len(st.session_state.datasets) == 1:
+                            st.session_state.active_base_dataset = f_name_sql
+                        st.success(f"Added '{f_name_sql}'")
+                        st.rerun()
+
+        with tab_api:
+            a_url = st.text_input("API URL", placeholder="https://api.example.com/data.json", key="api_url")
+            f_name_api = st.text_input("Dataset Alias", placeholder="e.g. API_Data", key="fn_input_api")
+            if st.button("Add API", type="primary"):
+                if a_url and f_name_api:
+                    lf = load_from_api(a_url)
+                    if lf is not None:
+                        st.session_state.datasets[f_name_api] = lf
+                        if len(st.session_state.datasets) == 1:
+                            st.session_state.active_base_dataset = f_name_api
+                        st.success(f"Added '{f_name_api}'")
+                        st.rerun()
 
     if st.session_state.datasets:
         st.markdown("**Loaded Datasets:**")
@@ -288,6 +354,10 @@ with st.sidebar:
             add_step("aggregate", "Summarize Data")
         if st.button("➕ Window Func"):
             add_step("window_func", "Rolling/Rank")
+        if st.button("➕ Deduplicate"):
+            add_step("deduplicate", "Remove Duplicates")
+        if st.button("➕ Sample"):
+            add_step("sample", "Random Sample")
 
     if st.button("➕ Reshape (Pivot/Melt)"):
         add_step("reshape", "Pivot/Unpivot")
@@ -767,11 +837,36 @@ with tab_recipe:
                 step['params'] = {'name': new_col, 'expr': expr_str}
                 if new_col and expr_str:
                     try:
-                        computed_expr = eval(expr_str)
-                        current_lf = current_lf.with_columns(
+                            current_lf = current_lf.with_columns(
                             computed_expr.alias(new_col))
                     except Exception as e:
                         st.error(f"Expression Error: {e}")
+
+            elif step_type == "deduplicate":
+                subset = st.multiselect("Subset Columns (Empty=All)", current_cols, default=params.get('subset', []), key=f"dd_{step['id']}")
+                step['params']['subset'] = subset
+                if subset:
+                    current_lf = current_lf.unique(subset=subset)
+                else:
+                    current_lf = current_lf.unique()
+
+            elif step_type == "sample":
+                method = st.radio("Method", ["Fraction", "N Rows (Head)"], index=0 if params.get('method') == "Fraction" else 1, key=f"sm_{step['id']}")
+                val = 0
+                if method == "Fraction":
+                    val = st.slider("Fraction", 0.01, 1.0, value=params.get('val', 0.1), key=f"sv_{step['id']}")
+                    step['params'] = {'method': method, 'val': val}
+                    # Polars lazy sample requires 'seed' usually or might not be supported in older versions?
+                    # default to collect sample lazy if needed, but try lazy first.
+                    try:
+                        current_lf = current_lf.collect().sample(fraction=val, shuffle=True).lazy()
+                    except:
+                         # Fallback for pure lazy which might not support shuffle well
+                         current_lf = current_lf.filter(pl.int_range(0, pl.count()) < (pl.count() * val))
+                else:
+                    val = st.number_input("N Rows", min_value=1, value=int(params.get('val', 100)), key=f"sn_{step['id']}")
+                    step['params'] = {'method': method, 'val': val}
+                    current_lf = current_lf.limit(val)
 
     # --- RESULT AREA ---
     st.divider()
@@ -785,27 +880,45 @@ with tab_recipe:
 
     st.divider()
     st.subheader("🚀 Export Data (Threaded)")
+    # Move Format selector OUTSIDE the form so it triggers a re-run on change
+    out_fmt = st.selectbox("Format", ["Parquet", "CSV", "Excel", "SQL"], key="export_fmt_global")
+
     with st.form("export_form"):
-        c1, c2, c3 = st.columns(3)
-        out_path = c1.text_input("Output Path", "output.parquet")
-        out_fmt = c2.selectbox("Format", ["Parquet", "CSV", "Excel"])
-        comp = c3.selectbox("Compression (Parquet)", [
-                            "snappy", "zstd", "gzip"])
+        c1, c2 = st.columns(2)
+        
+        # Dynamic inputs based on format
+        out_path = ""
+        comp = "" # acts as Compression OR Connection URI
+        
+        if out_fmt == "SQL":
+            out_path = c1.text_input("Table Name", "output_table")
+            comp = c2.text_input("DB Connection URI", "postgresql://...")
+        else:
+            out_path = c1.text_input("Output Path", f"output.{out_fmt.lower()}")
+            if out_fmt == "Parquet":
+                comp = c2.selectbox("Compression", ["zstd", "snappy", "gzip"])
+            else:
+                 c2.text("(No Options)")
+        
         submitted = st.form_submit_button("Start Background Export")
+        
     if submitted:
         if out_fmt == "Excel":
             st.warning("⚠️ Excel export requires RAM.")
-        result_container = {}
-        t = threading.Thread(target=export_worker, args=(
-            current_lf, out_path, out_fmt, comp, result_container))
-        t.start()
-        with st.spinner(f"Exporting to {out_path}..."):
-            while t.is_alive():
-                time.sleep(1)
-        if result_container.get('status') == 'success':
-            st.success(result_container['message'])
+        if out_fmt == "SQL" and (not out_path or not comp):
+            st.error("Table Name and URI required for SQL export.")
         else:
-            st.error(f"Export Failed: {result_container.get('message')}")
+            result_container = {}
+            t = threading.Thread(target=export_worker, args=(
+                current_lf, out_path, out_fmt, comp, result_container))
+            t.start()
+            with st.spinner(f"Exporting..."):
+                while t.is_alive():
+                    time.sleep(1)
+            if result_container.get('status') == 'success':
+                st.success(result_container['message'])
+            else:
+                st.error(f"Export Failed: {result_container.get('message')}")
 
 with tab_profile:
     st.header("🔍 Dataset Health Check")
