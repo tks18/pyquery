@@ -330,39 +330,30 @@ with st.sidebar:
     st.divider()
 
     st.header("2. Transform")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("➕ Select Cols"):
-            add_step("select_cols", "Select Columns")
-        if st.button("➕ Filter Rows"):
-            add_step("filter_rows", "Filter Group")
-        if st.button("➕ Clean/Cast"):
-            add_step("clean_cast", "Multi-Col Types")
-        if st.button("➕ Join Data"):
-            add_step("join_dataset", "Merge Dataset")
-        if st.button("➕ Sort Data"):
-            add_step("sort_rows", "Sort Order")
-
-    with c2:
-        if st.button("➕ Drop Cols"):
-            add_step("drop_cols", "Remove Columns")
-        if st.button("➕ Rename Col"):
-            add_step("rename_col", "Rename Column")
-        if st.button("➕ New Column"):
-            add_step("add_col", "Feature Eng.")
-        if st.button("➕ Group By"):
-            add_step("aggregate", "Summarize Data")
-        if st.button("➕ Window Func"):
-            add_step("window_func", "Rolling/Rank")
-        if st.button("➕ Deduplicate"):
-            add_step("deduplicate", "Remove Duplicates")
-        if st.button("➕ Sample"):
-            add_step("sample", "Random Sample")
-
-    if st.button("➕ Reshape (Pivot/Melt)"):
-        add_step("reshape", "Pivot/Unpivot")
-    if st.button("➕ Keep Cols (Finalize)"):
-        add_step("keep_cols", "Keep Specific Columns")
+    
+    # Transformation Map: Display Name -> (Step Type, Default Label)
+    transform_options = {
+        "Select Columns": ("select_cols", "Select Columns"),
+        "Drop Columns": ("drop_cols", "Remove Columns"),
+        "Rename Column": ("rename_col", "Rename Column"),
+        "Keep Specific (Finalize)": ("keep_cols", "Keep Specific Columns"),
+        "Filter Rows": ("filter_rows", "Filter Group"),
+        "Sort Rows": ("sort_rows", "Sort Order"),
+        "Deduplicate": ("deduplicate", "Remove Duplicates"),
+        "Sample Data": ("sample", "Random Sample"),
+        "Clean / Cast Types": ("clean_cast", "Multi-Col Types"),
+        "Add New Column": ("add_col", "Feature Eng."),
+        "Join Dataset": ("join_dataset", "Merge Dataset"),
+        "Group By (Aggregate)": ("aggregate", "Summarize Data"),
+        "Window Function": ("window_func", "Rolling/Rank"),
+        "Reshape (Pivot/Melt)": ("reshape", "Pivot/Unpivot")
+    }
+    
+    selected_transform = st.selectbox("Choose Transformation", list(transform_options.keys()), key="transform_selector")
+    
+    if st.button("➕ Add Step", type="primary", use_container_width=True):
+        step_type, default_label = transform_options[selected_transform]
+        add_step(step_type, default_label)
 
     st.divider()
     st.header("3. Recipe")
