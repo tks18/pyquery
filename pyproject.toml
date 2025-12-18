@@ -1,7 +1,7 @@
 [project]
 name = "pyquery"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "PyQuery is a low-code ETL app that actually slaps"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
