@@ -5,6 +5,7 @@
 [![Status](https://img.shields.io/badge/Status-Main_Character_Energy-%23FF0055?style=for-the-badge)](https://github.com/tks18/pyquery)
 [![Vibe Check](https://img.shields.io/badge/Vibe_Check-Passed_✅-%2300ffa3?style=for-the-badge)](https://github.com/tks18/pyquery)
 [![Engine](https://img.shields.io/badge/Powered_By-Polars_🐻‍❄️-%23ffcc00?style=for-the-badge)](https://pola.rs)
+[![Architecture](https://img.shields.io/badge/Architecture-Modular_🧩-%238A2BE2?style=for-the-badge)](https://github.com/tks18/pyquery)
 
 **Stop writing spaghetti code. Start building pipelines that slap.** 🍝➡️🔥
 
@@ -20,6 +21,8 @@ Yo, welcome to **PyQuery**. If you're still manually cleaning CSVs in Excel or w
 
 I built this because data engineering shouldn't feel like a 9-5 chore. It should feel like a vibe. PyQuery is a **Low-Code ETL** app that lets you clean, transform, and ship data efficiently. It's built on **Polars**, so it's blazingly fast (Rust power, Iykyk 🦀).
 
+**Update 2.0**: The UI just got a glow-up. It's cleaner, modular, and ready for anything.
+
 ---
 
 ## 🆚 The Vibe Check (Comparison)
@@ -29,9 +32,10 @@ Why switch? Because we simply built different.
 | Feature | 👴 Boomer Tools (Excel/Pandas) | ⚡ PyQuery (The New Wave) |
 | :--- | :--- | :--- |
 | **Speed** | Slow af. CPU fan goes brrr. 🐢 | **Fast af.** Multithreaded & Lazy. 🐆 |
-| **UI** | 1998 called, they want their UI back. | **Clean & Minimal.** Dark mode ready. 🌑 |
-| **Usage** | Requires a PhD in formulas. | **Click buttons.** Like a game. � |
-| **Crash Rate** | High. "Not responding..." 💀 | **Low.** Streaming engine handles GBs. 💪 |
+| **UI** | 1998 called, they want their UI back. | **Modular & Aesthetic.** Tabs, Dropdowns, Dark Mode. 🌑 |
+| **Extensibility** | Hardcoded spaghetti. � | **Plugin System.** Add S3/Avro in 10 lines. 🧩 |
+| **Usage** | Requires a PhD in formulas. | **Click buttons.** Like a game. 🎮 |
+| **Feedback** | "Processing..." (Is it frozen?) 💀 | **Spinners & Progress.** We communicate. �️ |
 
 ---
 
@@ -39,14 +43,15 @@ Why switch? Because we simply built different.
 
 We got the toolkit to handle your toxic data.
 
-### 🔌 **Connect Anything**
-- **Files**: CSV, Excel, Parquet, JSON. Drag & drop.
-- **SQL**: Directly tap into Postgres/MySQL. We speak database.
-- **API**: Fetch JSONs from the web. We global. 🌐
+### 🔌 **Plug & Play I/O (New!)**
+- **Dynamic Loaders**: File, SQL, API? Just pick from the dropdown. The form adapts.
+- **Smart Plugins**: Want to add S3 support? Just drop a plugin in the backend. The UI auto-generates.
+- **Source Agnostic**: We don't care where your data lives. We fetch it.
 
 ### 🧪 **Transformation Rizz**
+- **Tool Palette**: No more scrolling. Steps are organized in Tabs (Columns | Rows | Combine).
+- **One-Click Actions**: Select "Filter", Click Add. Boom.
 - **Dedupe**: Yeet the duplicates instantly.
-- **Filter**: Banish the bad rows. Ghost them. 👻
 - **Joins**: Merge datasets like it's a collab. (Left, Inner, Cross, Anti).
 - **Window Funcs**: Rolling averages, ranks, lag/lead. Big brain analytics. 🧠
 
@@ -55,8 +60,8 @@ We got the toolkit to handle your toxic data.
 - **Standardize NULLs**: Turn those weird "NA", "null", "-" into actual NULLs.
 
 ### 🏭 **Production Ready**
-- **Recipe Mode**: Build a pipeline of steps. Replay it anytime.
-- **Threaded Export**: Exports happen in the background. Keep working while it saves.
+- **Recipe Mode**: Build a pipeline of steps. Save as JSON. Replay it anytime.
+- **Async Export**: Exports happen in the background with a fancy spinner. Keep working while it saves.
 - **SQL Export**: Push clean data straight to your Data Warehouse. Current mood: ELT.
 
 ---
@@ -101,18 +106,19 @@ streamlit run app.py
 
 ## 👨‍🍳 Let Him Cook (Usage Guide)
 
-1. **Load Data**:
-   - Drag & drop a CSV.
-   - Or paste a SQL URI like a hacker. `postgresql://user:pass@localhost:5432/db`
-2. **Build the Recipe**:
-   - Click **➕ Filter** to banish bad rows.
-   - Click **➕ Join** to link up with other datasets.
-   - Click **➕ Clean/Cast** to fix types.
-3. **Check the Vibes**:
-   - Look at the "Live Preview". Changes happen instantly (Lazy execution ftw).
-4. **Secure the Bag (Export)**:
-   - Export to SQL to save it for production.
-   - Or dump to Parquet for that sweet compression.
+1.  **Select Source**:
+    - Pick "File" or "SQL" from the new **Data Source Dropdown**.
+    - Fill the form (Path/Connection String) and hit Load.
+2.  **Build the Recipe**:
+    - Go to the **Pipeline** section.
+    - Switch tabs: **Columns** for renaming, **Rows** for filtering.
+    - Pick a tool and click **Add Step**.
+3.  **Check the Vibes**:
+    - Look at the "Live Preview". Changes happen instantly.
+4.  **Secure the Bag (Export)**:
+    - Choose your format (Parquet/CSV/SQL).
+    - Watch the **spinner** do its thing.
+    - Done.
 
 ---
 
