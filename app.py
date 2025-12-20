@@ -10,10 +10,13 @@ from src.backend.engine import PyQueryEngine
 # ==========================================
 # 0. ENGINE INITIALIZATION
 # ==========================================
+
+
 @st.cache_resource
-def get_engine():
+def get_engine() -> PyQueryEngine:
     # Backend auto-registers its own logic
     return PyQueryEngine()
+
 
 # Initialize Engine in Session State (Reference)
 st.session_state.engine = get_engine()
@@ -45,14 +48,14 @@ active_dataset_name = st.session_state.active_base_dataset
 
 if active_dataset_name:
     st.caption(f"Active Dataset: **{active_dataset_name}**")
-    
+
     t1, t2 = st.tabs(["Recipe & Preview", "Profiling"])
-    
+
     with t1:
         # Pass NAME, not LF
         render_recipe_editor(active_dataset_name)
         render_export_section(active_dataset_name)
-        
+
     with t2:
         render_profile_tab(active_dataset_name)
 

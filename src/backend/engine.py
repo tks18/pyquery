@@ -1,17 +1,32 @@
-from typing import Callable, Any, Dict, List, Optional
+from typing import Callable, Any, Dict, List, Optional, Union, Type
 import polars as pl
 import threading
 import uuid
 import time
 import os
+from pydantic import BaseModel
 
 # Import Utils
 from src.backend.utils.io import get_files_from_path, load_lazy_frame, load_from_sql, load_from_api, export_worker
 from src.backend.io_plugins.standard import ALL_LOADERS, ALL_EXPORTERS
+from src.core.models import RecipeStep, StepMetadata, JobInfo, PluginDef, TransformContext
+from src.core.registry import StepRegistry, StepDefinition
 
-# Import Transforms
+# Import Params (still needed for registration)
+from src.core.params import (
+    SelectColsParams, DropColsParams, RenameColParams, KeepColsParams, AddColParams, CleanCastParams,
+    FilterRowsParams, SortRowsParams, DeduplicateParams, SampleParams,
+    JoinDatasetParams, AggregateParams, WindowFuncParams, ReshapeParams,
+    FillNullsParams, RegexExtractParams, TimeBinParams, RollingAggParams, NumericBinParams,
+    StringCaseParams, StringReplaceParams, MathOpParams, DateExtractParams,
+    DropNullsParams, TextSliceParams, TextLengthParams,
+    CumulativeParams, RankParams, DiffParams,
+    MathSciParams, ClipParams, DateOffsetParams, DateDiffParams
+)
+
+# Import Transforms (Backend Logic)
 from src.backend.transforms.columns import (
-    select_cols_func, drop_cols_func, rename_col_func, 
+    select_cols_func, drop_cols_func, rename_col_func,
     keep_cols_func, add_col_func, clean_cast_func
 )
 from src.backend.transforms.rows import (
@@ -20,70 +35,151 @@ from src.backend.transforms.rows import (
 from src.backend.transforms.combine import (
     join_dataset_func, aggregate_func, window_func_func, reshape_func
 )
+from src.backend.transforms.cleaning import (
+    fill_nulls_func, regex_extract_func, string_case_func, string_replace_func,
+    drop_nulls_func, text_slice_func, text_length_func
+)
+from src.backend.transforms.analytics import (
+    time_bin_func, rolling_agg_func, numeric_bin_func, math_op_func, date_extract_func,
+    cumulative_func, rank_func, diff_func
+)
+from src.backend.transforms.scientific import (
+    math_sci_func, clip_func, date_offset_func, date_diff_func
+)
 
-class TransformDefinition:
-    def __init__(
-        self, 
-        step_type: str, 
-        func: Callable[[Any, Dict[str, Any]], Any],
-        metadata: Dict[str, Any] = None
-    ):
-        self.step_type = step_type
-        self.func = func
-        self.metadata = metadata or {}
+# Import Frontend Renderers (For Registration)
+from src.frontend.steps.columns import (
+    render_select_cols, render_drop_cols, render_rename_col,
+    render_keep_cols, render_add_col, render_clean_cast
+)
+from src.frontend.steps.rows import (
+    render_filter_rows, render_sort_rows, render_deduplicate, render_sample
+)
+from src.frontend.steps.combine import (
+    render_join_dataset, render_aggregate, render_window_func, render_reshape
+)
+from src.frontend.steps.cleaning import (
+    render_fill_nulls, render_regex_extract, render_string_case, render_string_replace,
+    render_drop_nulls, render_text_slice, render_text_length
+)
+from src.frontend.steps.analytics import (
+    render_time_bin, render_rolling_agg, render_numeric_bin, render_math_op, render_date_extract,
+    render_cumulative, render_rank, render_diff
+)
+from src.frontend.steps.scientific import (
+    render_math_sci, render_clip, render_date_offset, render_date_diff
+)
+
 
 class PyQueryEngine:
     def __init__(self):
-        self._transforms: Dict[str, TransformDefinition] = {}
-        self._datasets: Dict[str, pl.LazyFrame] = {}  # In-memory storage of base datasets
-        self._jobs: Dict[str, Dict[str, Any]] = {}
-        
-        # IO Plugins
-        self._loaders: Dict[str, Any] = {}
-        self._exporters: Dict[str, Any] = {}
-        
-        self._register_defaults()
+        self._datasets: Dict[str, pl.LazyFrame] = {}  # In-memory storage
+        self._jobs: Dict[str, JobInfo] = {}
 
-    def _register_defaults(self):
-        # Transfroms
+        # IO Plugins
+        self._loaders: Dict[str, PluginDef] = {}
+        self._exporters: Dict[str, PluginDef] = {}
+
+        self._init_registry()
+        self._register_io_defaults()
+
+    def _init_registry(self):
+        # Bootstrap the StepRegistry
+        if StepRegistry.get_supported_steps():
+            return
+
+        R = StepRegistry
+
         # Columns
-        self.register_transform("select_cols", select_cols_func, {"label": "Select Columns", "group": "Columns"})
-        self.register_transform("drop_cols", drop_cols_func, {"label": "Drop Columns", "group": "Columns"})
-        self.register_transform("rename_col", rename_col_func, {"label": "Rename Column", "group": "Columns"})
-        self.register_transform("keep_cols", keep_cols_func, {"label": "Keep Specific (Finalize)", "group": "Columns"})
-        self.register_transform("add_col", add_col_func, {"label": "Add New Column", "group": "Columns"})
-        self.register_transform("clean_cast", clean_cast_func, {"label": "Clean / Cast Types", "group": "Columns"})
-        
+        R.register("select_cols", StepMetadata(label="Select Columns",
+                   group="Columns"), SelectColsParams, select_cols_func, render_select_cols)
+        R.register("drop_cols", StepMetadata(label="Drop Columns",
+                   group="Columns"), DropColsParams, drop_cols_func, render_drop_cols)
+        R.register("rename_col", StepMetadata(label="Rename Column",
+                   group="Columns"), RenameColParams, rename_col_func, render_rename_col)
+        R.register("keep_cols", StepMetadata(label="Keep Specific (Finalize)",
+                   group="Columns"), KeepColsParams, keep_cols_func, render_keep_cols)
+        R.register("add_col", StepMetadata(label="Add New Column",
+                   group="Columns"), AddColParams, add_col_func, render_add_col)
+        R.register("clean_cast", StepMetadata(label="Clean / Cast Types",
+                   group="Columns"), CleanCastParams, clean_cast_func, render_clean_cast)
+
         # Rows
-        self.register_transform("filter_rows", filter_rows_func, {"label": "Filter Rows", "group": "Rows"})
-        self.register_transform("sort_rows", sort_rows_func, {"label": "Sort Rows", "group": "Rows"})
-        self.register_transform("deduplicate", deduplicate_func, {"label": "Deduplicate", "group": "Rows"})
-        self.register_transform("sample", sample_func, {"label": "Sample Data", "group": "Rows"})
-        
+        R.register("filter_rows", StepMetadata(label="Filter Rows", group="Rows"),
+                   FilterRowsParams, filter_rows_func, render_filter_rows)
+        R.register("sort_rows", StepMetadata(label="Sort Rows", group="Rows"),
+                   SortRowsParams, sort_rows_func, render_sort_rows)
+        R.register("deduplicate", StepMetadata(label="Deduplicate", group="Rows"),
+                   DeduplicateParams, deduplicate_func, render_deduplicate)
+        R.register("sample", StepMetadata(label="Sample Data",
+                   group="Rows"), SampleParams, sample_func, render_sample)
+
         # Combine
-        self.register_transform("join_dataset", join_dataset_func, {"label": "Join Dataset", "group": "Combine"})
-        self.register_transform("aggregate", aggregate_func, {"label": "Group By (Aggregate)", "group": "Combine"})
-        self.register_transform("window_func", window_func_func, {"label": "Window Function", "group": "Combine"})
-        self.register_transform("reshape", reshape_func, {"label": "Reshape (Pivot/Melt)", "group": "Combine"})
+        R.register("join_dataset", StepMetadata(label="Join Dataset", group="Combine"),
+                   JoinDatasetParams, join_dataset_func, render_join_dataset)
+        R.register("aggregate", StepMetadata(label="Group By (Aggregate)",
+                   group="Combine"), AggregateParams, aggregate_func, render_aggregate)
+        R.register("window_func", StepMetadata(label="Window Function",
+                   group="Combine"), WindowFuncParams, window_func_func, render_window_func)
+        R.register("reshape", StepMetadata(label="Reshape (Pivot/Melt)",
+                   group="Combine"), ReshapeParams, reshape_func, render_reshape)
 
-        # IO Plugins
+        # Clean
+        R.register("fill_nulls", StepMetadata(label="Fill NULLs", group="Clean"),
+                   FillNullsParams, fill_nulls_func, render_fill_nulls)
+        R.register("drop_nulls", StepMetadata(label="Drop NULL Rows",
+                   group="Clean"), DropNullsParams, drop_nulls_func, render_drop_nulls)
+        R.register("regex_extract", StepMetadata(label="Regex Extract", group="Clean"),
+                   RegexExtractParams, regex_extract_func, render_regex_extract)
+        R.register("text_slice", StepMetadata(label="Text Slice (Substring)",
+                   group="Clean"), TextSliceParams, text_slice_func, render_text_slice)
+        R.register("text_length", StepMetadata(label="Text Length", group="Clean"),
+                   TextLengthParams, text_length_func, render_text_length)
+        R.register("string_case", StepMetadata(label="String Case/Trim",
+                   group="Clean"), StringCaseParams, string_case_func, render_string_case)
+        R.register("string_replace", StepMetadata(label="String Replace", group="Clean"),
+                   StringReplaceParams, string_replace_func, render_string_replace)
+
+        # Analytics
+        R.register("time_bin", StepMetadata(label="Time Truncate (Bin)",
+                   group="Analytics"), TimeBinParams, time_bin_func, render_time_bin)
+        R.register("rolling_agg", StepMetadata(label="Rolling Aggregate",
+                   group="Analytics"), RollingAggParams, rolling_agg_func, render_rolling_agg)
+        R.register("numeric_bin", StepMetadata(label="Numeric Binning",
+                   group="Analytics"), NumericBinParams, numeric_bin_func, render_numeric_bin)
+        R.register("cumulative", StepMetadata(label="Cumulative (Running)",
+                   group="Analytics"), CumulativeParams, cumulative_func, render_cumulative)
+        R.register("rank", StepMetadata(label="Ranking",
+                   group="Analytics"), RankParams, rank_func, render_rank)
+        R.register("diff", StepMetadata(label="Pct Change / Diff",
+                   group="Analytics"), DiffParams, diff_func, render_diff)
+
+        # Math & Date
+        R.register("math_op", StepMetadata(label="Math Operation",
+                   group="Math & Date"), MathOpParams, math_op_func, render_math_op)
+        R.register("math_sci", StepMetadata(label="Scientific Math",
+                   group="Math & Date"), MathSciParams, math_sci_func, render_math_sci)
+        R.register("clip", StepMetadata(label="Clip / Clamp Values",
+                   group="Math & Date"), ClipParams, clip_func, render_clip)
+
+        R.register("date_extract", StepMetadata(label="Date Extraction", group="Math & Date"),
+                   DateExtractParams, date_extract_func, render_date_extract)
+        R.register("date_offset", StepMetadata(label="Date Offset (Add/Sub)",
+                   group="Math & Date"), DateOffsetParams, date_offset_func, render_date_offset)
+        R.register("date_diff", StepMetadata(label="Date Duration (Diff)",
+                   group="Math & Date"), DateDiffParams, date_diff_func, render_date_diff)
+
+    def _register_io_defaults(self):
         for l in ALL_LOADERS:
-            self._loaders[l['name']] = l
+            self._loaders[l.name] = l
         for e in ALL_EXPORTERS:
-            self._exporters[e['name']] = e
-
-    def register_transform(self, step_type: str, func: Callable, metadata: Dict = None):
-        self._transforms[step_type] = TransformDefinition(step_type, func, metadata)
-
-    def get_step_metadata(self, step_type: str) -> Dict[str, Any]:
-        t = self._transforms.get(step_type)
-        return t.metadata if t else {}
+            self._exporters[e.name] = e
 
     def get_supported_steps(self) -> List[str]:
-        return list(self._transforms.keys())
+        return StepRegistry.get_supported_steps()
 
     # ==========================
-    # DATASET MANAGEMENT (CRUD)
+    # DATASET MANAGEMENT
     # ==========================
     def add_dataset(self, name: str, lf: pl.LazyFrame):
         self._datasets[name] = lf
@@ -97,47 +193,93 @@ class PyQueryEngine:
 
     def get_dataset_names(self) -> List[str]:
         return list(self._datasets.keys())
-        
-    def get_dataset_schema(self, name: str) -> Dict[str, Any]: # Simplified Schema
+
+    def get_dataset_schema(self, name: str) -> Optional[pl.Schema]:
         lf = self.get_dataset(name)
-        if lf is None: return {}
+        if lf is None:
+            return None
         try:
-             # Lazy schema
-             return lf.collect_schema()
+            return lf.collect_schema()
         except:
-             return {}
+            return None
+
+    def get_transformed_schema(self, name: str, recipe: List[Union[dict, RecipeStep]]) -> Optional[pl.Schema]:
+        base_lf = self.get_dataset(name)
+        if base_lf is None:
+            return None
+        try:
+            # Re-use apply_recipe logic
+            transformed_lf = self.apply_recipe(base_lf, recipe)
+            return transformed_lf.collect_schema()
+        except:
+            return None
 
     # ==========================
-    # EXPORT JOBS & I/O
+    # EXPORT JOBS
     # ==========================
-    
-    def get_loaders(self) -> List[Dict]:
+    def get_loaders(self) -> List[PluginDef]:
         return list(self._loaders.values())
-        
-    def get_exporters(self) -> List[Dict]:
+
+    def get_exporters(self) -> List[PluginDef]:
         return list(self._exporters.values())
 
-    def run_loader(self, loader_name: str, params: Dict[str, Any]) -> Optional[pl.LazyFrame]:
+    def run_loader(self, loader_name: str, params: Union[Dict[str, Any], BaseModel]) -> Optional[pl.LazyFrame]:
         loader = self._loaders.get(loader_name)
-        if not loader: return None
-        return loader['func'](params)
+        if not loader:
+            return None
 
-    def start_export_job(self, dataset_name: str, recipe: List[dict], exporter_name: str, params: Dict[str, Any]) -> str:
+        # Guard against missing function
+        if not loader.func:
+            return None
+
+        try:
+            if loader.params_model:
+                if isinstance(params, BaseModel):
+                    validated_params = params
+                else:
+                    validated_params = loader.params_model.model_validate(
+                        params)
+                return loader.func(validated_params)
+            else:
+                return loader.func(params)
+        except Exception as e:
+            print(f"Loader Error: {e}")
+            return None
+
+    def start_export_job(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]], exporter_name: str, params: Union[Dict[str, Any], BaseModel]) -> str:
         job_id = str(uuid.uuid4())
-        
-        # Get exporter definition
         exporter = self._exporters.get(exporter_name)
         if not exporter:
-             raise ValueError(f"Unknown exporter: {exporter_name}")
-             
-        self._jobs[job_id] = {
-            "status": "RUNNING",
-            "start_time": time.time(),
-            "file": params.get('path', 'unknown'),
-            "type": "export"
-        }
-        
-        t = threading.Thread(target=self._internal_export_worker, args=(job_id, dataset_name, recipe, exporter_name, params))
+            raise ValueError(f"Unknown exporter: {exporter_name}")
+
+        if not exporter.func:
+            raise ValueError(f"Exporter {exporter_name} has no function")
+
+        validated_params = params
+        if exporter.params_model:
+            try:
+                if not isinstance(params, BaseModel):
+                    validated_params = exporter.params_model.model_validate(
+                        params)
+            except Exception as e:
+                raise ValueError(f"Invalid export configuration: {e}")
+
+        # Safe Path extraction
+        path = "unknown"
+        if hasattr(validated_params, 'path'):
+            path = getattr(validated_params, 'path')
+        elif isinstance(params, dict):
+            path = params.get('path', 'unknown')
+
+        job_info = JobInfo(
+            job_id=job_id,
+            status="RUNNING",
+            file=path
+        )
+        self._jobs[job_id] = job_info
+
+        t = threading.Thread(target=self._internal_export_worker, args=(
+            job_id, dataset_name, recipe, exporter_name, validated_params))
         t.start()
         return job_id
 
@@ -146,103 +288,122 @@ class PyQueryEngine:
             base_lf = self.get_dataset(dataset_name)
             if base_lf is None:
                 raise ValueError("Dataset not found")
-            
-            final_lf = self.apply_recipe(base_lf, recipe)
-            
-            # Use Exporter Plugin
-            exporter = self._exporters.get(exporter_name)
-            res = exporter['func'](final_lf, params)
-            
-            if res.get('status') != "Done":
-                raise RuntimeError(res.get('status'))
-            
-            # success
-            info = self._jobs[job_id]
-            info["end_time"] = time.time()
-            info["duration"] = info["end_time"] - info["start_time"]
-            info["status"] = "COMPLETED"
-            
-            # Get file size logic (depends on path param existing)
-            path = params.get('path')
-            if path:
-                try:
-                    size_bytes = os.path.getsize(path)
-                    # Convert to readable
-                    for unit in ['B', 'KB', 'MB', 'GB']:
-                        if size_bytes < 1024.0:
-                            break
-                        size_bytes /= 1024.0
-                    info["size_str"] = f"{size_bytes:.2f} {unit}"
-                except:
-                    info["size_str"] = "Unknown"
-            else:
-                info["size_str"] = "N/A"
-                
-        except Exception as e:
-            self._jobs[job_id]["status"] = "FAILED"
-            self._jobs[job_id]["error"] = str(e)
 
-    def get_job_status(self, job_id: str) -> Dict[str, Any]:
-        return self._jobs.get(job_id, {"status": "UNKNOWN"})
+            final_lf = self.apply_recipe(base_lf, recipe)
+
+            exporter = self._exporters.get(exporter_name)
+            if exporter and exporter.func:
+                exporter.func(final_lf, params)
+
+            info = self._jobs[job_id]
+            info.status = "COMPLETED"
+
+            # Size check
+            path = None
+            if hasattr(params, 'path'):
+                path = getattr(params, 'path')
+            elif isinstance(params, dict):
+                path = params.get('path')
+
+            if path and os.path.exists(path):
+                size_bytes = os.path.getsize(path)
+                info.size_str = f"{size_bytes / 1024 / 1024:.2f} MB"
+
+        except Exception as e:
+            if job_id in self._jobs:
+                self._jobs[job_id].status = "FAILED"
+                self._jobs[job_id].error = str(e)
+
+    def get_job_status(self, job_id: str) -> Optional[JobInfo]:
+        return self._jobs.get(job_id)
 
     # ==========================
     # TRANSFORMATION ENGINE
     # ==========================
-    def apply_step(self, lf: pl.LazyFrame, step_type: str, params: dict, context: dict = None) -> pl.LazyFrame:
-        t_def = self._transforms.get(step_type)
-        if not t_def:
+    def apply_step(self, lf: pl.LazyFrame, step: RecipeStep, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+        step_type = step.type
+        definition = StepRegistry.get(step_type)
+        if not definition:
             raise ValueError(f"Unknown step type: {step_type}")
-        
-        # Inject datasets context if not provided, so join_dataset can work
-        if context is None:
-            context = {'datasets': self._datasets}
-        else:
-            if 'datasets' not in context:
-                context['datasets'] = self._datasets
 
         try:
-             return t_def.func(lf, params, context=context)
-        except TypeError:
-             return t_def.func(lf, params)
+            if isinstance(step.params, BaseModel):
+                validated_params = step.params
+            else:
+                validated_params = definition.params_model.model_validate(
+                    step.params)
+        except Exception as e:
+            raise ValueError(f"Parameters invalid for step {step_type}: {e}")
 
-    def apply_recipe(self, lf: pl.LazyFrame, recipe: List[dict]) -> pl.LazyFrame:
+        if context is None:
+            context = TransformContext(datasets=self._datasets)
+
+        return definition.backend_func(lf, validated_params, context)
+
+    def apply_recipe(self, lf: pl.LazyFrame, recipe: List[Union[dict, RecipeStep]]) -> pl.LazyFrame:
         current_lf = lf
-        context = {'datasets': self._datasets}
+        context = TransformContext(datasets=self._datasets)
+
         for step in recipe:
-            current_lf = self.apply_step(current_lf, step['type'], step['params'], context=context)
+            if isinstance(step, dict):
+                if 'type' not in step:
+                    continue
+                step_obj = RecipeStep(**step)
+            else:
+                step_obj = step
+
+            current_lf = self.apply_step(current_lf, step_obj, context=context)
+
         return current_lf
 
-    # ==========================
-    # PREVIEW & PROFILING
-    # ==========================
-    def get_preview(self, dataset_name: str, recipe: List[dict], limit: int = 50) -> Optional[pl.DataFrame]:
+    def get_preview(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]], limit: int = 50) -> Optional[pl.DataFrame]:
         base_lf = self.get_dataset(dataset_name)
-        if base_lf is None: return None
-        
-        transformed_lf = self.apply_recipe(base_lf, recipe)
-        try:
-            return transformed_lf.limit(limit).collect()
-        except Exception as e:
-            raise e
+        if base_lf is None:
+            return None
 
-    def get_profile(self, dataset_name: str, recipe: List[dict]) -> Optional[Dict[str, Any]]:
-        base_lf = self.get_dataset(dataset_name)
-        if base_lf is None: return None
-        
+        # No try/catch wrapper here - let errors propagate to UI
         transformed_lf = self.apply_recipe(base_lf, recipe)
+        return transformed_lf.limit(limit).collect()
+
+    def get_profile(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]]) -> Optional[Dict[str, Any]]:
+        """
+        Generates a statistical profile of the dataset after applying the recipe.
+        """
+        base_lf = self.get_dataset(dataset_name)
+        if base_lf is None:
+            return None
+
         try:
-            # Collect sample for profiling (limit 5000 for better stats than 1000, still fast)
-            df = transformed_lf.limit(5000).collect()
-            
-            # Null counts per column
-            null_counts = df.null_count().row(0, named=True)
-            
+            lf = self.apply_recipe(base_lf, recipe)
+
+            # 1. Collect Schema/Shape
+            schema = lf.collect_schema()
+            # To get row count
+            # Let's verify on 10k rows for interactivity.
+
+            sample_df = lf.limit(10000).collect()
+
+            # 2. Stats
+            # shape
+            rows, cols = sample_df.shape
+
+            # nulls
+            null_counts = {c: sample_df[c].null_count()
+                           for c in sample_df.columns}
+
+            # dtypes logic
+            dtypes = {c: str(sample_df[c].dtype) for c in sample_df.columns}
+
+            # summary (describe)
+            summary = sample_df.describe().to_pandas()  # Easier for Streamlit
+
             return {
-                "summary": df.describe(),
-                "dtypes": {col: str(dtype) for col, dtype in df.schema.items()},
+                "sample": sample_df,
+                "shape": (rows, cols),
                 "nulls": null_counts,
-                "shape": df.shape,
-                "sample": df # Return small sample for visualization
+                "dtypes": dtypes,
+                "summary": summary
             }
+
         except Exception as e:
             return {"error": str(e)}

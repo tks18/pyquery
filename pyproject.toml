@@ -1,6 +1,6 @@
 [project]
 name = "pyquery"
-version = "0.4.0"
+version = "0.5.0"
 description = "PyQuery is a low-code ETL app that actually slaps"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -10,6 +10,7 @@ dependencies = [
     "output>=1.0.1",
     "polars>=1.36.1",
     "pyarrow>=22.0.0",
+    "pydantic>=2.12.5",
     "requests>=2.32.5",
     "sqlalchemy>=2.0.45",
     "streamlit>=1.52.1",

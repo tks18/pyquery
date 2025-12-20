@@ -1,8 +1,11 @@
 import polars as pl
+from typing import Type
 import datetime
 
-def robust_numeric_cleaner(col_name, dtype=pl.Float64):
+
+def robust_numeric_cleaner(col_name: str, dtype: Type[pl.DataType] = pl.Float64):
     return (pl.col(col_name).str.strip_chars().str.replace_all(",", "").str.replace_all(r"[^\d\.\-]", "").cast(dtype, strict=False))
+
 
 def robust_date_parser(col_name):
     c = pl.col(col_name).str.strip_chars()
@@ -15,6 +18,7 @@ def robust_date_parser(col_name):
         c.str.to_date("%d-%b-%Y", strict=False),
     ])
 
+
 def robust_datetime_parser(col_name):
     c = pl.col(col_name).str.strip_chars()
     return pl.coalesce([
@@ -25,6 +29,7 @@ def robust_datetime_parser(col_name):
         c.str.to_datetime("%d-%m-%Y %H:%M:%S", strict=False),
     ])
 
+
 def robust_time_parser(col_name):
     c = pl.col(col_name).str.strip_chars()
     return pl.coalesce([
@@ -34,12 +39,15 @@ def robust_time_parser(col_name):
         c.str.to_time("%I:%M:%S %p", strict=False)
     ])
 
+
 def robust_excel_date_parser(col_name):
     # 1899-12-30 epoch
     return (pl.datetime(1899, 12, 30) + pl.duration(days=pl.col(col_name).str.strip_chars().cast(pl.Float64, strict=False))).cast(pl.Date)
 
+
 def robust_excel_datetime_parser(col_name):
     return (pl.datetime(1899, 12, 30) + pl.duration(days=pl.col(col_name).str.strip_chars().cast(pl.Float64, strict=False)))
+
 
 def robust_excel_time_parser(col_name):
     return (pl.datetime(1899, 12, 30) + pl.duration(days=pl.col(col_name).str.strip_chars().cast(pl.Float64, strict=False))).dt.time()
