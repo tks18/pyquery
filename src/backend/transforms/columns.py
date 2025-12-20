@@ -1,56 +1,57 @@
 import polars as pl
+from typing import Dict, Any, List, Optional
+from src.core.models import TransformContext
+from src.core.params import (
+    SelectColsParams, DropColsParams, RenameColParams, KeepColsParams, AddColParams, CleanCastParams
+)
 from src.backend.utils.parsing import (
-    robust_numeric_cleaner, robust_date_parser, robust_datetime_parser, 
-    robust_time_parser, robust_excel_date_parser, robust_excel_datetime_parser, 
+    robust_numeric_cleaner, robust_date_parser, robust_datetime_parser,
+    robust_time_parser, robust_excel_date_parser, robust_excel_datetime_parser,
     robust_excel_time_parser
 )
 
-def select_cols_func(lf: pl.LazyFrame, params: dict) -> pl.LazyFrame:
-    cols = params.get('cols', [])
-    if cols:
-        return lf.select(cols)
+
+def select_cols_func(lf: pl.LazyFrame, params: SelectColsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if params.cols:
+        return lf.select(params.cols)
     return lf
 
-def drop_cols_func(lf: pl.LazyFrame, params: dict) -> pl.LazyFrame:
-    cols = params.get('cols', [])
-    if cols:
-        return lf.drop(cols)
+
+def drop_cols_func(lf: pl.LazyFrame, params: DropColsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if params.cols:
+        return lf.drop(params.cols)
     return lf
 
-def rename_col_func(lf: pl.LazyFrame, params: dict) -> pl.LazyFrame:
-    old = params.get('old')
-    new = params.get('new')
-    if old and new:
-        return lf.rename({old: new})
+
+def rename_col_func(lf: pl.LazyFrame, params: RenameColParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if params.old and params.new:
+        return lf.rename({params.old: params.new})
     return lf
 
-def keep_cols_func(lf: pl.LazyFrame, params: dict) -> pl.LazyFrame:
-    cols = params.get('cols', [])
-    if cols:
-        return lf.select(cols)
+
+def keep_cols_func(lf: pl.LazyFrame, params: KeepColsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if params.cols:
+        return lf.select(params.cols)
     return lf
 
-def add_col_func(lf: pl.LazyFrame, params: dict) -> pl.LazyFrame:
-    name = params.get('name')
-    expr_str = params.get('expr')
-    if name and expr_str:
-        try:
-            computed_expr = eval(expr_str)
-            return lf.with_columns(computed_expr.alias(name))
-        except Exception:
-            pass
+
+def add_col_func(lf: pl.LazyFrame, params: AddColParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if params.name and params.expr:
+        # Allow errors to propagate so UI shows them
+        computed_expr = eval(params.expr)
+        return lf.with_columns(computed_expr.alias(params.name))
     return lf
 
-def clean_cast_func(lf: pl.LazyFrame, params: dict) -> pl.LazyFrame:
-    changes = params.get('changes', [])
-    if not changes:
+
+def clean_cast_func(lf: pl.LazyFrame, params: CleanCastParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if not params.changes:
         return lf
-    
+
     exprs = []
-    for change in changes:
-        t_col = change['col']
-        act = change['action']
-        
+    for change in params.changes:
+        t_col = change.col
+        act = change.action
+
         if act == "To String":
             exprs.append(pl.col(t_col).cast(pl.Utf8))
         elif act == "To Int":
@@ -89,7 +90,7 @@ def clean_cast_func(lf: pl.LazyFrame, params: dict) -> pl.LazyFrame:
             exprs.append(robust_excel_datetime_parser(t_col))
         elif act == "Fix Excel Serial Time":
             exprs.append(robust_excel_time_parser(t_col))
-            
+
     if exprs:
         return lf.with_columns(exprs)
     return lf
