@@ -1,5 +1,6 @@
 import polars as pl
 
+
 def build_filter_expr(col_name, op, val_str, schema):
     if op == "is_null":
         return pl.col(col_name).is_null()
