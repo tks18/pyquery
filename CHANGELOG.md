@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.0.0](https://github.com/tks18/pyquery/compare/v0.5.0...v1.0.0) (2025-12-21)
+
+
+### Code Refactoring 🖌
+
+* **app:** completely refactor all files from src/* to src/pyquery ([50fe1a0](https://github.com/tks18/pyquery/commit/50fe1a06f54a0db3cf94f294d9e1e312007c801a))
+
+
+### Features 🔥
+
+* **api:** write a new fastapi backend that will act as a headless RESTfull API ([bb7107a](https://github.com/tks18/pyquery/commit/bb7107ad6960917d25b4c942a9679c60a670a11c))
+* **app/types:** completely decouple backend and frontend to be truly flexible ([16c1c1b](https://github.com/tks18/pyquery/commit/16c1c1b155a7ef8104f8b2602744d8f986b332c8))
+* **app:** run the main cli entry point ([8dd20c4](https://github.com/tks18/pyquery/commit/8dd20c45e7b56e3257f07a26b5e094703f47bae0))
+* **backend:** decouple IO as well from the frontend ([4aebc2b](https://github.com/tks18/pyquery/commit/4aebc2bae0834ae96c0983bb24d21735da7ab8ad))
+* **cli:** finally orchestrate everything with the cli module so that app can be packaged ([8644930](https://github.com/tks18/pyquery/commit/8644930a417fb8886f0165aaf077d1039fe9f6d0))
+* **frontend:** fix some default spacing & styles for the streamlit UI ([ade17f9](https://github.com/tks18/pyquery/commit/ade17f93dd0ffc6b35108d703d5366b7faa2bc46))
+
+
+### Docs 📃
+
+* **readme:** update the readme to add the new features ([b0ea3ef](https://github.com/tks18/pyquery/commit/b0ea3ef6bd94fee10a9a665edf5fc097d331b008))
+
+
+### Build System 🏗
+
+* add fastapi, connectorx and other metadata for the build ([e555dd1](https://github.com/tks18/pyquery/commit/e555dd1477a7bca30626467bada6dc7ac1c85ed6))
+* add manifest file ([d96d9f1](https://github.com/tks18/pyquery/commit/d96d9f1e75b9666556efcac8bbb229b1708eb01d))
+
+
+### Others 🔧
+
+* **stable:** stable app update: v1.0.0 ([a54ff22](https://github.com/tks18/pyquery/commit/a54ff226d13dfbf0f88e527d59ef146c221daad8))
+
 ## [0.5.0](https://github.com/tks18/pyquery/compare/v0.4.0...v0.5.0) (2025-12-20)
 
 
