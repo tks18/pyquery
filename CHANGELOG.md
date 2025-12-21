@@ -2,55 +2,88 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## [0.5.0](https://github.com/tks18/pyquery/compare/v0.4.0...v0.5.0) (2025-12-20)
-
-
-### Build System 🏗
-
-* **packages:** add pydantic for robust type system for the app ([300c395](https://github.com/tks18/pyquery/commit/300c39517feade8ec543e0d76068d29e14134d9c))
-
+## [1.1.0](https://github.com/tks18/pyquery/compare/v1.0.0...v1.1.0) (2025-12-21)
 
 ### Code Refactoring 🖌
 
-* **backend/helpers:** refactor it to type the module in a robust way ([8345793](https://github.com/tks18/pyquery/commit/83457932792b40398ec349414ab37913dfb0088e))
-* **backend/t'forms:** update the column transforms to use the new typing ([21ec6fc](https://github.com/tks18/pyquery/commit/21ec6fcd160a6388ad4acb35f030b2f7f57a59b4))
-* **backend/t'forms:** update the row transforms to use the new typing ([8ead3a4](https://github.com/tks18/pyquery/commit/8ead3a4f95645b0dadef6d295a488cebb4157c32))
-* **frontend/components:** reflect the recent changes ([86793a6](https://github.com/tks18/pyquery/commit/86793a6033d9554b35e42e38d22a302afa3ef8dc))
-* **frontend/components:** update the sidebar to reflect the recent type changes ([39fb966](https://github.com/tks18/pyquery/commit/39fb9667c1a450d81a6a92e2b3c025cddbd1555e))
-* **frontend/utils:** refactor the dynamic_ui to support the new typing ([700debd](https://github.com/tks18/pyquery/commit/700debdf23764e74ca5b7360762bafec8af7fed0))
-
-
-### Features 🔥
-
-* **backend/engine:** rewrite the entire engine from scratch ([bdbe234](https://github.com/tks18/pyquery/commit/bdbe23417c1cc04ffed15d61a5e4c9390a4079f4))
-* **backend/io:** rewrite the io helper from scratch so that we load the data faster ([bb56d9e](https://github.com/tks18/pyquery/commit/bb56d9e4b22a15ef68f973227ffc008f92b5801c))
-* **backend/io:** use the updated types for loading and support more types using the helpers ([8b44425](https://github.com/tks18/pyquery/commit/8b44425388adc641307e4fc750429153f89ef025))
-* **backend/t'forms:** add a new analytics transform functions ([68549d2](https://github.com/tks18/pyquery/commit/68549d2f9573bb4bbd48add619687f8e9655328e))
-* **backend/t'forms:** add a new cleaning transform functions ([815f436](https://github.com/tks18/pyquery/commit/815f436d7b0e15161982b9cef88f4db9400c66fd))
-* **backend/t'forms:** add new scientific and data transform library ([9ee95fa](https://github.com/tks18/pyquery/commit/9ee95fa8f538db7a33a3d340f054534b1d3dc8b4))
-* **backend/t'forms:** rewrite the combine from scratch to be more type proof and error prone ([a0f0a92](https://github.com/tks18/pyquery/commit/a0f0a92175dedce267654fbd1a1ff5ada568cf03))
-* **frontend/components:** add a new metadata for the user which shows the file size of the export ([fe4844f](https://github.com/tks18/pyquery/commit/fe4844fd8fcbef3320f4549e1b35523e7584a8a0))
-* **frontend/components:** rewrite the recipe_editor completely to reflect the recent changes ([8745b65](https://github.com/tks18/pyquery/commit/8745b652e1321b60589f159344069d06569fa767))
-* **frontend/state:** rewrite the state_manager completely to reflect the recent changes ([e963d40](https://github.com/tks18/pyquery/commit/e963d40837d9de4943f3505b0a1a480bd35f6884))
-* **frontend/steps:** write all the renderers for the different transform modules ([1ee16b0](https://github.com/tks18/pyquery/commit/1ee16b0f89367769bc4b8be0f04cc8b513518e94))
-* **frontend:** create a new renderer function that will dynamically display the step related params ([57c5b7b](https://github.com/tks18/pyquery/commit/57c5b7b21ad8a633484782304a4d9aa72cdecec4))
-* **types:** write a registry type for the transformations registrations and management ([7d74143](https://github.com/tks18/pyquery/commit/7d741438246dbeb5d297a5b7bcb4f9d8e39e95a8))
-* **types:** write all core models required by the backend engine ([b6435d7](https://github.com/tks18/pyquery/commit/b6435d7c75a4fbb981d895525c3113544ccfd114))
-* **types:** write all the io types required for input and export types ([9d5719f](https://github.com/tks18/pyquery/commit/9d5719fb979eada121a1a9ded38bb8e1a4b8c9a5))
-* **types:** write all the types required for each transform step ([79d7e1f](https://github.com/tks18/pyquery/commit/79d7e1fe1eaefa677c3730bfd40f03abc4407c54))
-
-
-### Docs 📃
-
-* **readme:** update the readme to reflect the recent major changes ([9c4a093](https://github.com/tks18/pyquery/commit/9c4a093aacedaedacad713ab44d70a6e0118e677))
-
+- minor hiccup in the module name since its already taken in pypi ([8d226d1](https://github.com/tks18/pyquery/commit/8d226d1f004edc7285dada8097db167777c8b1d9))
 
 ### Others 🔧
 
-* chore [space] change ([02bbfcf](https://github.com/tks18/pyquery/commit/02bbfcf217091ad2aa4639d9346bc2b4e568b268))
-* chore [space] change ([08d15d4](https://github.com/tks18/pyquery/commit/08d15d4664180aa1b34d24f6c73eb188a6bee261))
-* chore changes ([3f40216](https://github.com/tks18/pyquery/commit/3f40216cacff2ccffe2d56e5f536181ceee8c5d3))
-* **pyversion:** update the app version to v0.5.0 ([ddbf62f](https://github.com/tks18/pyquery/commit/ddbf62fb38f439c29cfc59640b018306f6a48888))
+- update pyversion to v1.0.1 ([1170969](https://github.com/tks18/pyquery/commit/1170969d653978b8e1fc6108c71812b13cb19059))
+
+## [1.0.0](https://github.com/tks18/pyquery/compare/v0.5.0...v1.0.0) (2025-12-21)
+
+### Code Refactoring 🖌
+
+- **app:** completely refactor all files from src/\* to src/pyquery ([50fe1a0](https://github.com/tks18/pyquery/commit/50fe1a06f54a0db3cf94f294d9e1e312007c801a))
+
+### Features 🔥
+
+- **api:** write a new fastapi backend that will act as a headless RESTfull API ([bb7107a](https://github.com/tks18/pyquery/commit/bb7107ad6960917d25b4c942a9679c60a670a11c))
+- **app/types:** completely decouple backend and frontend to be truly flexible ([16c1c1b](https://github.com/tks18/pyquery/commit/16c1c1b155a7ef8104f8b2602744d8f986b332c8))
+- **app:** run the main cli entry point ([8dd20c4](https://github.com/tks18/pyquery/commit/8dd20c45e7b56e3257f07a26b5e094703f47bae0))
+- **backend:** decouple IO as well from the frontend ([4aebc2b](https://github.com/tks18/pyquery/commit/4aebc2bae0834ae96c0983bb24d21735da7ab8ad))
+- **cli:** finally orchestrate everything with the cli module so that app can be packaged ([8644930](https://github.com/tks18/pyquery/commit/8644930a417fb8886f0165aaf077d1039fe9f6d0))
+- **frontend:** fix some default spacing & styles for the streamlit UI ([ade17f9](https://github.com/tks18/pyquery/commit/ade17f93dd0ffc6b35108d703d5366b7faa2bc46))
+
+### Docs 📃
+
+- **readme:** update the readme to add the new features ([b0ea3ef](https://github.com/tks18/pyquery/commit/b0ea3ef6bd94fee10a9a665edf5fc097d331b008))
+
+### Build System 🏗
+
+- add fastapi, connectorx and other metadata for the build ([e555dd1](https://github.com/tks18/pyquery/commit/e555dd1477a7bca30626467bada6dc7ac1c85ed6))
+- add manifest file ([d96d9f1](https://github.com/tks18/pyquery/commit/d96d9f1e75b9666556efcac8bbb229b1708eb01d))
+
+### Others 🔧
+
+- **stable:** stable app update: v1.0.0 ([a54ff22](https://github.com/tks18/pyquery/commit/a54ff226d13dfbf0f88e527d59ef146c221daad8))
+
+## [0.5.0](https://github.com/tks18/pyquery/compare/v0.4.0...v0.5.0) (2025-12-20)
+
+### Build System 🏗
+
+- **packages:** add pydantic for robust type system for the app ([300c395](https://github.com/tks18/pyquery/commit/300c39517feade8ec543e0d76068d29e14134d9c))
+
+### Code Refactoring 🖌
+
+- **backend/helpers:** refactor it to type the module in a robust way ([8345793](https://github.com/tks18/pyquery/commit/83457932792b40398ec349414ab37913dfb0088e))
+- **backend/t'forms:** update the column transforms to use the new typing ([21ec6fc](https://github.com/tks18/pyquery/commit/21ec6fcd160a6388ad4acb35f030b2f7f57a59b4))
+- **backend/t'forms:** update the row transforms to use the new typing ([8ead3a4](https://github.com/tks18/pyquery/commit/8ead3a4f95645b0dadef6d295a488cebb4157c32))
+- **frontend/components:** reflect the recent changes ([86793a6](https://github.com/tks18/pyquery/commit/86793a6033d9554b35e42e38d22a302afa3ef8dc))
+- **frontend/components:** update the sidebar to reflect the recent type changes ([39fb966](https://github.com/tks18/pyquery/commit/39fb9667c1a450d81a6a92e2b3c025cddbd1555e))
+- **frontend/utils:** refactor the dynamic_ui to support the new typing ([700debd](https://github.com/tks18/pyquery/commit/700debdf23764e74ca5b7360762bafec8af7fed0))
+
+### Features 🔥
+
+- **backend/engine:** rewrite the entire engine from scratch ([bdbe234](https://github.com/tks18/pyquery/commit/bdbe23417c1cc04ffed15d61a5e4c9390a4079f4))
+- **backend/io:** rewrite the io helper from scratch so that we load the data faster ([bb56d9e](https://github.com/tks18/pyquery/commit/bb56d9e4b22a15ef68f973227ffc008f92b5801c))
+- **backend/io:** use the updated types for loading and support more types using the helpers ([8b44425](https://github.com/tks18/pyquery/commit/8b44425388adc641307e4fc750429153f89ef025))
+- **backend/t'forms:** add a new analytics transform functions ([68549d2](https://github.com/tks18/pyquery/commit/68549d2f9573bb4bbd48add619687f8e9655328e))
+- **backend/t'forms:** add a new cleaning transform functions ([815f436](https://github.com/tks18/pyquery/commit/815f436d7b0e15161982b9cef88f4db9400c66fd))
+- **backend/t'forms:** add new scientific and data transform library ([9ee95fa](https://github.com/tks18/pyquery/commit/9ee95fa8f538db7a33a3d340f054534b1d3dc8b4))
+- **backend/t'forms:** rewrite the combine from scratch to be more type proof and error prone ([a0f0a92](https://github.com/tks18/pyquery/commit/a0f0a92175dedce267654fbd1a1ff5ada568cf03))
+- **frontend/components:** add a new metadata for the user which shows the file size of the export ([fe4844f](https://github.com/tks18/pyquery/commit/fe4844fd8fcbef3320f4549e1b35523e7584a8a0))
+- **frontend/components:** rewrite the recipe_editor completely to reflect the recent changes ([8745b65](https://github.com/tks18/pyquery/commit/8745b652e1321b60589f159344069d06569fa767))
+- **frontend/state:** rewrite the state_manager completely to reflect the recent changes ([e963d40](https://github.com/tks18/pyquery/commit/e963d40837d9de4943f3505b0a1a480bd35f6884))
+- **frontend/steps:** write all the renderers for the different transform modules ([1ee16b0](https://github.com/tks18/pyquery/commit/1ee16b0f89367769bc4b8be0f04cc8b513518e94))
+- **frontend:** create a new renderer function that will dynamically display the step related params ([57c5b7b](https://github.com/tks18/pyquery/commit/57c5b7b21ad8a633484782304a4d9aa72cdecec4))
+- **types:** write a registry type for the transformations registrations and management ([7d74143](https://github.com/tks18/pyquery/commit/7d741438246dbeb5d297a5b7bcb4f9d8e39e95a8))
+- **types:** write all core models required by the backend engine ([b6435d7](https://github.com/tks18/pyquery/commit/b6435d7c75a4fbb981d895525c3113544ccfd114))
+- **types:** write all the io types required for input and export types ([9d5719f](https://github.com/tks18/pyquery/commit/9d5719fb979eada121a1a9ded38bb8e1a4b8c9a5))
+- **types:** write all the types required for each transform step ([79d7e1f](https://github.com/tks18/pyquery/commit/79d7e1fe1eaefa677c3730bfd40f03abc4407c54))
+
+### Docs 📃
+
+- **readme:** update the readme to reflect the recent major changes ([9c4a093](https://github.com/tks18/pyquery/commit/9c4a093aacedaedacad713ab44d70a6e0118e677))
+
+### Others 🔧
+
+- chore [space] change ([02bbfcf](https://github.com/tks18/pyquery/commit/02bbfcf217091ad2aa4639d9346bc2b4e568b268))
+- chore [space] change ([08d15d4](https://github.com/tks18/pyquery/commit/08d15d4664180aa1b34d24f6c73eb188a6bee261))
+- chore changes ([3f40216](https://github.com/tks18/pyquery/commit/3f40216cacff2ccffe2d56e5f536181ceee8c5d3))
+- **pyversion:** update the app version to v0.5.0 ([ddbf62f](https://github.com/tks18/pyquery/commit/ddbf62fb38f439c29cfc59640b018306f6a48888))
 
 ## [0.4.0](https://github.com/tks18/pyquery/compare/v0.3.0...v0.4.0) (2025-12-19)
 
