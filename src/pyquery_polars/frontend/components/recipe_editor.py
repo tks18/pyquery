@@ -66,6 +66,22 @@ def render_recipe_editor(dataset_name):
                     st.session_state.all_recipes[active_ds] = st.session_state.recipe_steps
                 st.rerun()
 
+        # --- PROAGATE SCHEMA FOR NEXT STEP ---
+        # We simulate the step on a dummy Frame to get output schema
+        if current_schema:
+            try:
+                # 1. Create Dummy LF with current schema
+                schema_dict = dict(current_schema)
+                dummy_lf = pl.LazyFrame([], schema=schema_dict)
+
+                # 2. Apply Step (Engine handles Dict -> Pydantic conversion)
+                next_lf = engine.apply_step(dummy_lf, step)
+
+                # 3. Get New Schema
+                current_schema = next_lf.collect_schema()
+            except Exception as e:
+                pass
+
     st.divider()
     st.subheader("📊 Live Preview (Top 50)")
 
