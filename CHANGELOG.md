@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/tks18/pyquery/compare/v1.0.0...v1.1.0) (2025-12-21)
+
+
+### Code Refactoring 🖌
+
+* minor hiccup in the module name since its already taken in pypi ([8d226d1](https://github.com/tks18/pyquery/commit/8d226d1f004edc7285dada8097db167777c8b1d9))
+
+
+### Others 🔧
+
+* update pyversion to v1.0.1 ([1170969](https://github.com/tks18/pyquery/commit/1170969d653978b8e1fc6108c71812b13cb19059))
+
 ## [1.0.0](https://github.com/tks18/pyquery/compare/v0.5.0...v1.0.0) (2025-12-21)
 
 
