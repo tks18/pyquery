@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.1](https://github.com/tks18/pyquery/compare/v1.1.0...v1.1.1) (2025-12-21)
+
+
+### Docs 📃
+
+* **readme:** update readme.md ([f12e47b](https://github.com/tks18/pyquery/commit/f12e47be6f3163211f5b854e08bab5d8974175e9))
+
+
+### Bug Fixes 🛠
+
+* fix the directory which made the project duplicate itself when building ([cb4c3e1](https://github.com/tks18/pyquery/commit/cb4c3e16a1fae12f5dff3915cb01d42db62afdb9))
+* **frontend/recipe:** possible bug fix that didnt update the schema after each step ([e2dba0b](https://github.com/tks18/pyquery/commit/e2dba0b86ede5ca364b65149f3052ff05469acd2))
+
+
+### Others 🔧
+
+* update app version to v1.1.1 ([99c429d](https://github.com/tks18/pyquery/commit/99c429d410d173c33a708ed2cdf00c6ffe96468f))
+* update version & changelog ([41c8541](https://github.com/tks18/pyquery/commit/41c85415202ad75492caeadaa9be28ae43761fb7))
+
 ## [1.1.0](https://github.com/tks18/pyquery/compare/v1.0.0...v1.1.0) (2025-12-21)
 
 ### Code Refactoring 🖌
