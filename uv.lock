@@ -1444,7 +1444,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pyquery"
+name = "pyquery-polars"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
