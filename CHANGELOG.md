@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/tks18/pyquery/compare/v1.1.1...v1.2.0) (2025-12-22)
+
+
+### Bug Fixes 🛠
+
+* **app/cli:** fix wrong path for api making the api not start now fixed ([1324628](https://github.com/tks18/pyquery/commit/1324628977fff1f3467619a0a7ec3a128bb1d255))
+* **backend/engine:** fix the duration of export not being sent to frontend ([be83939](https://github.com/tks18/pyquery/commit/be83939363a1d3577736c68d45e0c8969c5fd32d))
+* **backend/engine:** fix the preview to create sample before applying any steps ([2b90007](https://github.com/tks18/pyquery/commit/2b900074fe6c584fe12365dd8b165c191c66a8ac))
+* **backend/utils:** optimize all the robust parsers to utlize less compute ([808e19f](https://github.com/tks18/pyquery/commit/808e19f71ba8a4a6d823285e62859d9cd4d5da20))
+* **frontend:** fix the duration not being shown when starting export ([44f59cd](https://github.com/tks18/pyquery/commit/44f59cd7e145373faf461ee2641c410324dd009a))
+
+
+### Features 🔥
+
+* **transforms:** add a function to concat / append another dataset ([a1d776f](https://github.com/tks18/pyquery/commit/a1d776ffeacaa6cd5a5af86caa44dcdbf1f03e26))
+* **transforms:** add more advanced row operations - slice, drop, outliers ([ee8ce20](https://github.com/tks18/pyquery/commit/ee8ce20ed80ac16ff8cf2bdd3319130d8d75da7a))
+* **transforms:** add more text cleaning functions - advanved regex, padd, etc ([761de3f](https://github.com/tks18/pyquery/commit/761de3f503b5e0b694589b84bfd4caa7c95e29c2))
+* **transforms:** add new analytics -> skew & zscore ([ed744fa](https://github.com/tks18/pyquery/commit/ed744faf2d6302dba5180269d451851978bad5a1))
+* **transforms:** add params for all the new functions ([bd5c2be](https://github.com/tks18/pyquery/commit/bd5c2be41c7597e57f326ae2f6588fc049943f09))
+* **transforms:** allow more scientific math operations ([30f1a18](https://github.com/tks18/pyquery/commit/30f1a186f3ad9c59a2269b9b4db91b8fa3663d41))
+* **transforms:** cast type: allow user to input the format types for date/time/datetime ([29a2a16](https://github.com/tks18/pyquery/commit/29a2a16ea395180804e3b6fc197801d1f1171448))
+* **transforms:** register all the new functions in the backend & frontend ([02a72ea](https://github.com/tks18/pyquery/commit/02a72ea22cf3bc65ab8ab3c2b52147d09fbdd837))
+* **transforms:** write advanced column functions such as promote headers, split col, etc, etc ([07efb06](https://github.com/tks18/pyquery/commit/07efb06157b6cf305f90c364677449aacc1f76a2))
+
+
+### Others 🔧
+
+* **pyversion:** update app to version 1.2.0 ([2194f7f](https://github.com/tks18/pyquery/commit/2194f7f43c9f5ff1cab417b188d4a8bc8bd2ac10))
+
 ### [1.1.1](https://github.com/tks18/pyquery/compare/v1.1.0...v1.1.1) (2025-12-21)
 
 
