@@ -3,7 +3,7 @@ from typing import Optional, Any
 from pyquery_polars.core.models import TransformContext
 from pyquery_polars.core.params import (
     TimeBinParams, RollingAggParams, NumericBinParams, MathOpParams, DateExtractParams,
-    CumulativeParams, RankParams, DiffParams
+    CumulativeParams, RankParams, DiffParams, ZScoreParams, SkewKurtParams
 )
 
 
@@ -109,10 +109,43 @@ def rank_func(lf: pl.LazyFrame, params: RankParams, context=None) -> pl.LazyFram
 def diff_func(lf: pl.LazyFrame, params: DiffParams, context=None) -> pl.LazyFrame:
     new_name = params.alias if params.alias else f"{params.col}_{params.method}"
     if params.method == "pct_change":
-        return lf.with_columns(
-            pl.col(params.col).pct_change(n=params.n).alias(new_name)
-        )
+        return lf.with_columns(pl.col(params.col).pct_change(n=params.n).alias(new_name))
     else:
-        return lf.with_columns(
-            pl.col(params.col).diff(n=params.n).alias(new_name)
-        )
+        return lf.with_columns(pl.col(params.col).diff(n=params.n).alias(new_name))
+
+
+def z_score_func(lf: pl.LazyFrame, params: ZScoreParams, context=None) -> pl.LazyFrame:
+    # (x - mean) / std
+    # Supports 'over' if params.by is set
+    
+    col = pl.col(params.col)
+    
+    if params.by:
+        mean_expr = col.mean().over(params.by)
+        std_expr = col.std().over(params.by)
+    else:
+        mean_expr = col.mean()
+        std_expr = col.std()
+        
+    expr = (col - mean_expr) / std_expr
+    
+    new_name = params.alias if params.alias else f"{params.col}_zscore"
+    return lf.with_columns(expr.alias(new_name))
+
+
+def skew_kurt_func(lf: pl.LazyFrame, params: SkewKurtParams, context=None) -> pl.LazyFrame:
+    # These are aggregations if used globally, or window functions if used with over (but here we treat as col transform?
+    # Actually skew/kurtosis usually return a scalar for the whole series.
+    # To keep dimensionality, we can project it to all rows (like mean() does in window context)
+    # OR we assume this might be used in a group context?
+    # Given typical "Column Transform" usage, users might expect a single value repeated, or this operation might be better suited for "Aggregate" step.
+    # HOWEVER, Polars supports `skew` and `kurtosis` in `select/with_columns` context which effectively broadcasts.
+    
+    col = pl.col(params.col)
+    if params.measure == "skew":
+        expr = col.skew()
+    else:
+        expr = col.kurtosis()
+        
+    new_name = params.alias if params.alias else f"{params.col}_{params.measure}"
+    return lf.with_columns(expr.alias(new_name))

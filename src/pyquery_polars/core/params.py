@@ -228,3 +228,15 @@ class DateDiffParams(BaseModel):
     unit: Literal["days", "hours", "minutes",
                   "seconds", "milliseconds"] = "days"
     alias: str = ""
+class ZScoreParams(BaseModel):
+    col: str = ""
+    by: List[str] = Field(default_factory=list)
+    alias: str = ""
+
+
+class SkewKurtParams(BaseModel):
+    col: str = ""
+    measure: Literal["skew", "kurtosis"] = "skew"
+    alias: str = ""
+
+
