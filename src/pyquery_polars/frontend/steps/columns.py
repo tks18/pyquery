@@ -116,17 +116,22 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
         "To Int", "To Int (Robust)",
         "To Float", "To Float (Robust)",
         "To Boolean",
-        "To Date", "To Date (Robust)",
-        "To Datetime", "To Datetime (Robust)",
-        "To Time", "To Time (Robust)",
+        "To Date", "To Date (Robust)", "To Date (Format)",
+        "To Datetime", "To Datetime (Robust)", "To Datetime (Format)",
+        "To Time", "To Time (Robust)", "To Time (Format)",
         "To Duration",
         "Trim Whitespace", "Standardize NULLs",
         "Fix Excel Serial Date", "Fix Excel Serial Datetime", "Fix Excel Serial Time"
     ], key=f"cc_a_{step_id}")
 
+    custom_fmt = None
+    if action and "(Format)" in action:
+        custom_fmt = st.text_input("Format String (e.g. %d/%m/%Y)", key=f"cc_f_{step_id}")
+
     def _add_cc_cb():
         t_cols = st.session_state.get(f"cc_c_{step_id}")
         act = st.session_state.get(f"cc_a_{step_id}")
+        fmt = st.session_state.get(f"cc_f_{step_id}")
 
         if t_cols and act:
             from pyquery_polars.frontend.state_manager import get_active_recipe, update_step_params
@@ -139,7 +144,7 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
                     p = CleanCastParams()
 
                 for col in t_cols:
-                    p.changes.append(CastChange(col=col, action=act))
+                    p.changes.append(CastChange(col=col, action=act, fmt=fmt if fmt else None))
 
                 update_step_params(step_id, p.model_dump())
 

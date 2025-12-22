@@ -66,6 +66,12 @@ def clean_cast_func(lf: pl.LazyFrame, params: CleanCastParams, context: Optional
             exprs.append(pl.col(t_col).cast(pl.Datetime, strict=False))
         elif act == "To Time":
             exprs.append(pl.col(t_col).cast(pl.Time, strict=False))
+elif act == "To Date (Format)":
+            exprs.append(pl.col(t_col).str.to_date(format=change.fmt, strict=False))
+        elif act == "To Datetime (Format)":
+            exprs.append(pl.col(t_col).str.to_datetime(format=change.fmt, strict=False))
+        elif act == "To Time (Format)":
+            exprs.append(pl.col(t_col).str.to_time(format=change.fmt, strict=False))
         elif act == "To Duration":
             exprs.append(pl.col(t_col).cast(pl.Duration, strict=False))
         elif act == "To Int (Robust)":

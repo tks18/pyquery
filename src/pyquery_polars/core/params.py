@@ -19,6 +19,7 @@ class AggDef(BaseModel):
 class CastChange(BaseModel):
     col: str
     action: str
+fmt: Optional[str] = None
 
 # --- EXISTING LEGACY PARAMS (Restored) ---
 
