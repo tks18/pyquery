@@ -284,6 +284,7 @@ class PyQueryEngine:
         return job_id
 
     def _internal_export_worker(self, job_id, dataset_name, recipe, exporter_name, params):
+        start_time = time.time()
         try:
             base_lf = self.get_dataset(dataset_name)
             if base_lf is None:
@@ -295,7 +296,11 @@ class PyQueryEngine:
             if exporter and exporter.func:
                 exporter.func(final_lf, params)
 
+            end_time = time.time()
+            duration = end_time - start_time
+
             info = self._jobs[job_id]
+            info.duration = duration
             info.status = "COMPLETED"
 
             # Size check
@@ -311,6 +316,7 @@ class PyQueryEngine:
 
         except Exception as e:
             if job_id in self._jobs:
+                self._jobs[job_id].duration = time.time() - start_time
                 self._jobs[job_id].status = "FAILED"
                 self._jobs[job_id].error = str(e)
 
