@@ -361,9 +361,14 @@ class PyQueryEngine:
         if base_lf is None:
             return None
 
+# OPTIMIZATION: Sample logic
+        # Apply limit BEFORE transformations for performance
+        # This means sorts/aggs are only on the sample, which is the requested trade-off.
+        sampled_lf = base_lf.limit(limit)
+
         # No try/catch wrapper here - let errors propagate to UI
-        transformed_lf = self.apply_recipe(base_lf, recipe)
-        return transformed_lf.limit(limit).collect()
+        transformed_lf = self.apply_recipe(sampled_lf, recipe)
+        return transformed_lf.collect()
 
     def get_profile(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]]) -> Optional[Dict[str, Any]]:
         """
