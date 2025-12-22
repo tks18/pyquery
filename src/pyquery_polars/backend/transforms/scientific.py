@@ -24,6 +24,25 @@ def math_sci_func(lf: pl.LazyFrame, params: MathSciParams, context=None) -> pl.L
         res = col_expr.pow(params.arg)
     elif params.op == "mod":
         res = col_expr % params.arg
+    # Trig
+    elif params.op == "sin":
+        res = col_expr.sin()
+    elif params.op == "cos":
+        res = col_expr.cos()
+    elif params.op == "tan":
+        res = col_expr.tan()
+    elif params.op == "arcsin":
+        res = col_expr.arcsin()
+    elif params.op == "arccos":
+        res = col_expr.arccos()
+    elif params.op == "arctan":
+        res = col_expr.arctan()
+    elif params.op == "degrees":
+        res = col_expr.degrees()
+    elif params.op == "radians":
+        res = col_expr.radians()
+    elif params.op == "sign":
+        res = col_expr.sign()
     else:
         res = col_expr
 

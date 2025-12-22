@@ -204,7 +204,9 @@ class DiffParams(BaseModel):
 
 class MathSciParams(BaseModel):
     col: str = ""
-    op: Literal["log", "log10", "exp", "pow", "sqrt", "cbrt", "mod"] = "log"
+    op: Literal["log", "log10", "exp", "pow", "sqrt", "cbrt", "mod",
+                "sin", "cos", "tan", "arcsin", "arccos", "arctan",
+                "degrees", "radians", "sign"] = "log"
     arg: float = 2.0
 
 
