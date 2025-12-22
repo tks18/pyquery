@@ -57,10 +57,17 @@ def render_export_section(dataset_name):  # Takes name
 
                 # Polling UI
                 status_placeholder = st.empty()
+                import time
+                start_ts = time.time()
 
-                with st.spinner("Exporting in background..."):
-                    import time
+                with st.spinner(f"Exporting..."):
                     while True:
+                        # Timer Update
+                        elapsed = time.time() - start_ts
+                        status_placeholder.info(
+                            f"⏳ Exporting in background... ({elapsed:.2f}s)")
+
+                        # Status Check
                         job_info = engine.get_job_status(job_id)
                         if not job_info:
                             time.sleep(0.5)
@@ -73,6 +80,10 @@ def render_export_section(dataset_name):  # Takes name
                         elif status == "COMPLETED":
                             # Safe access if fields exist (Pydantic model)
                             dur = getattr(job_info, 'duration', 0.0)
+                            # DEFENSIVE: If backend returns 0.0 (fast or race), use frontend elapsed
+                            if dur <= 0.001:
+                                dur = elapsed
+                                
                             size = getattr(job_info, 'size_str', "Unknown")
                             status_placeholder.success(
                                 f"✅ Export Complete! Time: {dur:.2f}s | Size: {size}")
