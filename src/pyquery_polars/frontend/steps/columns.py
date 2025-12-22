@@ -3,7 +3,9 @@ import polars as pl
 from typing import Optional
 from pyquery_polars.core.params import (
     CastChange, SelectColsParams, DropColsParams, RenameColParams,
-    KeepColsParams, AddColParams, CleanCastParams
+    KeepColsParams, AddColParams, CleanCastParams, PromoteHeaderParams,
+    SplitColParams, CombineColsParams, AddRowNumberParams,
+    ExplodeParams, CoalesceParams, OneHotEncodeParams
 )
 
 
@@ -116,17 +118,22 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
         "To Int", "To Int (Robust)",
         "To Float", "To Float (Robust)",
         "To Boolean",
-        "To Date", "To Date (Robust)",
-        "To Datetime", "To Datetime (Robust)",
-        "To Time", "To Time (Robust)",
+        "To Date", "To Date (Robust)", "To Date (Format)",
+        "To Datetime", "To Datetime (Robust)", "To Datetime (Format)",
+        "To Time", "To Time (Robust)", "To Time (Format)",
         "To Duration",
         "Trim Whitespace", "Standardize NULLs",
         "Fix Excel Serial Date", "Fix Excel Serial Datetime", "Fix Excel Serial Time"
     ], key=f"cc_a_{step_id}")
 
+    custom_fmt = None
+    if action and "(Format)" in action:
+        custom_fmt = st.text_input("Format String (e.g. %d/%m/%Y)", key=f"cc_f_{step_id}")
+
     def _add_cc_cb():
         t_cols = st.session_state.get(f"cc_c_{step_id}")
         act = st.session_state.get(f"cc_a_{step_id}")
+        fmt = st.session_state.get(f"cc_f_{step_id}")
 
         if t_cols and act:
             from pyquery_polars.frontend.state_manager import get_active_recipe, update_step_params
@@ -139,10 +146,102 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
                     p = CleanCastParams()
 
                 for col in t_cols:
-                    p.changes.append(CastChange(col=col, action=act))
+                    p.changes.append(CastChange(col=col, action=act, fmt=fmt if fmt else None))
 
                 update_step_params(step_id, p.model_dump())
 
     c3.button("Add", key=f"add_{step_id}", on_click=_add_cc_cb)
 
+    return params
+
+
+def render_promote_header(step_id: str, params: PromoteHeaderParams, schema: Optional[pl.Schema]) -> PromoteHeaderParams:
+    st.info("ℹ️ This step will take the **first row** of the dataset, use its values as column headers, and then remove that row.")
+    return params
+
+
+def render_split_col(step_id: str, params: SplitColParams, schema: Optional[pl.Schema]) -> SplitColParams:
+    current_cols = schema.names() if schema else []
+    
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+    
+    c1, c2, c3 = st.columns(3)
+    col = c1.selectbox("Column", current_cols, index=col_idx, key=f"sp_c_{step_id}")
+    pat = c2.text_input("Delimiter", value=params.pat, key=f"sp_p_{step_id}")
+    n = c3.number_input("Max Splits", min_value=1, value=params.n, key=f"sp_n_{step_id}")
+    
+    params.col = col
+    params.pat = pat
+    params.n = int(n)
+    return params
+
+
+def render_combine_cols(step_id: str, params: CombineColsParams, schema: Optional[pl.Schema]) -> CombineColsParams:
+    current_cols = schema.names() if schema else []
+    default_cols = [c for c in params.cols if c in current_cols]
+    
+    cols = st.multiselect("Columns", current_cols, default=default_cols, key=f"cb_c_{step_id}")
+    
+    c1, c2 = st.columns(2)
+    sep = c1.text_input("Separator", value=params.separator, key=f"cb_s_{step_id}")
+    name = c2.text_input("New Name", value=params.new_name, key=f"cb_n_{step_id}")
+    
+    params.cols = cols
+    params.separator = sep
+    params.new_name = name
+    return params
+
+
+def render_add_row_number(step_id: str, params: AddRowNumberParams, schema: Optional[pl.Schema]) -> AddRowNumberParams:
+    name = st.text_input("Index Column Name", value=params.name, key=f"rn_n_{step_id}")
+    params.name = name
+    return params
+
+
+def render_explode(step_id: str, params: ExplodeParams, schema: Optional[pl.Schema]) -> ExplodeParams:
+    current_cols = schema.names() if schema else []
+    
+    # Identify list columns if possible? Lazy schema might not show List type accurately without collection,
+    # but we can just show all cols.
+    
+    default_cols = [c for c in params.cols if c in current_cols]
+    cols = st.multiselect("Columns to Explode (List)", current_cols, default=default_cols, key=f"ex_c_{step_id}")
+    
+    params.cols = cols
+    return params
+
+
+def render_coalesce(step_id: str, params: CoalesceParams, schema: Optional[pl.Schema]) -> CoalesceParams:
+    current_cols = schema.names() if schema else []
+    default_cols = [c for c in params.cols if c in current_cols]
+    
+    st.caption("Select columns in priority order (first non-null value is taken).")
+    cols = st.multiselect("Columns", current_cols, default=default_cols, key=f"cl_c_{step_id}")
+    new_name = st.text_input("New Name", value=params.new_name, key=f"cl_n_{step_id}")
+    
+    params.cols = cols
+    params.new_name = new_name
+    return params
+
+
+def render_one_hot_encode(step_id: str, params: OneHotEncodeParams, schema: Optional[pl.Schema]) -> OneHotEncodeParams:
+    st.info("ℹ️ Converts categorical column into multiple binary columns (0/1). Uses unique values found in data.")
+    current_cols = schema.names() if schema else []
+    
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+        
+    c1, c2, c3 = st.columns(3)
+    col = c1.selectbox("Column", current_cols, index=col_idx, key=f"ohe_c_{step_id}")
+    
+    prefix = c2.text_input("Prefix (Optional)", value=params.prefix, placeholder=col, key=f"ohe_p_{step_id}")
+    
+    sep = c3.text_input("Separator", value=params.separator, key=f"ohe_s_{step_id}")
+    
+    params.col = col if col else ""
+    params.prefix = prefix
+    params.separator = sep
     return params

@@ -3,7 +3,7 @@ import polars as pl
 from typing import Optional
 from pyquery_polars.core.params import (
     TimeBinParams, RollingAggParams, NumericBinParams, MathOpParams, DateExtractParams,
-    CumulativeParams, RankParams, DiffParams
+    CumulativeParams, RankParams, DiffParams, ZScoreParams, SkewKurtParams
 )
 
 
@@ -172,4 +172,33 @@ def render_diff(step_id: str, params: DiffParams, schema: Optional[pl.Schema]) -
 
     params.alias = st.text_input(
         "New Alias", value=params.alias, key=f"df_a_{step_id}")
+    return params
+
+
+def render_z_score(step_id: str, params: ZScoreParams, schema: Optional[pl.Schema]) -> ZScoreParams:
+    current_cols = schema.names() if schema else []
+    
+    c1, c2 = st.columns(2)
+    # Col
+    idx = current_cols.index(params.col) if params.col in current_cols else 0
+    params.col = c1.selectbox("Target Column", current_cols, index=idx, key=f"zs_c_{step_id}")
+    
+    # By
+    params.by = c2.multiselect("Group By (Optional)", current_cols, default=params.by, key=f"zs_b_{step_id}")
+    
+    params.alias = st.text_input("New Alias (Optional)", value=params.alias, key=f"zs_a_{step_id}")
+    return params
+
+
+def render_skew_kurt(step_id: str, params: SkewKurtParams, schema: Optional[pl.Schema]) -> SkewKurtParams:
+    current_cols = schema.names() if schema else []
+    
+    c1, c2 = st.columns(2)
+    idx = current_cols.index(params.col) if params.col in current_cols else 0
+    params.col = c1.selectbox("Target Column", current_cols, index=idx, key=f"sk_c_{step_id}")
+    
+    params.measure = c2.selectbox("Measure", ["skew", "kurtosis"], 
+                                  index=0 if params.measure == "skew" else 1, key=f"sk_m_{step_id}")
+                                  
+    params.alias = st.text_input("New Alias (Optional)", value=params.alias, key=f"sk_a_{step_id}")
     return params

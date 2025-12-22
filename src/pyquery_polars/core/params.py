@@ -19,6 +19,7 @@ class AggDef(BaseModel):
 class CastChange(BaseModel):
     col: str
     action: str
+    fmt: Optional[str] = None
 
 # --- EXISTING LEGACY PARAMS (Restored) ---
 
@@ -203,7 +204,9 @@ class DiffParams(BaseModel):
 
 class MathSciParams(BaseModel):
     col: str = ""
-    op: Literal["log", "log10", "exp", "pow", "sqrt", "cbrt", "mod"] = "log"
+    op: Literal["log", "log10", "exp", "pow", "sqrt", "cbrt", "mod",
+                "sin", "cos", "tan", "arcsin", "arccos", "arctan",
+                "degrees", "radians", "sign"] = "log"
     arg: float = 2.0
 
 
@@ -225,3 +228,114 @@ class DateDiffParams(BaseModel):
     unit: Literal["days", "hours", "minutes",
                   "seconds", "milliseconds"] = "days"
     alias: str = ""
+
+
+class SliceRowsParams(BaseModel):
+    mode: Literal["Keep Top", "Keep Bottom", "Remove Top", "Remove Bottom"] = "Keep Top"
+    n: int = 10
+
+
+class PromoteHeaderParams(BaseModel):
+    pass
+
+class SplitColParams(BaseModel):
+    col: str = ""
+    pat: str = ","
+    n: int = 2
+
+
+class CombineColsParams(BaseModel):
+    cols: List[str] = Field(default_factory=list)
+    separator: str = " "
+    new_name: str = "combined_col"
+
+
+class AddRowNumberParams(BaseModel):
+    name: str = "row_nr"
+
+
+class ExplodeParams(BaseModel):
+    cols: List[str] = Field(default_factory=list)
+
+
+class CoalesceParams(BaseModel):
+    cols: List[str] = Field(default_factory=list)
+    new_name: str = "coalesced"
+
+
+# --- EXTENDED OPERATIONS PARAMS (Phase 3) ---
+
+class ZScoreParams(BaseModel):
+    col: str = ""
+    by: List[str] = Field(default_factory=list)
+    alias: str = ""
+
+
+class SkewKurtParams(BaseModel):
+    col: str = ""
+    measure: Literal["skew", "kurtosis"] = "skew"
+    alias: str = ""
+
+
+class StringPadParams(BaseModel):
+    col: str = ""
+    length: int = 10
+    fill_char: str = ""
+    side: Literal["left", "right", "center"] = "left"
+    alias: str = ""
+
+
+class TextExtractDelimParams(BaseModel):
+    col: str = ""
+    start_delim: str = ""
+    end_delim: str = ""
+    alias: str = ""
+
+
+class RegexToolParams(BaseModel):
+    col: str = ""
+    pattern: str = ""
+    action: Literal["replace_all", "replace_one", "extract", "count", "contains"] = "replace_all"
+    replacement: str = ""
+    alias: str = ""
+
+
+class RemoveOutliersParams(BaseModel):
+    col: str = ""
+    method: Literal["IQR"] = "IQR"
+    factor: float = 1.5
+    alias: str = ""
+
+
+class NormalizeSpacesParams(BaseModel):
+    col: str = ""
+    alias: str = ""
+
+
+class SmartExtractParams(BaseModel):
+    col: str = ""
+    type: Literal["email_user", "email_domain", "url_domain", "url_path", "ipv4"] = "email_domain"
+    alias: str = ""
+
+
+class OneHotEncodeParams(BaseModel):
+    col: str = ""
+    prefix: str = ""
+    separator: str = "_"
+
+
+class ConcatParams(BaseModel):
+    other_dataset: str = ""  # ID/Name of the other dataset
+
+
+class ShiftParams(BaseModel):
+    col: str = ""  # If empty, apply to all applicable? Or just single col. Let's support single for now or list.
+    periods: int = 1
+    fill_value: Optional[Union[float, int, str]] = None
+    alias: str = ""
+
+
+class DropEmptyRowsParams(BaseModel):
+    subset: List[str] = Field(default_factory=list)
+    how: Literal["any", "all"] = "any"
+    thresh: Optional[int] = None

@@ -1,7 +1,7 @@
 import streamlit as st
 import polars as pl
 from typing import Optional, cast, Literal
-from pyquery_polars.core.params import JoinDatasetParams, AggregateParams, WindowFuncParams, ReshapeParams, AggDef
+from pyquery_polars.core.params import JoinDatasetParams, AggregateParams, WindowFuncParams, ReshapeParams, AggDef, ConcatParams
 from pyquery_polars.frontend.state_manager import update_step_params, get_active_recipe
 
 
@@ -211,4 +211,23 @@ def render_reshape(step_id: str, params: ReshapeParams, schema: Optional[pl.Sche
         params.val = val_col if val_col else ""
         params.agg = agg
 
+    return params
+
+
+def render_concat_datasets(step_id: str, params: ConcatParams, schema: Optional[pl.Schema]) -> ConcatParams:
+    # Access datasets from Engine
+    engine = st.session_state.get('engine')
+    dataset_names = []
+    if engine:
+        dataset_names = list(engine._datasets.keys())
+        
+    st.info("ℹ️ Vertically stacks another dataset below this one (Union). Columns are matched by name.")
+    
+    default_idx = 0
+    if params.other_dataset in dataset_names:
+        default_idx = dataset_names.index(params.other_dataset)
+        
+    other = st.selectbox("Stack Dataset (Bottom)", dataset_names, index=default_idx, key=f"cn_d_{step_id}")
+    
+    params.other_dataset = other if other else ""
     return params

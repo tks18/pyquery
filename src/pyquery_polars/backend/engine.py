@@ -21,27 +21,39 @@ from pyquery_polars.core.params import (
     StringCaseParams, StringReplaceParams, MathOpParams, DateExtractParams,
     DropNullsParams, TextSliceParams, TextLengthParams,
     CumulativeParams, RankParams, DiffParams,
-    MathSciParams, ClipParams, DateOffsetParams, DateDiffParams
+    MathSciParams, ClipParams, DateOffsetParams, DateDiffParams,
+    SliceRowsParams, PromoteHeaderParams,
+    SplitColParams, CombineColsParams, AddRowNumberParams,
+    ExplodeParams, CoalesceParams,
+    ZScoreParams, SkewKurtParams, StringPadParams, ConcatParams,
+    ShiftParams, DropEmptyRowsParams,
+    TextExtractDelimParams, RegexToolParams,
+    RemoveOutliersParams, NormalizeSpacesParams, SmartExtractParams, OneHotEncodeParams
 )
 
 # Import Transforms (Backend Logic)
 from pyquery_polars.backend.transforms.columns import (
     select_cols_func, drop_cols_func, rename_col_func,
-    keep_cols_func, add_col_func, clean_cast_func
+    keep_cols_func, add_col_func, clean_cast_func, promote_header_func,
+    split_col_func, combine_cols_func, add_row_number_func,
+    explode_func, coalesce_func, one_hot_encode_func
 )
 from pyquery_polars.backend.transforms.rows import (
-    filter_rows_func, sort_rows_func, deduplicate_func, sample_func
+    filter_rows_func, sort_rows_func, deduplicate_func, sample_func, slice_rows_func,
+    shift_func, drop_empty_rows_func, remove_outliers_func
 )
 from pyquery_polars.backend.transforms.combine import (
-    join_dataset_func, aggregate_func, window_func_func, reshape_func
+    join_dataset_func, aggregate_func, window_func_func, reshape_func, concat_datasets_func
 )
 from pyquery_polars.backend.transforms.cleaning import (
     fill_nulls_func, regex_extract_func, string_case_func, string_replace_func,
-    drop_nulls_func, text_slice_func, text_length_func
+    drop_nulls_func, text_slice_func, text_length_func, string_pad_func,
+    text_extract_delim_func, regex_tool_func,
+    normalize_spaces_func, smart_extract_func
 )
 from pyquery_polars.backend.transforms.analytics import (
     time_bin_func, rolling_agg_func, numeric_bin_func, math_op_func, date_extract_func,
-    cumulative_func, rank_func, diff_func
+    cumulative_func, rank_func, diff_func, z_score_func, skew_kurt_func
 )
 from pyquery_polars.backend.transforms.scientific import (
     math_sci_func, clip_func, date_offset_func, date_diff_func
@@ -103,6 +115,20 @@ class PyQueryEngine:
                    group="Columns"), AddColParams, add_col_func)
         R.register("clean_cast", StepMetadata(label="Clean / Cast Types",
                    group="Columns"), CleanCastParams, clean_cast_func)
+        R.register("promote_header", StepMetadata(label="First Row as Header", 
+                   group="Columns"), PromoteHeaderParams, promote_header_func)
+        R.register("split_col", StepMetadata(label="Split Column", 
+                   group="Columns"), SplitColParams, split_col_func)
+        R.register("combine_cols", StepMetadata(label="Combine Columns", 
+                   group="Columns"), CombineColsParams, combine_cols_func)
+        R.register("add_row_number", StepMetadata(label="Add Row Number", 
+                   group="Columns"), AddRowNumberParams, add_row_number_func)
+        R.register("explode", StepMetadata(label="Explode (Flatten List)", 
+                   group="Columns"), ExplodeParams, explode_func)
+        R.register("coalesce", StepMetadata(label="Coalesce (Fill Nulls)", 
+                   group="Columns"), CoalesceParams, coalesce_func)
+        R.register("one_hot_encode", StepMetadata(label="One-Hot Encode", 
+                   group="Columns"), OneHotEncodeParams, one_hot_encode_func)
 
         # Rows
         R.register("filter_rows", StepMetadata(label="Filter Rows", group="Rows"),
@@ -113,6 +139,10 @@ class PyQueryEngine:
                    DeduplicateParams, deduplicate_func)
         R.register("sample", StepMetadata(label="Sample Data",
                    group="Rows"), SampleParams, sample_func)
+        R.register("slice_rows", StepMetadata(label="Keep / Remove Rows (Slice)",
+                   group="Rows"), SliceRowsParams, slice_rows_func)
+        R.register("remove_outliers", StepMetadata(label="Remove Outliers (IQR)",
+                   group="Rows"), RemoveOutliersParams, remove_outliers_func)
 
         # Combine
         R.register("join_dataset", StepMetadata(label="Join Dataset", group="Combine"),
@@ -139,6 +169,15 @@ class PyQueryEngine:
                    group="Clean"), StringCaseParams, string_case_func)
         R.register("string_replace", StepMetadata(label="String Replace", group="Clean"),
                    StringReplaceParams, string_replace_func)
+
+        R.register("text_extract_delim", StepMetadata(label="Text Extract (Delimiter)",
+                   group="Clean"), TextExtractDelimParams, text_extract_delim_func)
+        R.register("regex_tool", StepMetadata(label="Advanced Regex Tool",
+                   group="Clean"), RegexToolParams, regex_tool_func)
+        R.register("normalize_spaces", StepMetadata(label="Normalize Whitespace",
+                   group="Clean"), NormalizeSpacesParams, normalize_spaces_func)
+        R.register("smart_extract", StepMetadata(label="Smart Extract (Email/URL)",
+                   group="Clean"), SmartExtractParams, smart_extract_func)
 
         # Analytics
         R.register("time_bin", StepMetadata(label="Time Truncate (Bin)",
@@ -168,6 +207,23 @@ class PyQueryEngine:
                    group="Math & Date"), DateOffsetParams, date_offset_func)
         R.register("date_diff", StepMetadata(label="Date Duration (Diff)",
                    group="Math & Date"), DateDiffParams, date_diff_func)
+
+        # Extended Operations (Phase 3)
+        R.register("z_score", StepMetadata(label="Z-Score (Standardize)",
+                   group="Analytics"), ZScoreParams, z_score_func)
+        R.register("skew_kurt", StepMetadata(label="Skew / Kurtosis",
+                   group="Analytics"), SkewKurtParams, skew_kurt_func)
+                   
+        R.register("string_pad", StepMetadata(label="String Pad",
+                   group="Clean"), StringPadParams, string_pad_func)
+                   
+        R.register("concat_datasets", StepMetadata(label="Concat Dataset (Vertical)",
+                   group="Combine"), ConcatParams, concat_datasets_func)
+                   
+        R.register("shift", StepMetadata(label="Shift (Lead/Lag)",
+                   group="Rows"), ShiftParams, shift_func)
+        R.register("drop_empty_rows", StepMetadata(label="Drop Empty Rows",
+                   group="Rows"), DropEmptyRowsParams, drop_empty_rows_func)
 
     def _register_io_defaults(self):
         for l in ALL_LOADERS:
@@ -284,6 +340,7 @@ class PyQueryEngine:
         return job_id
 
     def _internal_export_worker(self, job_id, dataset_name, recipe, exporter_name, params):
+        start_time = time.time()
         try:
             base_lf = self.get_dataset(dataset_name)
             if base_lf is None:
@@ -295,7 +352,11 @@ class PyQueryEngine:
             if exporter and exporter.func:
                 exporter.func(final_lf, params)
 
+            end_time = time.time()
+            duration = end_time - start_time
+
             info = self._jobs[job_id]
+            info.duration = duration
             info.status = "COMPLETED"
 
             # Size check
@@ -311,6 +372,7 @@ class PyQueryEngine:
 
         except Exception as e:
             if job_id in self._jobs:
+                self._jobs[job_id].duration = time.time() - start_time
                 self._jobs[job_id].status = "FAILED"
                 self._jobs[job_id].error = str(e)
 
@@ -361,9 +423,14 @@ class PyQueryEngine:
         if base_lf is None:
             return None
 
+        # OPTIMIZATION: Sample logic
+        # Apply limit BEFORE transformations for performance
+        # This means sorts/aggs are only on the sample, which is the requested trade-off.
+        sampled_lf = base_lf.limit(limit)
+
         # No try/catch wrapper here - let errors propagate to UI
-        transformed_lf = self.apply_recipe(base_lf, recipe)
-        return transformed_lf.limit(limit).collect()
+        transformed_lf = self.apply_recipe(sampled_lf, recipe)
+        return transformed_lf.collect()
 
     def get_profile(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]]) -> Optional[Dict[str, Any]]:
         """

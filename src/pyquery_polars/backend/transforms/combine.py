@@ -1,7 +1,7 @@
 import polars as pl
 from typing import Dict, Any, Optional
 from pyquery_polars.core.models import TransformContext
-from pyquery_polars.core.params import JoinDatasetParams, AggregateParams, WindowFuncParams, ReshapeParams
+from pyquery_polars.core.params import JoinDatasetParams, AggregateParams, WindowFuncParams, ReshapeParams, ConcatParams
 
 # Pure Backend Transform Logic
 # All state/datasets are passed via context
@@ -101,4 +101,19 @@ def reshape_func(lf: pl.LazyFrame, params: ReshapeParams, context: Optional[Tran
                     Any, agg_func)
             ).lazy()
 
+    return lf
+
+
+def concat_datasets_func(lf: pl.LazyFrame, params: ConcatParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if not params.other_dataset:
+        return lf
+        
+    datasets = context.datasets if context else {}
+    if params.other_dataset in datasets:
+        other_lf = datasets[params.other_dataset]
+        # Diagonal concat is safer for possibly misaligned schema, but vertical is standard stack
+        # If schemas differ, this might fail or error.
+        # Polars lazy concat:
+        return pl.concat([lf, other_lf], how="vertical")
+        
     return lf

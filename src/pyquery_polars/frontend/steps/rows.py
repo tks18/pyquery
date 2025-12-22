@@ -1,9 +1,11 @@
+import typing
 import streamlit as st
 import polars as pl
-from typing import Optional, cast, Literal
+from typing import Any, Optional, cast, Literal
 from pyquery_polars.core.params import (
     FilterCondition, FilterRowsParams, SortRowsParams,
-    DeduplicateParams, SampleParams
+    DeduplicateParams, SampleParams, SliceRowsParams,
+    ShiftParams, DropEmptyRowsParams, RemoveOutliersParams
 )
 
 
@@ -138,4 +140,92 @@ def render_sample(step_id: str, params: SampleParams, schema: Optional[pl.Schema
                               value=curr_val, key=f"sn_{step_id}")
 
     params.val = float(val)  # Model expects float
+    return params
+
+
+def render_slice_rows(step_id: str, params: "SliceRowsParams", schema: Optional[pl.Schema]) -> "SliceRowsParams":
+    # Params: mode, n
+    modes = ["Keep Top", "Keep Bottom", "Remove Top", "Remove Bottom"]
+    try:
+        idx = modes.index(params.mode)
+    except ValueError:
+        idx = 0
+
+    c1, c2 = st.columns(2)
+    mode = c1.selectbox("Operation", modes, index=idx, key=f"sl_m_{step_id}")
+    n = c2.number_input("N Rows", min_value=1, value=params.n,
+                        step=1, key=f"sl_n_{step_id}")
+
+    params.mode = typing.cast(Any, mode)
+    params.n = int(n)
+    return params
+
+
+def render_shift(step_id: str, params: ShiftParams, schema: Optional[pl.Schema]) -> ShiftParams:
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    c1, c2 = st.columns(2)
+    col = c1.selectbox("Column", current_cols,
+                       index=col_idx, key=f"sh_c_{step_id}")
+    periods = c2.number_input("Periods (Negative for Lead)",
+                              value=params.periods, step=1, key=f"sh_p_{step_id}")
+
+    fill_v = st.text_input("Fill Value (Optional)", value=str(
+        params.fill_value) if params.fill_value is not None else "", key=f"sh_f_{step_id}")
+
+    # Simple type parsing for fill value
+    final_fill = None
+    if fill_v:
+        try:
+            final_fill = float(fill_v)
+            if final_fill.is_integer():
+                final_fill = int(final_fill)
+        except:
+            final_fill = fill_v
+
+    params.col = col
+    params.periods = int(periods)
+    params.fill_value = final_fill
+    return params
+
+
+def render_drop_empty_rows(step_id: str, params: DropEmptyRowsParams, schema: Optional[pl.Schema]) -> DropEmptyRowsParams:
+    current_cols = schema.names() if schema else []
+
+    c1, c2 = st.columns([0.3, 0.7])
+    how = c1.selectbox("Mode", [
+                       "any", "all"], index=0 if params.how == "any" else 1, key=f"de_h_{step_id}")
+
+    default_sub = [c for c in params.subset if c in current_cols]
+    subset = st.multiselect("Subset Columns (Empty=Check All)",
+                            current_cols, default=default_sub, key=f"de_s_{step_id}")
+
+    params.how = typing.cast(Any, how)
+    params.subset = subset
+    return params
+
+
+def render_remove_outliers(step_id: str, params: RemoveOutliersParams, schema: Optional[pl.Schema]) -> RemoveOutliersParams:
+    c1, c2 = st.columns(2)
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = c1.selectbox("Numeric Column", current_cols,
+                       index=col_idx, key=f"ro_c_{step_id}")
+
+    factor = c2.number_input("IQR Factor (1.5 = Standard, 3.0 = Extreme)",
+                             value=params.factor, step=0.1, key=f"ro_f_{step_id}")
+
+    st.caption(
+        f"Removes rows where value is outside [Q1 - {factor}*IQR, Q3 + {factor}*IQR]")
+
+    params.col = col if col else ""
+    params.factor = float(factor)
     return params

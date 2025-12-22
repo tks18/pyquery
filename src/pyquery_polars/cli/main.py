@@ -55,7 +55,7 @@ def main():
     elif args.command == "api":
         print(f"🚀 Launching API on port {args.port}...")
         # Use module path for uvicorn (requires package installation)
-        target = "pyquery.api.main:app"
+        target = "pyquery_polars.api.main:app"
         cmd = ["uvicorn", target, "--port", str(args.port)]
         if args.reload:
             cmd.append("--reload")
