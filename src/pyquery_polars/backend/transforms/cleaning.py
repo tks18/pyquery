@@ -5,8 +5,11 @@ import operator
 from pyquery_polars.core.models import TransformContext
 from pyquery_polars.core.params import (
     FillNullsParams, RegexExtractParams, StringCaseParams, StringReplaceParams,
-    DropNullsParams, TextSliceParams, TextLengthParams
+    DropNullsParams, TextSliceParams, TextLengthParams, StringPadParams,
+    TextExtractDelimParams, RegexToolParams,
+    NormalizeSpacesParams, SmartExtractParams
 )
+import re
 
 
 def fill_nulls_func(lf: pl.LazyFrame, params: FillNullsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
@@ -102,4 +105,108 @@ def text_length_func(lf: pl.LazyFrame, params: TextLengthParams, context=None) -
     # str.len_chars() for character length
     return lf.with_columns(
         pl.col(params.col).str.len_chars().alias(new_name)
+    )
+
+
+def string_pad_func(lf: pl.LazyFrame, params: StringPadParams, context=None) -> pl.LazyFrame:
+    col = pl.col(params.col)
+    fill = params.fill_char or " "
+    ln = params.length
+    
+    if params.side == "left":
+        expr = col.str.pad_start(ln, fill)
+    elif params.side == "right":
+        expr = col.str.pad_end(ln, fill)
+    else:  # Center
+        len_expr = col.str.len_chars()
+        pad_needed = pl.lit(ln) - len_expr
+        pad_left = (pad_needed / 2).floor().cast(pl.Int64)
+        pad_right = (pad_needed - pad_left).cast(pl.Int64)
+        expr = col.str.pad_start(ln, fill)
+        
+    new_name = params.alias if params.alias else params.col
+    return lf.with_columns(expr.alias(new_name))
+
+
+def text_extract_delim_func(lf: pl.LazyFrame, params: TextExtractDelimParams, context=None) -> pl.LazyFrame:
+    col_name = params.col
+    start = params.start_delim
+    end = params.end_delim
+    
+    # Construct Regex
+    # We use re.escape to handle special characters in delimiters safely
+    # Pattern logic:
+    # 1. Start & End: (?<=start).*?(?=end)  (Lookbehind, Non-greedy match, Lookahead)
+    # 2. Start only: (?<=start).*           (Lookbehind, match rest)
+    # 3. End only: ^.*?(?=end)              (Start of string, non-greedy, lookahead)
+    
+    pattern = ""
+    if start and end:
+        pattern = f"(?<={re.escape(start)}).*?(?={re.escape(end)})"
+    elif start:
+        pattern = f"(?<={re.escape(start)}).*"
+    elif end:
+        pattern = f"^.*?(?={re.escape(end)})"
+    else:
+        # No delimiters? Return original? Or error?
+        # Let's return as is but maybe warn log.
+        return lf
+        
+    new_name = params.alias if params.alias else f"{col_name}_extract"
+    return lf.with_columns(
+        pl.col(col_name).str.extract(pattern, 1).alias(new_name)
+    )
+
+
+def regex_tool_func(lf: pl.LazyFrame, params: RegexToolParams, context=None) -> pl.LazyFrame:
+    col = pl.col(params.col)
+    pat = params.pattern
+    action = params.action
+    val = params.replacement
+    
+    alias = params.alias if params.alias else f"{params.col}_{action}"
+    
+    expr = col
+    if action == "replace_all":
+        expr = col.str.replace_all(pat, val, literal=False)
+    elif action == "replace_one":
+        expr = col.str.replace(pat, val, literal=False)
+    elif action == "extract":
+        # Group 1 extraction
+        expr = col.str.extract(pat, 1)
+    elif action == "count":
+        expr = col.str.count_matches(pat)
+    elif action == "contains":
+        expr = col.str.contains(pat)
+        
+    return lf.with_columns(expr.alias(alias))
+
+
+def normalize_spaces_func(lf: pl.LazyFrame, params: NormalizeSpacesParams, context=None) -> pl.LazyFrame:
+    col = pl.col(params.col)
+    expr = col.str.replace_all(r"\s+", " ").str.strip_chars()
+    
+    alias = params.alias if params.alias else params.col
+    return lf.with_columns(expr.alias(alias))
+
+
+def smart_extract_func(lf: pl.LazyFrame, params: SmartExtractParams, context=None) -> pl.LazyFrame:
+    col = pl.col(params.col)
+    ptype = params.type
+    
+    pattern = ""
+    if ptype == "email_user":
+        pattern = r"^([^@]+)@"
+    elif ptype == "email_domain":
+        pattern = r"@([\w\.-]+)"
+    elif ptype == "url_domain":
+        pattern = r"://([\w\.-]+)"
+    elif ptype == "url_path":
+        pattern = r"://[\w\.-]+(/.*)"
+    elif ptype == "ipv4":
+        pattern = r"(\b(?:\d{1,3}\.){3}\d{1,3}\b)"
+        
+    alias = params.alias if params.alias else f"{params.col}_{ptype}"
+    return lf.with_columns(
+        col.str.extract(pattern, 1).alias(alias)
     )

@@ -1,9 +1,12 @@
+import typing
 import streamlit as st
 import polars as pl
-from typing import Optional
+from typing import Any, Optional
 from pyquery_polars.core.params import (
     FillNullsParams, RegexExtractParams, StringCaseParams, StringReplaceParams,
-    DropNullsParams, TextSliceParams, TextLengthParams
+    DropNullsParams, TextSliceParams, TextLengthParams, StringPadParams,
+    TextExtractDelimParams, RegexToolParams,
+    NormalizeSpacesParams, SmartExtractParams
 )
 
 
@@ -175,4 +178,137 @@ def render_text_length(step_id: str, params: TextLengthParams, schema: Optional[
 
     params.alias = c2.text_input(
         "New Name (Optional)", value=params.alias, key=f"tl_a_{step_id}")
+    return params
+
+
+def render_string_pad(step_id: str, params: StringPadParams, schema: Optional[pl.Schema]) -> StringPadParams:
+    c1, c2 = st.columns(2)
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = c1.selectbox("Column", current_cols,
+                       index=col_idx, key=f"sp_c_{step_id}")
+    side = c2.selectbox("Side", ["left", "right", "center"],
+                        index=["left", "right", "center"].index(params.side), key=f"sp_s_{step_id}")
+
+    c3, c4 = st.columns(2)
+    length = c3.number_input("Target Length", min_value=1,
+                             value=params.length, key=f"sp_l_{step_id}")
+    char = c4.text_input("Fill Character", value=params.fill_char,
+                         max_chars=1, key=f"sp_fc_{step_id}")
+
+    params.col = col
+    params.side = typing.cast(Any, side)
+    params.length = int(length)
+
+    params.fill_char = char
+    return params
+
+
+def render_text_extract_delim(step_id: str, params: TextExtractDelimParams, schema: Optional[pl.Schema]) -> TextExtractDelimParams:
+    c1, c2 = st.columns(2)
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = c1.selectbox("Column", current_cols,
+                       index=col_idx, key=f"ted_c_{step_id}")
+
+    c3, c4 = st.columns(2)
+    start = c3.text_input(
+        "Start Delimiter", value=params.start_delim, key=f"ted_s_{step_id}")
+    end = c4.text_input(
+        "End Delimiter", value=params.end_delim, key=f"ted_e_{step_id}")
+
+    if not start and not end:
+        st.warning("⚠️ Please provide at least one delimiter.")
+
+    params.col = col if col else ""
+    params.start_delim = start
+    params.end_delim = end
+
+    params.alias = st.text_input(
+        "New Alias (Optional)", value=params.alias, key=f"ted_a_{step_id}")
+    return params
+
+
+def render_regex_tool(step_id: str, params: RegexToolParams, schema: Optional[pl.Schema]) -> RegexToolParams:
+    current_cols = schema.names() if schema else []
+
+    c1, c2 = st.columns(2)
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = c1.selectbox("Column", current_cols,
+                       index=col_idx, key=f"rt_c_{step_id}")
+    action = c2.selectbox("Action", ["replace_all", "replace_one", "extract", "count", "contains"],
+                          index=["replace_all", "replace_one", "extract",
+                                 "count", "contains"].index(params.action),
+                          key=f"rt_a_{step_id}")
+
+    pat = st.text_input(
+        "Regex Pattern", value=params.pattern, key=f"rt_p_{step_id}")
+
+    # Conditional input for replacement
+    replacement = params.replacement
+    if action in ["replace_all", "replace_one"]:
+        replacement = st.text_input(
+            "Replacement Value", value=params.replacement, key=f"rt_r_{step_id}")
+
+    params.col = col if col else ""
+    # safe cast
+    params.action = typing.cast(Any, action)
+    params.pattern = pat
+    params.replacement = replacement
+
+    params.alias = st.text_input(
+        "New Alias (Optional)", value=params.alias, key=f"rt_al_{step_id}")
+    return params
+
+
+def render_normalize_spaces(step_id: str, params: NormalizeSpacesParams, schema: Optional[pl.Schema]) -> NormalizeSpacesParams:
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = st.selectbox("Column", current_cols,
+                       index=col_idx, key=f"ns_c_{step_id}")
+    params.col = col if col else ""
+
+    params.alias = st.text_input(
+        "New Alias (Optional)", value=params.alias, key=f"ns_a_{step_id}")
+    return params
+
+
+def render_smart_extract(step_id: str, params: SmartExtractParams, schema: Optional[pl.Schema]) -> SmartExtractParams:
+    c1, c2 = st.columns(2)
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = c1.selectbox("Column", current_cols,
+                       index=col_idx, key=f"se_c_{step_id}")
+
+    ptype = c2.selectbox("Extraction Type",
+                         ["email_user", "email_domain",
+                             "url_domain", "url_path", "ipv4"],
+                         index=["email_user", "email_domain", "url_domain",
+                                "url_path", "ipv4"].index(params.type),
+                         key=f"se_t_{step_id}")
+
+    params.col = col if col else ""
+    params.type = typing.cast(Any, ptype)
+
+    params.alias = st.text_input(
+        "New Alias (Optional)", value=params.alias, key=f"se_a_{step_id}")
     return params
