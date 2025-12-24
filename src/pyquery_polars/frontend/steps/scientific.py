@@ -19,17 +19,18 @@ def render_math_sci(step_id: str, params: MathSciParams, schema: Optional[pl.Sch
         params.col = c1.text_input(
             "Column", value=params.col, key=f"ms_c_{step_id}")
 
-    ops = ["log", "log10", "exp", "pow", "sqrt", "cbrt", "mod", 
-           "sin", "cos", "tan", "arcsin", "arccos", "arctan", 
+    ops = ["log", "log10", "exp", "pow", "sqrt", "cbrt", "mod",
+           "sin", "cos", "tan", "arcsin", "arccos", "arctan",
            "degrees", "radians", "sign"]
-    
+
     try:
         idx = ops.index(params.op)
     except:
         idx = 0
-        
+
     # safe cast for literal
-    params.op = typing.cast(Any, c2.selectbox("Operation", ops, index=idx, key=f"ms_o_{step_id}"))
+    params.op = typing.cast(Any, c2.selectbox(
+        "Operation", ops, index=idx, key=f"ms_o_{step_id}"))
 
     if params.op in ["pow", "mod"]:
         params.arg = c3.number_input(
