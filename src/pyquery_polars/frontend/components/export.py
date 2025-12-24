@@ -1,5 +1,6 @@
 from typing import cast
 import streamlit as st
+import copy
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.io_schemas import get_exporter_schema
@@ -27,7 +28,31 @@ def render_export_section(dataset_name):  # Takes name
 
         with st.form("export_form"):
             # Decoupled Schema Lookup
-            ui_schema = get_exporter_schema(selected_exporter.name)
+            ui_schema = copy.deepcopy(
+                get_exporter_schema(selected_exporter.name))
+
+            # DYNAMIC DEFAULT: Output Path
+            # Try to default to source directory
+            dataset_meta = engine.get_dataset_metadata(dataset_name)
+            source_path = dataset_meta.get("source_path")
+
+            if source_path:
+                import os
+                default_filename = f"export_{dataset_name}"
+                # Find the 'path' field in schema
+                for field in ui_schema:
+                    if field.name == "path":
+                        # Suggest a path in the same directory
+                        # E.g. /data/foo.csv -> /data/export_foo.parquet
+                        ext = ".parquet" if selected_exporter_name == "Parquet" else f".{selected_exporter_name.lower()}"
+                        if selected_exporter_name == "Arrow IPC":
+                            ext = ".arrow"
+                        if selected_exporter_name == "Excel":
+                            ext = ".xlsx"
+
+                        field.default = os.path.join(
+                            source_path, f"{default_filename}{ext}")
+                        break
 
             # Use Shared UI Renderer
             params = render_schema_fields(
