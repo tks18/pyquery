@@ -1,12 +1,17 @@
 import streamlit as st
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pyquery_polars.core.models import IOSchemaField
 
 
-def render_schema_fields(schema: List[IOSchemaField], key_prefix: str, columns: int = 1) -> Dict[str, Any]:
+def render_schema_fields(schema: List[IOSchemaField], key_prefix: str, columns: int = 1,
+                         override_options: Optional[Dict[str,
+                                                         List[Any]]] = None,
+                         on_change_handlers: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Renders Streamlit widgets based on a UI Schema list.
     Returns a dictionary of parameter values.
+    override_options: Dict mapping field names to list of options (forces selectbox)
+    on_change_handlers: Dict mapping field names to callables (or None for simple st.rerun if implied)
     """
     params = {}
 
@@ -27,10 +32,25 @@ def render_schema_fields(schema: List[IOSchemaField], key_prefix: str, columns: 
         # Unique Key Generation
         w_key = f"{key_prefix}_{fname}"
 
+        # OVERRIDE CHECK
+        if override_options and fname in override_options:
+            opts = override_options[fname]
+            idx = 0
+            if fdef in opts:
+                idx = opts.index(fdef)
+            val = col.selectbox(flabel, opts, index=idx, key=w_key)
+            params[fname] = val
+            continue
+
+        # Change Handler
+        on_change = None
+        if on_change_handlers and fname in on_change_handlers:
+            on_change = on_change_handlers[fname]
+
         val = None
         if ftype == "text":
             val = col.text_input(flabel, value=str(
-                fdef), placeholder=fplace, key=w_key)
+                fdef), placeholder=fplace, key=w_key, on_change=on_change)
         elif ftype == "textarea":
             val = col.text_area(flabel, value=str(
                 fdef), placeholder=fplace, key=w_key)

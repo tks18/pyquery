@@ -38,10 +38,40 @@ def render_sidebar():
                 loader = loader_map[selected_source]
 
                 # Decoupled Schema Lookup
-                ui_schema = get_loader_schema(loader.name)
+                base_schema = get_loader_schema(loader.name)
 
+                # Check for Excel extension - using lower() for case insensitivity
+                path_val = st.session_state.get(f"load_{loader.name}_path", "")
+                is_excel = path_val and (path_val.lower().endswith(
+                    ".xlsx") or path_val.lower().endswith(".xls"))
+
+                # Dynamic Schema Filtering: Only show 'sheet' if it looks like Excel
+                ui_schema = []
+                for field in base_schema:
+                    if field.name == "sheet" and not is_excel:
+                        continue
+                    ui_schema.append(field)
+
+                # DYNAMIC OVERRIDE: Excel Sheet Dropdown
+                override_defaults = {}
+
+                sheet_options = None
+                if loader.name == "File" and is_excel:
+                    # Try to fetch sheets (handling globs via engine)
+                    sheets = engine.get_file_sheet_names(path_val)
+                    sheet_options = sheets
+
+                on_change_handlers = None
+                if loader.name == "File":
+                    on_change_handlers = {"path": st.rerun}
+
+                # Enhanced UI Renderer with Override Support
                 params = render_schema_fields(
-                    ui_schema, key_prefix=f"load_{loader.name}")
+                    ui_schema,
+                    key_prefix=f"load_{loader.name}",
+                    override_options={
+                        "sheet": sheet_options} if sheet_options else None
+                )
                 alias_val = params.get('alias')
 
                 if st.button("Load Data", type="primary", key=f"btn_load_{loader.name}", use_container_width=True):
@@ -57,9 +87,22 @@ def render_sidebar():
                                 st.error(f"Invalid Config: {e}")
                                 st.stop()
 
-                        lf = engine.run_loader(loader.name, final_params)
+                        # Return is now (Optional[LazyFrame], Metadata)
+                        result = engine.run_loader(loader.name, final_params)
+
+                        lf = None
+                        metadata = {}
+
+                        if isinstance(result, tuple):
+                            lf, metadata = result
+                        elif result is not None:
+                            lf = result  # Legacy fallback
+
                         if lf is not None:
-                            engine.add_dataset(alias_val, lf)
+                            # Pass source_path if available
+                            src_path = metadata.get('source_path')
+                            engine.add_dataset(
+                                alias_val, lf, source_path=src_path)
                             if alias_val not in st.session_state.all_recipes:
                                 st.session_state.all_recipes[alias_val] = []
 
