@@ -39,6 +39,7 @@ dependencies = [
     "pyarrow>=14.0.0",
     "connectorx>=0.3.3",
     "fastexcel>=0.16.0",
+    "python-multipart>=0.0.20",
 ]
 
 [build-system]
