@@ -8,7 +8,7 @@ from pyquery_polars.cli.interactive import run_interactive
 
 
 def main():
-    parser = argparse.ArgumentParser(description="PyQuery Platform CLI")
+    parser = argparse.ArgumentParser(description="Shan's PyQuery Platform CLI")
     subparsers = parser.add_subparsers(
         dest="command", help="Available subcommands")
 
