@@ -13,7 +13,7 @@ init_db()
 app = FastAPI(
     title="PyQuery Engine API",
     description="Headless ETL Engine for High-Performance Data Processing",
-    version="1.2.0"
+    version="1.3.0"
 )
 
 # CORS (Allow all for development)
