@@ -50,20 +50,28 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1") -> Optional[pl
             elif ext in [".arrow", ".ipc", ".feather"]:
                 lfs.append(pl.scan_ipc(f))
             elif ext in [".xlsx", ".xls"]:
-                # Enterprise Staged Loading: Dump to Parquet
+                # Dump to Parquet
                 # Excel is eager-only.
-                df = pl.read_excel(f, sheet_name=sheet_name,
-                                   infer_schema_length=0)
+                try:
+                    df = pl.read_excel(f, sheet_name=sheet_name,
+                                       infer_schema_length=0)
 
-                staging_dir = os.path.join(os.getcwd(), ".staging")
-                os.makedirs(staging_dir, exist_ok=True)
-                stage_path = os.path.join(
-                    staging_dir, f"excel_{uuid.uuid4()}.parquet")
+                    # STAGING: Use file's directory instead of script root
+                    # Prevents cluttering the app directory
+                    base_dir = os.path.dirname(os.path.abspath(f))
+                    staging_dir = os.path.join(base_dir, ".staging")
+                    os.makedirs(staging_dir, exist_ok=True)
 
-                df.write_parquet(stage_path)
-                del df
+                    stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{uuid.uuid4().hex[:8]}.parquet"
+                    stage_path = os.path.join(staging_dir, stage_filename)
 
-                lfs.append(pl.scan_parquet(stage_path))
+                    df.write_parquet(stage_path)
+                    del df
+
+                    lfs.append(pl.scan_parquet(stage_path))
+
+                except Exception as ex:
+                    print(f"Excel Load Error {f}: {ex}")
 
             elif ext == ".json":
                 lfs.append(pl.scan_ndjson(f, infer_schema_length=0))
@@ -74,8 +82,12 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1") -> Optional[pl
         return None
 
     combined = lfs[0]
-    for other in lfs[1:]:
-        combined = pl.concat([combined, other], how="vertical_relaxed")
+
+    # DIAGONAL STRATEGY:
+    # Handles schema evolution (new columns in later files filled with nulls).
+    # Graceful handling of missing columns.
+    if len(lfs) > 1:
+        combined = pl.concat(lfs, how="diagonal")
 
     return combined
 

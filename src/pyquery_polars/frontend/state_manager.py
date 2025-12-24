@@ -116,9 +116,6 @@ def load_recipe_from_json(uploaded_file):
 
     try:
         data = json.load(uploaded_file)
-        # Parse into List[RecipeStep] (Generic)
-        # Verify correctness manually or via Registry?
-        # For now just trust structure matches RecipeStep
         steps = []
         for s in data:
             steps.append(RecipeStep(**s))

@@ -76,7 +76,7 @@ We split the brain (Engine) from the face (UI).
 
 ## 🎮 Choose Your Fighter (4 Modes)
 
-We just dropped **v0.5.0** and it includes **EVERYTHING**. One command to rule them all.
+We just dropped **v1.3.0** and it includes **EVERYTHING**. One command to rule them all.
 
 ### 📦 Installation
 

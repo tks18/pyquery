@@ -7,9 +7,102 @@ from pyquery_polars.core.params import (
     FillNullsParams, RegexExtractParams, StringCaseParams, StringReplaceParams,
     DropNullsParams, TextSliceParams, TextLengthParams, StringPadParams,
     TextExtractDelimParams, RegexToolParams,
-    NormalizeSpacesParams, SmartExtractParams
+    NormalizeSpacesParams, SmartExtractParams,
+    CleanTextParams, MaskPIIParams, AutoImputeParams, CheckBoolParams
 )
 import re
+
+
+def clean_text_func(lf: pl.LazyFrame, params: CleanTextParams, context=None) -> pl.LazyFrame:
+    col = pl.col(params.col)
+    expr = col
+
+    if params.ascii_only:
+        # regex to keep only ASCII (remove chars > 127)
+        expr = expr.str.replace_all(r"[^\x00-\x7F]+", "")
+
+    if params.remove_digits:
+        expr = expr.str.replace_all(r"\d+", "")
+
+    if params.remove_punctuation:
+        # Basic punct removal (Keep spaces and alphanum)
+        expr = expr.str.replace_all(r"[^\w\s]", "")
+
+    if params.lowercase:
+        expr = expr.str.to_lowercase()
+
+    # Always normalize spaces at end
+    expr = expr.str.replace_all(r"\s+", " ").str.strip_chars()
+
+    alias = params.alias or params.col
+    return lf.with_columns(expr.alias(alias))
+
+
+def mask_pii_func(lf: pl.LazyFrame, params: MaskPIIParams, context=None) -> pl.LazyFrame:
+    col = params.col
+    ptype = params.type
+    mask = params.mask_char * 4
+
+    # Regex Patterns for PII
+    patterns = {
+        "email": r"[\w\.-]+@[\w\.-]+",
+        "credit_card": r"\b(?:\d[ -]*?){13,16}\b",
+        "phone": r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}",
+        "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
+        "ip": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+    }
+
+    pat = patterns.get(ptype, "")
+    if not pat and ptype != "custom":
+        return lf
+
+    alias = params.alias or col
+    return lf.with_columns(
+        pl.col(col).str.replace_all(pat, mask).alias(alias)
+    )
+
+
+def auto_impute_func(lf: pl.LazyFrame, params: AutoImputeParams, context=None) -> pl.LazyFrame:
+    col = pl.col(params.col)
+    strat = params.strategy
+
+    # Lazy Imputation Logic
+
+    if strat == "mean":
+        expr = col.fill_null(col.mean())
+    elif strat == "median":
+        expr = col.fill_null(col.median())
+    elif strat == "mode":
+        # Mode returns a list, take first
+        expr = col.fill_null(col.mode().first())
+    elif strat == "ffill":
+        expr = col.forward_fill()
+    elif strat == "bfill":
+        expr = col.backward_fill()
+    elif strat == "zero":
+        expr = col.fill_null(0)
+    else:
+        expr = col
+
+    alias = params.alias or params.col
+    return lf.with_columns(expr.alias(alias))
+
+
+def check_bool_func(lf: pl.LazyFrame, params: CheckBoolParams, context=None) -> pl.LazyFrame:
+    col = params.col
+    c = pl.col(col)
+
+    # Convert to lowercase string for comparison
+    normalized = c.cast(pl.String).str.to_lowercase().str.strip_chars()
+
+    true_expr = normalized.is_in(params.true_values)
+    false_expr = normalized.is_in(params.false_values)
+
+    expr = pl.when(true_expr).then(True).when(
+        false_expr).then(False).otherwise(None)
+
+    alias = params.alias or col
+    return lf.with_columns(expr.alias(alias))
 
 
 def fill_nulls_func(lf: pl.LazyFrame, params: FillNullsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
@@ -112,7 +205,7 @@ def string_pad_func(lf: pl.LazyFrame, params: StringPadParams, context=None) -> 
     col = pl.col(params.col)
     fill = params.fill_char or " "
     ln = params.length
-    
+
     if params.side == "left":
         expr = col.str.pad_start(ln, fill)
     elif params.side == "right":
@@ -123,7 +216,7 @@ def string_pad_func(lf: pl.LazyFrame, params: StringPadParams, context=None) -> 
         pad_left = (pad_needed / 2).floor().cast(pl.Int64)
         pad_right = (pad_needed - pad_left).cast(pl.Int64)
         expr = col.str.pad_start(ln, fill)
-        
+
     new_name = params.alias if params.alias else params.col
     return lf.with_columns(expr.alias(new_name))
 
@@ -132,26 +225,26 @@ def text_extract_delim_func(lf: pl.LazyFrame, params: TextExtractDelimParams, co
     col_name = params.col
     start = params.start_delim
     end = params.end_delim
-    
+
     # Construct Regex
     # We use re.escape to handle special characters in delimiters safely
-    # Pattern logic:
-    # 1. Start & End: (?<=start).*?(?=end)  (Lookbehind, Non-greedy match, Lookahead)
-    # 2. Start only: (?<=start).*           (Lookbehind, match rest)
-    # 3. End only: ^.*?(?=end)              (Start of string, non-greedy, lookahead)
-    
+    # Pattern logic (Using Capture Groups because Polars/Rust Regex doesn't support look-around):
+    # 1. Start & End: start(content)end
+    # 2. Start only: start(content)
+    # 3. End only: ^(content)end
+
     pattern = ""
     if start and end:
-        pattern = f"(?<={re.escape(start)}).*?(?={re.escape(end)})"
+        pattern = f"{re.escape(start)}(.*?){re.escape(end)}"
     elif start:
-        pattern = f"(?<={re.escape(start)}).*"
+        pattern = f"{re.escape(start)}(.*)"
     elif end:
-        pattern = f"^.*?(?={re.escape(end)})"
+        pattern = f"^(.*?){re.escape(end)}"
     else:
         # No delimiters? Return original? Or error?
         # Let's return as is but maybe warn log.
         return lf
-        
+
     new_name = params.alias if params.alias else f"{col_name}_extract"
     return lf.with_columns(
         pl.col(col_name).str.extract(pattern, 1).alias(new_name)
@@ -163,9 +256,9 @@ def regex_tool_func(lf: pl.LazyFrame, params: RegexToolParams, context=None) -> 
     pat = params.pattern
     action = params.action
     val = params.replacement
-    
+
     alias = params.alias if params.alias else f"{params.col}_{action}"
-    
+
     expr = col
     if action == "replace_all":
         expr = col.str.replace_all(pat, val, literal=False)
@@ -178,14 +271,14 @@ def regex_tool_func(lf: pl.LazyFrame, params: RegexToolParams, context=None) -> 
         expr = col.str.count_matches(pat)
     elif action == "contains":
         expr = col.str.contains(pat)
-        
+
     return lf.with_columns(expr.alias(alias))
 
 
 def normalize_spaces_func(lf: pl.LazyFrame, params: NormalizeSpacesParams, context=None) -> pl.LazyFrame:
     col = pl.col(params.col)
     expr = col.str.replace_all(r"\s+", " ").str.strip_chars()
-    
+
     alias = params.alias if params.alias else params.col
     return lf.with_columns(expr.alias(alias))
 
@@ -193,7 +286,7 @@ def normalize_spaces_func(lf: pl.LazyFrame, params: NormalizeSpacesParams, conte
 def smart_extract_func(lf: pl.LazyFrame, params: SmartExtractParams, context=None) -> pl.LazyFrame:
     col = pl.col(params.col)
     ptype = params.type
-    
+
     pattern = ""
     if ptype == "email_user":
         pattern = r"^([^@]+)@"
@@ -205,7 +298,7 @@ def smart_extract_func(lf: pl.LazyFrame, params: SmartExtractParams, context=Non
         pattern = r"://[\w\.-]+(/.*)"
     elif ptype == "ipv4":
         pattern = r"(\b(?:\d{1,3}\.){3}\d{1,3}\b)"
-        
+
     alias = params.alias if params.alias else f"{params.col}_{ptype}"
     return lf.with_columns(
         col.str.extract(pattern, 1).alias(alias)

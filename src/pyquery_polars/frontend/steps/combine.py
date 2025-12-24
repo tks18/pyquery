@@ -23,7 +23,6 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
     join_alias = st.selectbox(
         "Join With", dataset_names, index=default_idx, key=f"ja_{step_id}")
 
-    # Fix: Ensure alias is string (handle None)
     params.alias = join_alias if join_alias else ""
 
     if engine and join_alias in engine._datasets:
@@ -172,7 +171,7 @@ def render_reshape(step_id: str, params: ReshapeParams, schema: Optional[pl.Sche
     mode_sel = st.radio("Mode", ["Unpivot (Melt)", "Pivot (Spread)"],
                         index=mode_idx, horizontal=True, key=f"rs_m_{step_id}")
     mode = mode_sel.split(" ")[0]
-    # Fix: Cast to Literal
+
     params.mode = cast(Literal["Unpivot", "Pivot"], mode)
 
     if mode == "Unpivot":
@@ -220,14 +219,15 @@ def render_concat_datasets(step_id: str, params: ConcatParams, schema: Optional[
     dataset_names = []
     if engine:
         dataset_names = list(engine._datasets.keys())
-        
+
     st.info("ℹ️ Vertically stacks another dataset below this one (Union). Columns are matched by name.")
-    
+
     default_idx = 0
     if params.other_dataset in dataset_names:
         default_idx = dataset_names.index(params.other_dataset)
-        
-    other = st.selectbox("Stack Dataset (Bottom)", dataset_names, index=default_idx, key=f"cn_d_{step_id}")
-    
+
+    other = st.selectbox("Stack Dataset (Bottom)", dataset_names,
+                         index=default_idx, key=f"cn_d_{step_id}")
+
     params.other_dataset = other if other else ""
     return params

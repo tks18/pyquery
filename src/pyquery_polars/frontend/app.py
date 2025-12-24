@@ -1,4 +1,4 @@
-from pyquery_polars.frontend.styles import inject_custom_css
+from pyquery_polars.frontend.utils.styles import inject_custom_css
 from pyquery_polars.frontend.registry_init import register_frontend
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.components.export import render_export_section

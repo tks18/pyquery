@@ -5,7 +5,7 @@ from pyquery_polars.frontend.state_manager import add_step, load_recipe_from_jso
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
-from pyquery_polars.frontend.io_schemas import get_loader_schema
+from pyquery_polars.frontend.utils.io_schemas import get_loader_schema
 
 
 def render_sidebar():

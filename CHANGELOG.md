@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/tks18/pyquery/compare/v1.2.0...v1.3.0) (2025-12-24)
+
+
+### Bug Fixes 🛠
+
+* **backend:** fix the date/float/time/exceldate parsing logics to more robust parsing ([8381fae](https://github.com/tks18/pyquery/commit/8381fae0b2ba31af2142cee3f261b01033086b75))
+* **backend:** use diagonal strategy for concat to handle schema changes (in case of xlsx) ([bf34cad](https://github.com/tks18/pyquery/commit/bf34cade617ca322e35812f97fdd6f3cc455a9c2))
+* **cli:** fix all the bugs (export, transformations) in the interactive cli ([93cee84](https://github.com/tks18/pyquery/commit/93cee84c44bd85d48e393d81222ecbeafd22aa95))
+* **transforms/combine:** join logic not taking updated schema for right -> fixed ([6da2b2e](https://github.com/tks18/pyquery/commit/6da2b2e3cdc81b4953558817dda664998202e63f))
+
+
+### Features 🔥
+
+* **api:** add a db module to track the api workflows ([2656128](https://github.com/tks18/pyquery/commit/26561284c848e3ea1a1bf5a12a33755c63822f8e))
+* **api:** add a sample auth middleware for the api ([8e06a04](https://github.com/tks18/pyquery/commit/8e06a0441abe3a61ba3b0aaa41ecb69a9508043d))
+* **api:** api/files -> new router point to start upload and download of files to the server ([56c9b28](https://github.com/tks18/pyquery/commit/56c9b28ca5cd85e9bad5ab67921c8d164ca12746))
+* **api:** init db & add new route to the api /files ([14ef6e9](https://github.com/tks18/pyquery/commit/14ef6e910cdab65384244b0d6958261f6b6b25e7))
+* **api:** now the recipes route will track all the changes through db ([51511a8](https://github.com/tks18/pyquery/commit/51511a87bb2027471b67312720a145ca0f7b6e78))
+* **cli:** more robust headless cli ([64f7c1e](https://github.com/tks18/pyquery/commit/64f7c1e4151d69b73bfa4a45950ae3856f431595))
+* **transforms:** add more cleaning transforms ([d8fa6f8](https://github.com/tks18/pyquery/commit/d8fa6f805094c613f4d50b8a86b08c489a6654b6))
+
+
+### Code Refactoring 🖌
+
+* **api:** minor refactoring ([64d2ddd](https://github.com/tks18/pyquery/commit/64d2ddde66a0593b5696b2d85ffa643b29391495))
+* **backend:** orchestrate the entire modular engine and delete the old monolithic file ([99227b0](https://github.com/tks18/pyquery/commit/99227b006c46b9f2076e1d7d8fd4a814f4797a19))
+* **backend:** refactor backend registration logic to seperate file (getting heavy) ([fc78579](https://github.com/tks18/pyquery/commit/fc7857923c942ae333f76e9fe79ed335beeed9fb))
+* **backend:** refactor the engine execution logics to separate file ([0a79dba](https://github.com/tks18/pyquery/commit/0a79dbaa16b27b0f94f5506d4efd2ce52eec265d))
+* **backend:** refactor the job management logic to separate file ([eaf642d](https://github.com/tks18/pyquery/commit/eaf642d4b234bc7a336d72b4a12bc9aee77c220b))
+* **backend:** some minor refactors ([e9e57a1](https://github.com/tks18/pyquery/commit/e9e57a1b20ad29f6d4de32fe5dbea6fc64033674))
+* **frontend/components:** update the params required for the new model ([24c2b91](https://github.com/tks18/pyquery/commit/24c2b91220809590bad9cf167cb8024055678ae9))
+* **frontend:** minor refactoring changes ([a5eef41](https://github.com/tks18/pyquery/commit/a5eef41d40906ccb97cd5361ffd6c7990bcfcf52))
+* minor refactor, folder shifts across all (cli, core, frontend) ([09b774a](https://github.com/tks18/pyquery/commit/09b774a4cd977a8ca2ca94cbebc711fb87dd0612))
+
+
+### Build System 🏗
+
+* **pyproject:** add fastexcel dependency (reqd by polars for excel processing) ([aaed764](https://github.com/tks18/pyquery/commit/aaed764167945899a9bc3fc9f54f5646f169baf7))
+
+
+### Others 🔧
+
+* **pyversion:** update app version to v1.3.0 ([55d10e6](https://github.com/tks18/pyquery/commit/55d10e6889b55db757c51035c4f12bc049274727))
+
+
+### Docs 📃
+
+* **readme:** update readme ([0b4cc2b](https://github.com/tks18/pyquery/commit/0b4cc2b95568b6a57d0fe55c94d57e4514d540fa))
+
 ## [1.2.0](https://github.com/tks18/pyquery/compare/v1.1.1...v1.2.0) (2025-12-22)
 
 

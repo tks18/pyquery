@@ -5,7 +5,6 @@ import datetime
 
 def robust_numeric_cleaner(col_name: str, dtype: Type[pl.DataType] = pl.Float64):
     # Remove currency symbols ($, €, £), grouping separators (,, _), and extra whitespace
-    # We consciously DO NOT remove 'e' or 'E' to preserve scientific notation support.
     # Regex: [,$€£_\s] -> remove these.
     return (pl.col(col_name).str.strip_chars()
             .str.replace_all(r"[,$€£_\s]", "")
@@ -14,51 +13,63 @@ def robust_numeric_cleaner(col_name: str, dtype: Type[pl.DataType] = pl.Float64)
 
 def robust_date_parser(col_name):
     c = pl.col(col_name).str.strip_chars()
-    # Optimization: Normalize separators (/ and .) to hyphens (-) to reduce permutation checks
-    c_norm = c.str.replace_all(r"[/\.]", "-")
-    
     return pl.coalesce([
-        c.str.to_date(strict=False),                      # Standard ISO
-        c_norm.str.to_date("%d-%m-%Y", strict=False),     # DMY (Normalized)
-        c_norm.str.to_date("%m-%d-%Y", strict=False),     # MDY (Normalized)
-        c.str.to_date("%d %b %Y", strict=False),          # 01 Jan 2023
-        c.str.to_date("%d-%b-%Y", strict=False),          # 01-Jan-2023
+        c.str.to_date(strict=False),                      # ISO (YYYY-MM-DD)
+        c.str.to_date("%d/%m/%Y", strict=False),          # DMY (/)
+        c.str.to_date("%m/%d/%Y", strict=False),          # MDY (/)
+        c.str.to_date("%d-%m-%Y", strict=False),          # DMY (-)
+        c.str.to_date("%m-%d-%Y", strict=False),          # MDY (-)
     ])
 
 
 def robust_datetime_parser(col_name):
     c = pl.col(col_name).str.strip_chars()
-    # Normalize date separators to hyphens
-    c_norm = c.str.replace_all(r"[/\.]", "-")
-    
+    # OPTIMIZATION: Top 5 Formats
     return pl.coalesce([
-        c.str.to_datetime(strict=False),
-        c.str.to_datetime("%Y-%m-%d %H:%M:%S", strict=False),
-        # Normalized DMY variants
-        c_norm.str.to_datetime("%d-%m-%Y %H:%M:%S", strict=False),
-        c_norm.str.to_datetime("%m-%d-%Y %H:%M:%S", strict=False),
+        c.str.to_datetime(strict=False),                           # ISO
+        c.str.to_datetime("%d/%m/%Y %H:%M:%S", strict=False),    # DMY /
+        c.str.to_datetime("%m/%d/%Y %H:%M:%S", strict=False),    # MDY /
+        c.str.to_datetime("%d-%m-%Y %H:%M:%S", strict=False),    # DMY -
+        c.str.to_datetime("%m-%d-%Y %H:%M:%S", strict=False),    # MDY -
     ])
 
 
 def robust_time_parser(col_name):
     c = pl.col(col_name).str.strip_chars()
+    # OPTIMIZATION: Top 3 Formats
     return pl.coalesce([
         c.str.to_time(strict=False),
         c.str.to_time("%H:%M", strict=False),
         c.str.to_time("%H:%M:%S", strict=False),
-        c.str.to_time("%I:%M %p", strict=False),
-        c.str.to_time("%I:%M:%S %p", strict=False)
     ])
 
 
 def robust_excel_date_parser(col_name):
     # 1899-12-30 epoch
-    return (pl.datetime(1899, 12, 30) + pl.duration(days=pl.col(col_name).str.strip_chars().cast(pl.Float64, strict=False))).cast(pl.Date)
+    # Hybrid Strategy:
+    # 1. Fast Path: Direct cast to Float64 (Properties: Fast, handles Int/Float/CleanStr, Returns Null on Fail)
+    # 2. Robust Path: Cast to String -> Strip -> Float64 (Properties: Slower, handles " 123 ", Mixed Types)
+    days_expr = pl.coalesce([
+        pl.col(col_name).cast(pl.Float64, strict=False),
+        pl.col(col_name).cast(pl.String).str.strip_chars().cast(
+            pl.Float64, strict=False)
+    ])
+    return (pl.datetime(1899, 12, 30) + pl.duration(days=days_expr)).cast(pl.Date)
 
 
 def robust_excel_datetime_parser(col_name):
-    return (pl.datetime(1899, 12, 30) + pl.duration(days=pl.col(col_name).str.strip_chars().cast(pl.Float64, strict=False)))
+    days_expr = pl.coalesce([
+        pl.col(col_name).cast(pl.Float64, strict=False),
+        pl.col(col_name).cast(pl.String).str.strip_chars().cast(
+            pl.Float64, strict=False)
+    ])
+    return (pl.datetime(1899, 12, 30) + pl.duration(days=days_expr))
 
 
 def robust_excel_time_parser(col_name):
-    return (pl.datetime(1899, 12, 30) + pl.duration(days=pl.col(col_name).str.strip_chars().cast(pl.Float64, strict=False))).dt.time()
+    days_expr = pl.coalesce([
+        pl.col(col_name).cast(pl.Float64, strict=False),
+        pl.col(col_name).cast(pl.String).str.strip_chars().cast(
+            pl.Float64, strict=False)
+    ])
+    return (pl.datetime(1899, 12, 30) + pl.duration(days=days_expr)).dt.time()

@@ -1,12 +1,12 @@
-import typing
 import streamlit as st
 import polars as pl
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from pyquery_polars.core.params import (
     FillNullsParams, RegexExtractParams, StringCaseParams, StringReplaceParams,
     DropNullsParams, TextSliceParams, TextLengthParams, StringPadParams,
     TextExtractDelimParams, RegexToolParams,
-    NormalizeSpacesParams, SmartExtractParams
+    NormalizeSpacesParams, SmartExtractParams,
+    CleanTextParams, MaskPIIParams, AutoImputeParams, CheckBoolParams
 )
 
 
@@ -77,7 +77,6 @@ def render_string_case(step_id: str, params: StringCaseParams, schema: Optional[
     c1, c2 = st.columns(2)
 
     # String Case
-    # ... previous code ...
 
     col_val = params.col if params.col in current_cols else (
         current_cols[0] if current_cols else "")
@@ -201,7 +200,7 @@ def render_string_pad(step_id: str, params: StringPadParams, schema: Optional[pl
                          max_chars=1, key=f"sp_fc_{step_id}")
 
     params.col = col
-    params.side = typing.cast(Any, side)
+    params.side = cast(Any, side)
     params.length = int(length)
 
     params.fill_char = char
@@ -263,7 +262,7 @@ def render_regex_tool(step_id: str, params: RegexToolParams, schema: Optional[pl
 
     params.col = col if col else ""
     # safe cast
-    params.action = typing.cast(Any, action)
+    params.action = cast(Any, action)
     params.pattern = pat
     params.replacement = replacement
 
@@ -307,8 +306,117 @@ def render_smart_extract(step_id: str, params: SmartExtractParams, schema: Optio
                          key=f"se_t_{step_id}")
 
     params.col = col if col else ""
-    params.type = typing.cast(Any, ptype)
+    params.type = cast(Any, ptype)
 
     params.alias = st.text_input(
         "New Alias (Optional)", value=params.alias, key=f"se_a_{step_id}")
+    return params
+
+
+def render_clean_text(step_id: str, params: CleanTextParams, schema: Optional[pl.Schema]) -> CleanTextParams:
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = st.selectbox("Column", current_cols,
+                       index=col_idx, key=f"ct_c_{step_id}")
+    params.col = col if col else ""
+
+    c1, c2 = st.columns(2)
+    params.lowercase = c1.checkbox(
+        "Lowercase", value=params.lowercase, key=f"ct_lc_{step_id}")
+    params.remove_punctuation = c2.checkbox(
+        "Remove Punctuation", value=params.remove_punctuation, key=f"ct_rp_{step_id}")
+
+    c3, c4 = st.columns(2)
+    params.remove_digits = c3.checkbox(
+        "Remove Digits", value=params.remove_digits, key=f"ct_rd_{step_id}")
+    params.ascii_only = c4.checkbox(
+        "ASCII Only", value=params.ascii_only, key=f"ct_ao_{step_id}")
+
+    params.alias = st.text_input(
+        "New Alias", value=params.alias, key=f"ct_a_{step_id}")
+    return params
+
+
+def render_mask_pii(step_id: str, params: MaskPIIParams, schema: Optional[pl.Schema]) -> MaskPIIParams:
+    c1, c2 = st.columns(2)
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = c1.selectbox("Column", current_cols,
+                       index=col_idx, key=f"mp_c_{step_id}")
+    params.col = col if col else ""
+
+    type_options = ["email", "credit_card", "phone", "ssn", "ip", "custom"]
+    idx = type_options.index(params.type) if params.type in type_options else 0
+
+    ptype = c2.selectbox("PII Type", type_options,
+                         index=idx, key=f"mp_t_{step_id}")
+    params.type = cast(Any, ptype)
+
+    params.mask_char = st.text_input(
+        "Mask Character", value=params.mask_char, max_chars=1, key=f"mp_m_{step_id}")
+    params.alias = st.text_input(
+        "New Alias", value=params.alias, key=f"mp_a_{step_id}")
+    return params
+
+
+def render_auto_impute(step_id: str, params: AutoImputeParams, schema: Optional[pl.Schema]) -> AutoImputeParams:
+    c1, c2 = st.columns(2)
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = c1.selectbox("Column", current_cols,
+                       index=col_idx, key=f"ai_c_{step_id}")
+    params.col = col if col else ""
+
+    strategies = ["mean", "median", "mode", "ffill", "bfill", "zero"]
+    idx = strategies.index(
+        params.strategy) if params.strategy in strategies else 0
+
+    strat = c2.selectbox("Strategy", strategies,
+                         index=idx, key=f"ai_s_{step_id}")
+    params.strategy = cast(Any, strat)
+
+    params.alias = st.text_input(
+        "New Alias", value=params.alias, key=f"ai_a_{step_id}")
+    return params
+
+
+def render_check_bool(step_id: str, params: CheckBoolParams, schema: Optional[pl.Schema]) -> CheckBoolParams:
+    current_cols = schema.names() if schema else []
+
+    col_idx = 0
+    if params.col in current_cols:
+        col_idx = current_cols.index(params.col)
+
+    col = st.selectbox("Column", current_cols,
+                       index=col_idx, key=f"cb_c_{step_id}")
+    params.col = col if col else ""
+
+    c1, c2 = st.columns(2)
+
+    t_vals = c1.text_input("True Values (comma sep)", value=",".join(
+        params.true_values), key=f"cb_t_{step_id}")
+    f_vals = c2.text_input("False Values (comma sep)", value=",".join(
+        params.false_values), key=f"cb_f_{step_id}")
+
+    if t_vals:
+        params.true_values = [x.strip()
+                              for x in t_vals.split(",") if x.strip()]
+    if f_vals:
+        params.false_values = [x.strip()
+                               for x in f_vals.split(",") if x.strip()]
+
+    params.alias = st.text_input(
+        "New Alias", value=params.alias, key=f"cb_a_{step_id}")
     return params

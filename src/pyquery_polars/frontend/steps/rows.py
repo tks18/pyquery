@@ -12,10 +12,7 @@ from pyquery_polars.core.params import (
 def render_filter_rows(step_id: str, params: FilterRowsParams, schema: Optional[pl.Schema]) -> FilterRowsParams:
     current_cols = schema.names() if schema else []
 
-    # params is FilterRowsParams (has conditions, logic)
-
     st.markdown("Combine conditions with:")
-    # params.logic is "AND" or "OR"
     logic_idx = 0 if params.logic == "AND" else 1
     logic_choice = st.radio("Logic", ["AND (Match All)", "OR (Match Any)"],
                             index=logic_idx,

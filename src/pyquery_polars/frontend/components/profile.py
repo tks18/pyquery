@@ -54,9 +54,6 @@ def render_profile_tab(dataset_name):  # Takes name
         # --- 3. COLUMN DETAILS ---
         st.subheader("Column Analysis")
 
-        # Convert Polars numeric columns to Pandas for simple charting if needed
-        # Or just use list of values
-
         cols = df_sample.columns
         for col in cols:
             with st.expander(f"📍 {col}", expanded=False):
@@ -69,14 +66,11 @@ def render_profile_tab(dataset_name):  # Takes name
                 mc2.warning(f"Nulls: **{n_null}**")
                 mc3.success(f"Unique: **{n_unique}**")
 
-                # Distribution Chart for Numerics
-                # Check if slightly numeric (Int/Float)
                 is_numeric = "Int" in col_type or "Float" in col_type
                 if is_numeric and shape[0] > 0:
                     st.caption("Distribution (Sample)")
                     st.bar_chart(df_sample[col].to_list())
                 elif "Date" in col_type or "Time" in col_type:
                     st.caption("Temporal Distribution (Sample)")
-                    # Simple line chart of counts probably better? or just values?
-                    # Let's just dump values for now
+
                     st.line_chart(df_sample[col].to_list())

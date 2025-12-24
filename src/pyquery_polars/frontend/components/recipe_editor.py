@@ -3,7 +3,7 @@ import polars as pl
 from typing import cast
 from pyquery_polars.frontend.state_manager import move_step, delete_step
 from pyquery_polars.backend.engine import PyQueryEngine
-from pyquery_polars.frontend.renderers import render_step_ui
+from pyquery_polars.frontend.utils.renderers import render_step_ui
 
 
 def render_recipe_editor(dataset_name):
@@ -83,11 +83,11 @@ def render_recipe_editor(dataset_name):
                 pass
 
     st.divider()
-    st.subheader("📊 Live Preview (Top 50)")
+    st.subheader("📊 Live Preview (Top 1k)")
 
     try:
         preview_df = engine.get_preview(
-            dataset_name, st.session_state.recipe_steps, limit=50)
+            dataset_name, st.session_state.recipe_steps, limit=1000, project_recipes=st.session_state.all_recipes)
         if preview_df is not None:
             st.dataframe(preview_df, width="stretch")
             st.caption(f"Shape: {preview_df.shape} (Rows shown are limited)")

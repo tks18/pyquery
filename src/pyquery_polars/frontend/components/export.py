@@ -2,7 +2,7 @@ from typing import cast
 import streamlit as st
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.backend.engine import PyQueryEngine
-from pyquery_polars.frontend.io_schemas import get_exporter_schema
+from pyquery_polars.frontend.utils.io_schemas import get_exporter_schema
 
 
 def render_export_section(dataset_name):  # Takes name
@@ -37,7 +37,6 @@ def render_export_section(dataset_name):  # Takes name
             )
 
             if st.form_submit_button("Export Start"):
-                # Enterprise: Instatiate specific Param Model if available
                 final_params = params
                 if selected_exporter.params_model:
                     try:
@@ -52,7 +51,8 @@ def render_export_section(dataset_name):  # Takes name
                     dataset_name,
                     st.session_state.recipe_steps,
                     selected_exporter_name,
-                    final_params
+                    final_params,
+                    project_recipes=st.session_state.all_recipes
                 )
 
                 # Polling UI
@@ -83,7 +83,7 @@ def render_export_section(dataset_name):  # Takes name
                             # DEFENSIVE: If backend returns 0.0 (fast or race), use frontend elapsed
                             if dur <= 0.001:
                                 dur = elapsed
-                                
+
                             size = getattr(job_info, 'size_str', "Unknown")
                             status_placeholder.success(
                                 f"✅ Export Complete! Time: {dur:.2f}s | Size: {size}")

@@ -51,9 +51,6 @@ def get_dataset_info(name: str, engine: PyQueryEngine = Depends(get_engine)):
     try:
         # We need to collect schema (lightweight)
         schema = lf.collect_schema()
-        # Getting generic count w/o full scan is tricky in pure Lazy,
-        # but for API info we might want to fetch it or leave it null.
-        # Let's peek at 1 row to be safe.
 
         # Renamed to avoid pydantic conflict
         dtypes_map = {k: str(v) for k, v in schema.items()}

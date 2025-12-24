@@ -2,6 +2,7 @@ import json
 import sys
 import os
 import time
+import uuid
 from typing import List, Dict, Any
 
 from pyquery_polars.backend.engine import PyQueryEngine
@@ -20,16 +21,52 @@ def run_headless(args):
     engine = PyQueryEngine()
 
     # 2. Load Recipe
-    print(f"📖 Loading recipe from {args.recipe}...")
-    try:
-        with open(args.recipe, 'r') as f:
-            recipe_data = json.load(f)
-            if not isinstance(recipe_data, list):
-                print("Error: Recipe must be a JSON list of steps.")
+    if args.recipe:
+        print(f"📖 Loading recipe from {args.recipe}...")
+        try:
+            with open(args.recipe, 'r') as f:
+                recipe_data = json.load(f)
+                if not isinstance(recipe_data, list):
+                    print("Error: Recipe must be a JSON list of steps.")
+                    sys.exit(1)
+        except Exception as e:
+            print(f"❌ Failed to read recipe: {e}")
+            sys.exit(1)
+    else:
+        print("ℹ️ No recipe provided, performing direct conversion.")
+        recipe_data = []
+
+    # 2.5 Parse Inline Steps
+    if getattr(args, 'step', None):
+        print(f"🧩 Parsing {len(args.step)} inline steps...")
+        for s_str in args.step:
+            try:
+                step_obj = json.loads(s_str)
+                if not isinstance(step_obj, dict) or 'type' not in step_obj:
+                    print(
+                        f"⚠️ Warning: Invalid step (must be object with 'type'): {s_str}")
+                    sys.exit(1)
+                recipe_data.append(step_obj)
+            except Exception as e:
+                print(f"❌ Failed to parse step JSON: {s_str}")
+                print(f"   Error: {e}")
                 sys.exit(1)
-    except Exception as e:
-        print(f"❌ Failed to read recipe: {e}")
-        sys.exit(1)
+
+    # 2.6 Save Recipe (If requested)
+    if getattr(args, 'save_recipe', False):
+        try:
+            source_dir = os.path.dirname(os.path.abspath(args.source))
+            base_name = os.path.splitext(os.path.basename(args.source))[0]
+            unique_id = uuid.uuid4().hex[:8]
+            recipe_filename = f"{base_name}-shan-pyquery-{unique_id}.json"
+            recipe_path = os.path.join(source_dir, recipe_filename)
+
+            print(f"💾 Saving recipe to {recipe_path}...")
+            with open(recipe_path, 'w') as f:
+                json.dump(recipe_data, f, indent=2)
+
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to save recipe: {e}")
 
     # 3. Load Data
     print(f"📥 Loading source: {args.source}")

@@ -71,7 +71,7 @@ def slice_rows_func(lf: pl.LazyFrame, params: SliceRowsParams, context: Optional
     elif mode == "Remove Bottom":
         # Filter where index < (total - n)
         return lf.with_row_index("__idx").filter(pl.col("__idx") < (pl.len() - n)).drop("__idx")
-    
+
     return lf
 
 
@@ -80,64 +80,41 @@ def shift_func(lf: pl.LazyFrame, params: ShiftParams, context=None) -> pl.LazyFr
     col_name = params.col
     fill = params.fill_value
     p = params.periods
-    
-    # If no col specified, shift ALL? Or fail? 
-    # Let's say if col is empty, do nothing or shift all cols (unlikely use case for single step).
+
     # Assuming single col for now based on params.
     if not col_name:
         return lf
-        
+
     expr = pl.col(col_name).shift(p, fill_value=fill)
     new_name = params.alias if params.alias else col_name
     return lf.with_columns(expr.alias(new_name))
 
 
 def drop_empty_rows_func(lf: pl.LazyFrame, params: DropEmptyRowsParams, context=None) -> pl.LazyFrame:
-    # subset, how, thresh
-    # Polars drop_nulls
     subset = params.subset if params.subset else None
-    
-    # Thresh is not directly supported in drop_nulls lazy?
-    # Actually DataFrame.drop_nulls has thresh. LazyFrame.drop_nulls does too?
-    # Checking docs... LazyFrame has drop_nulls(subset). 'how' is usually inferred or handled differently.
-    # Actually LazyFrame.drop_nulls(subset) drops rows where ANY of subset are null.
-    # To do 'ALL', we need filter.
-    
+
     if params.thresh is not None:
-        # Filter by null count
-        # row null count < (total_cols - thresh + 1) ? 
-        # Thresh = require at least N non-null values.
-        # So null_count <= (total_cols - thresh)
-        # This requires knowing total cols in subset.
-        pass # Skip complex thresh for now in lazy if hard.
-        
+        pass  # TODO
+
     if params.how == "all":
-        # Drop if ALL cols in subset are null
-        # filter(~(c1.is_null() & c2.is_null()...))
         cols = subset if subset else lf.collect_schema().names()
-        # Efficient all-null check: sum_horizontal(is_null) == len(cols)
-        # or all(is_null)
         return lf.filter(~pl.all_horizontal([pl.col(c).is_null() for c in cols]))
-        
+
     else:
-        # Any null in subset -> drop
         return lf.drop_nulls(subset=subset)
 
 
 def remove_outliers_func(lf: pl.LazyFrame, params: RemoveOutliersParams, context=None) -> pl.LazyFrame:
     col = pl.col(params.col)
-    
-    # Q1/Q3 approximation if needed, but robust logic:
-    # Filter: (col >= Q1 - factor*IQR) & (col <= Q3 + factor*IQR)
-    
+
     q1 = col.quantile(0.25)
     q3 = col.quantile(0.75)
     iqr = q3 - q1
     factor = params.factor
-    
+
     lower = q1 - (iqr * factor)
     upper = q3 + (iqr * factor)
-    
+
     return lf.filter(
         (col >= lower) & (col <= upper)
     )
