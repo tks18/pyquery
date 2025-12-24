@@ -18,11 +18,15 @@ def main():
     run_parser.add_argument(
         "--source", "-s", required=True, help="Input data file")
     run_parser.add_argument(
-        "--recipe", "-r", required=True, help="JSON recipe file")
+        "--recipe", "-r", required=False, help="JSON recipe file")
     run_parser.add_argument(
         "--output", "-o", required=True, help="Output file path")
     run_parser.add_argument(
         "--format", "-f", default="Parquet", help="Output format")
+    run_parser.add_argument(
+        "--step", "-t", action="append", help="Inline transformation step (JSON string)")
+    run_parser.add_argument(
+        "--save-recipe", action="store_true", help="Save the executed recipe to JSON")
 
     # 2. INTERACTIVE (TUI)
     subparsers.add_parser(
