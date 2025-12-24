@@ -58,6 +58,11 @@ class PyQueryEngine:
     def get_dataset(self, name: str) -> Optional[pl.LazyFrame]:
         return self._datasets.get(name)
 
+    def get_file_sheet_names(self, file_path: str) -> List[str]:
+        """Get sheet names from an Excel file."""
+        from pyquery_polars.backend.utils.io import get_excel_sheet_names
+        return get_excel_sheet_names(file_path)
+
     def get_dataset_names(self) -> List[str]:
         return list(self._datasets.keys())
 
