@@ -54,7 +54,7 @@ def main():
 
     elif args.command == "api":
         print(f"🚀 Launching API on port {args.port}...")
-        # Use module path for uvicorn (requires package installation)
+
         target = "pyquery_polars.api.main:app"
         cmd = ["uvicorn", target, "--port", str(args.port)]
         if args.reload:
@@ -64,8 +64,6 @@ def main():
     elif args.command == "ui":
         print(f"🌊 Launching Streamlit on port {args.port}...")
 
-        # Resolve absolute path to the frontend app within the package
-        # Structure: src/cli/main.py -> src/frontend/app.py
         current_dir = os.path.dirname(os.path.abspath(__file__))
         app_path = os.path.join(os.path.dirname(
             current_dir), "frontend", "app.py")

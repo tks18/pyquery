@@ -1,8 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Union, Any
 
-# --- HELPER MODELS (Legacy) ---
-
 
 class FilterCondition(BaseModel):
     col: str
@@ -20,8 +18,6 @@ class CastChange(BaseModel):
     col: str
     action: str
     fmt: Optional[str] = None
-
-# --- EXISTING LEGACY PARAMS (Restored) ---
 
 
 class SelectColsParams(BaseModel):
@@ -101,8 +97,6 @@ class ReshapeParams(BaseModel):
     val_vars: List[str] = Field(default_factory=list)
 
 
-# --- PHASE 1 ENTERPRISE PARAMS (New) ---
-
 class FillNullsParams(BaseModel):
     cols: List[str] = Field(default_factory=list)
     strategy: Literal["forward", "backward", "mean",
@@ -160,8 +154,6 @@ class DateExtractParams(BaseModel):
                   "second", "weekday", "minute", "second"] = "year"
     alias: str = ""
 
-
-# --- PHASE 2 ENTERPRISE PARAMS (New) ---
 
 class DropNullsParams(BaseModel):
     cols: List[str] = Field(default_factory=list)
@@ -231,12 +223,14 @@ class DateDiffParams(BaseModel):
 
 
 class SliceRowsParams(BaseModel):
-    mode: Literal["Keep Top", "Keep Bottom", "Remove Top", "Remove Bottom"] = "Keep Top"
+    mode: Literal["Keep Top", "Keep Bottom",
+                  "Remove Top", "Remove Bottom"] = "Keep Top"
     n: int = 10
 
 
 class PromoteHeaderParams(BaseModel):
     pass
+
 
 class SplitColParams(BaseModel):
     col: str = ""
@@ -262,8 +256,6 @@ class CoalesceParams(BaseModel):
     cols: List[str] = Field(default_factory=list)
     new_name: str = "coalesced"
 
-
-# --- EXTENDED OPERATIONS PARAMS (Phase 3) ---
 
 class ZScoreParams(BaseModel):
     col: str = ""
@@ -295,7 +287,8 @@ class TextExtractDelimParams(BaseModel):
 class RegexToolParams(BaseModel):
     col: str = ""
     pattern: str = ""
-    action: Literal["replace_all", "replace_one", "extract", "count", "contains"] = "replace_all"
+    action: Literal["replace_all", "replace_one",
+                    "extract", "count", "contains"] = "replace_all"
     replacement: str = ""
     alias: str = ""
 
@@ -314,7 +307,8 @@ class NormalizeSpacesParams(BaseModel):
 
 class SmartExtractParams(BaseModel):
     col: str = ""
-    type: Literal["email_user", "email_domain", "url_domain", "url_path", "ipv4"] = "email_domain"
+    type: Literal["email_user", "email_domain",
+                  "url_domain", "url_path", "ipv4"] = "email_domain"
     alias: str = ""
 
 
@@ -329,7 +323,8 @@ class ConcatParams(BaseModel):
 
 
 class ShiftParams(BaseModel):
-    col: str = ""  # If empty, apply to all applicable? Or just single col. Let's support single for now or list.
+    # If empty, apply to all applicable? Or just single col. Let's support single for now or list.
+    col: str = ""
     periods: int = 1
     fill_value: Optional[Union[float, int, str]] = None
     alias: str = ""

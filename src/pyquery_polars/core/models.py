@@ -2,8 +2,6 @@ from typing import Type
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional, Union, Literal, Callable
 
-# StepMetadata needed by Registry
-
 
 class StepMetadata(BaseModel):
     """Metadata for a transformation step."""
