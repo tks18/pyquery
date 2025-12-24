@@ -1,5 +1,7 @@
+import os
 from typing import Any, Dict, List, Optional, Union
 import polars as pl
+
 from pyquery_polars.backend.utils.io import get_files_from_path, load_lazy_frame, load_from_sql, load_from_api, export_worker
 from pyquery_polars.core.models import PluginDef
 from pyquery_polars.core.io_params import (
@@ -8,17 +10,22 @@ from pyquery_polars.core.io_params import (
     IpcExportParams, NdjsonExportParams, SqliteExportParams
 )
 
-# --- LOADERS ---
 
-
-def loader_file_func(params: FileLoaderParams) -> Optional[pl.LazyFrame]:
+def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
     if not params.path:
         return None
 
     files = get_files_from_path(params.path)
     if not files:
         return None
-    return load_lazy_frame(files, params.sheet)
+
+    lf = load_lazy_frame(files, params.sheet)
+    if lf is None:
+        return None
+
+    # Metadata: Use directory of the first file
+    source_path = os.path.dirname(os.path.abspath(files[0])) if files else None
+    return lf, {"source_path": source_path}
 
 
 LOADER_FILE = PluginDef(
@@ -28,11 +35,12 @@ LOADER_FILE = PluginDef(
 )
 
 
-def loader_sql_func(params: SqlLoaderParams) -> Optional[pl.LazyFrame]:
+def loader_sql_func(params: SqlLoaderParams) -> Optional[tuple]:
     if not params.conn or not params.query:
         return None
 
-    return load_from_sql(params.conn, params.query)
+    lf = load_from_sql(params.conn, params.query)
+    return (lf, {}) if lf is not None else None
 
 
 LOADER_SQL = PluginDef(
@@ -42,11 +50,12 @@ LOADER_SQL = PluginDef(
 )
 
 
-def loader_api_func(params: ApiLoaderParams) -> Optional[pl.LazyFrame]:
+def loader_api_func(params: ApiLoaderParams) -> Optional[tuple]:
     if not params.url:
         return None
 
-    return load_from_api(params.url)
+    lf = load_from_api(params.url)
+    return (lf, {}) if lf is not None else None
 
 
 LOADER_API = PluginDef(
