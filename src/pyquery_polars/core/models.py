@@ -1,4 +1,5 @@
 from typing import Type
+import polars as pl
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional, Union, Literal, Callable
 
@@ -52,4 +53,7 @@ class TransformContext(BaseModel):
     """Context passed to transformation functions."""
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    datasets: Dict[str, Any]  # typed as Dict[str, pl.LazyFrame] in practice
+    # typed as Dict[str, pl.LazyFrame] in practice
+    datasets: Dict[str, pl.LazyFrame]
+    project_recipes: Optional[Dict[str, List[RecipeStep]]] = None
+    apply_recipe_callback: Optional[Callable[..., Any]] = None

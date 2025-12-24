@@ -12,6 +12,15 @@ def join_dataset_func(lf: pl.LazyFrame, params: JoinDatasetParams, context: Opti
     datasets = context.datasets if context else {}
     if params.alias in datasets:
         other_lf = datasets[params.alias]
+
+        # Apply transformations if recipe exists
+        if context and context.project_recipes and params.alias in context.project_recipes:
+            recipe = context.project_recipes[params.alias]
+            if context.apply_recipe_callback and recipe:
+                # Pass project_recipes recursively to allow chained joins
+                other_lf = context.apply_recipe_callback(
+                    other_lf, recipe, project_recipes=context.project_recipes)
+
         return lf.join(other_lf, left_on=params.left_on, right_on=params.right_on, how=params.how)
 
     return lf
@@ -104,10 +113,10 @@ def reshape_func(lf: pl.LazyFrame, params: ReshapeParams, context: Optional[Tran
 def concat_datasets_func(lf: pl.LazyFrame, params: ConcatParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
     if not params.other_dataset:
         return lf
-        
+
     datasets = context.datasets if context else {}
     if params.other_dataset in datasets:
         other_lf = datasets[params.other_dataset]
         return pl.concat([lf, other_lf], how="diagonal")
-        
+
     return lf
