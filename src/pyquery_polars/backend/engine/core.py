@@ -48,15 +48,26 @@ class PyQueryEngine:
     # ==========================
     # DATASET MANAGEMENT
     # ==========================
-    def add_dataset(self, name: str, lf: pl.LazyFrame):
+    def add_dataset(self, name: str, lf: pl.LazyFrame, source_path: Optional[str] = None):
         self._datasets[name] = lf
+        if source_path:
+            if not hasattr(self, '_dataset_metadata'):
+                self._dataset_metadata = {}
+            self._dataset_metadata[name] = {"source_path": source_path}
 
     def remove_dataset(self, name: str):
         if name in self._datasets:
             del self._datasets[name]
+        if hasattr(self, '_dataset_metadata') and name in self._dataset_metadata:
+            del self._dataset_metadata[name]
 
     def get_dataset(self, name: str) -> Optional[pl.LazyFrame]:
         return self._datasets.get(name)
+
+    def get_dataset_metadata(self, name: str) -> Dict[str, Any]:
+        if not hasattr(self, '_dataset_metadata'):
+            return {}
+        return self._dataset_metadata.get(name, {})
 
     def get_file_sheet_names(self, file_path: str) -> List[str]:
         """Get sheet names from an Excel file."""
@@ -95,7 +106,7 @@ class PyQueryEngine:
     def get_exporters(self) -> List[PluginDef]:
         return list(self._exporters.values())
 
-    def run_loader(self, loader_name: str, params: Union[Dict[str, Any], BaseModel]) -> Optional[pl.LazyFrame]:
+    def run_loader(self, loader_name: str, params: Union[Dict[str, Any], BaseModel]) -> Union[Optional[pl.LazyFrame], tuple]:
         loader = self._loaders.get(loader_name)
         if not loader:
             return None
@@ -108,9 +119,16 @@ class PyQueryEngine:
                 else:
                     validated_params = loader.params_model.model_validate(
                         params)
-                return loader.func(validated_params)
+                result = loader.func(validated_params)
             else:
-                return loader.func(params)
+                result = loader.func(params)
+            
+            # Handle Legacy (LF only) vs New (LF, Metadata)
+            if isinstance(result, tuple):
+                return result
+            else:
+                return result, {}  # Default empty metadata
+                
         except Exception as e:
             print(f"Loader Error: {e}")
             return None
