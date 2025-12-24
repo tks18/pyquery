@@ -60,8 +60,7 @@ def clip_func(lf: pl.LazyFrame, params: ClipParams, context=None) -> pl.LazyFram
 
 def date_offset_func(lf: pl.LazyFrame, params: DateOffsetParams, context=None) -> pl.LazyFrame:
     # params.offset is string like "1d", "2h".
-    # Must run dt.offset_by
-    # Action add/sub
+
     offset = params.offset
     if params.action == "sub":
         if not offset.startswith("-"):
@@ -74,10 +73,6 @@ def date_offset_func(lf: pl.LazyFrame, params: DateOffsetParams, context=None) -
 
 def date_diff_func(lf: pl.LazyFrame, params: DateDiffParams, context=None) -> pl.LazyFrame:
     # diff between colA and colB
-    # (End - Start)
-    # result is duration. Convert to unit?
-    # (colEnd - colStart).dt.total_days() etc.
-
     diff = pl.col(params.end_col) - pl.col(params.start_col)
 
     new_name = params.alias if params.alias else f"diff_{params.start_col}_{params.end_col}"
