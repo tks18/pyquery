@@ -334,3 +334,56 @@ class DropEmptyRowsParams(BaseModel):
     subset: List[str] = Field(default_factory=list)
     how: Literal["any", "all"] = "any"
     thresh: Optional[int] = None
+
+
+class AutoImputeParams(BaseModel):
+    col: str = ""
+    strategy: Literal["mean", "median", "mode",
+                      "ffill", "bfill", "zero"] = "mean"
+    alias: str = ""
+
+
+class ClipValuesParams(BaseModel):
+    col: str = ""
+    lower_percentile: float = 0.01
+    upper_percentile: float = 0.99
+    alias: str = ""
+
+
+class MaskPIIParams(BaseModel):
+    col: str = ""
+    type: Literal["email", "credit_card",
+                  "phone", "ssn", "ip", "custom"] = "email"
+    mask_char: str = "*"
+    alias: str = ""
+
+
+class CleanTextParams(BaseModel):
+    col: str = ""
+    lowercase: bool = True
+    remove_punctuation: bool = True
+    remove_digits: bool = False
+    ascii_only: bool = True
+    alias: str = ""
+
+
+class QuantileBinsParams(BaseModel):
+    col: str = ""
+    n_bins: int = 4
+    labels: Optional[List[str]] = None
+    alias: str = ""
+
+
+class CheckBoolParams(BaseModel):
+    col: str = ""
+    true_values: List[str] = Field(default_factory=lambda: [
+                                   "yes", "y", "true", "1", "on"])
+    false_values: List[str] = Field(default_factory=lambda: [
+                                    "no", "n", "false", "0", "off"])
+    alias: str = ""
+
+
+class RoundSmartParams(BaseModel):
+    col: str = ""
+    decimals: int = 2
+    alias: str = ""

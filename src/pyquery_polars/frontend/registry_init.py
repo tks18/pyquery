@@ -18,7 +18,8 @@ from pyquery_polars.frontend.steps.cleaning import (
     render_fill_nulls, render_regex_extract, render_string_case, render_string_replace,
     render_drop_nulls, render_text_slice, render_text_length, render_string_pad,
     render_text_extract_delim, render_regex_tool,
-    render_normalize_spaces, render_smart_extract
+    render_normalize_spaces, render_smart_extract,
+    render_clean_text, render_mask_pii, render_auto_impute, render_check_bool
 )
 from pyquery_polars.frontend.steps.analytics import (
     render_time_bin, render_rolling_agg, render_numeric_bin, render_math_op, render_date_extract,
@@ -77,6 +78,10 @@ def register_frontend():
     R.register_renderer("regex_tool", render_regex_tool)
     R.register_renderer("normalize_spaces", render_normalize_spaces)
     R.register_renderer("smart_extract", render_smart_extract)
+    R.register_renderer("clean_text", render_clean_text)
+    R.register_renderer("mask_pii", render_mask_pii)
+    R.register_renderer("auto_impute", render_auto_impute)
+    R.register_renderer("check_bool", render_check_bool)
 
     # Analytics
     R.register_renderer("time_bin", render_time_bin)
