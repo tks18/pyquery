@@ -141,8 +141,8 @@ def render_sidebar():
                     path_val.strip()):
                     # Only try to fetch sheets if it's a valid single file. Globs containing excel can't be sheet-scanned easily pre-load.
                     try:
-                    sheets = engine.get_file_sheet_names(path_val)
-                    sheet_options = sheets
+                        sheets = engine.get_file_sheet_names(path_val)
+                        sheet_options = sheets
                     except:
                         pass  # Ignore sheet scan errors for globs or invalid paths
 
@@ -158,6 +158,9 @@ def render_sidebar():
                 if loader.name == "File":
                     params["path"] = path_val
                 alias_val = params.get('alias')
+
+                # Auto Infer Checkbox
+                auto_infer = st.checkbox("✨ Auto Detect & Clean Types", value=False, help="Automatically scan first 1000 rows and add a cleaning step.", key=f"chk_infer_{loader.name}")
 
                 if st.button("Load Data", type="primary", key=f"btn_load_{loader.name}", use_container_width=True):
                     if not alias_val:
@@ -188,12 +191,55 @@ def render_sidebar():
                             src_path = metadata.get('source_path')
                             engine.add_dataset(
                                 alias_val, lf, source_path=src_path)
+                            
                             if alias_val not in st.session_state.all_recipes:
                                 st.session_state.all_recipes[alias_val] = []
+
+                            # --- AUTO INFER LOGIC ---
+                            if auto_infer:
+                                try:
+                                    with st.spinner("Auto-detecting types..."):
+                                        inferred = engine.infer_types(alias_val, [], sample_size=1000)
+                                        if inferred:
+                                            from pyquery_polars.core.params import CleanCastParams, CastChange
+                                            from pyquery_polars.core.models import RecipeStep
+                                            import uuid
+                                            
+                                            TYPE_ACTION_MAP = {
+                                                "Int64": "To Int",
+                                                "Float64": "To Float",
+                                                "Date": "To Date",
+                                                "Datetime": "To Datetime",
+                                                "Boolean": "To Boolean"
+                                            }
+                                            
+                                            p = CleanCastParams()
+                                            count = 0
+                                            for col, dtype in inferred.items():
+                                                action = TYPE_ACTION_MAP.get(dtype)
+                                                if action:
+                                                    p.changes.append(CastChange(col=col, action=action))
+                                                    count += 1
+                                            
+                                            if count > 0:
+                                                new_step = RecipeStep(
+                                                    id=str(uuid.uuid4()),
+                                                    type="clean_cast",
+                                                    label="Auto Clean Types",
+                                                    params=p.model_dump()
+                                                )
+                                                st.session_state.all_recipes[alias_val].append(new_step)
+                                                st.toast(f"✨ Auto-added cleaning step for {count} columns!", icon="🪄")
+                                except Exception as e:
+                                    print(f"Auto infer error: {e}")
 
                             if len(engine.get_dataset_names()) == 1:
                                 st.session_state.active_base_dataset = alias_val
                                 st.session_state.recipe_steps = []
+                            
+                            # Sync active steps if this is the active dataset
+                            if st.session_state.active_base_dataset == alias_val:
+                                st.session_state.recipe_steps = st.session_state.all_recipes[alias_val]
 
                             st.success(f"Loaded {alias_val}")
                             st.rerun()
