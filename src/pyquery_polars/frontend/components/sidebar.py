@@ -1,11 +1,13 @@
 import streamlit as st
 import json
 from typing import cast
+import os
 from pyquery_polars.frontend.state_manager import add_step, load_recipe_from_json
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
 from pyquery_polars.frontend.utils.io_schemas import get_loader_schema
+from pyquery_polars.frontend.utils.file_picker import pick_file, pick_folder
 
 
 def render_sidebar():
@@ -40,14 +42,92 @@ def render_sidebar():
                 # Decoupled Schema Lookup
                 base_schema = get_loader_schema(loader.name)
 
-                # Check for Excel extension - using lower() for case insensitivity
+                # 1. Custom Path Resolver for Files
                 path_val = st.session_state.get(f"load_{loader.name}_path", "")
+
+                if loader.name == "File":
+                    st.write("###### File Selection")
+                    file_mode = st.radio("Mode", ["Single File", "Folder (Glob)"], horizontal=True,
+                                         label_visibility="collapsed", key=f"mode_{loader.name}")
+
+                    # Helper Callbacks
+                    def callback_pick_file(target_key):
+                        picked = pick_file(title="Select Dataset")
+                        if picked:
+                            st.session_state[target_key] = picked
+
+                    def callback_pick_folder(target_key):
+                        picked = pick_folder(title="Select Dataset Folder")
+                        if picked:
+                            st.session_state[target_key] = picked
+
+                    if file_mode == "Single File":
+                        col_in, col_btn = st.columns([0.8, 0.2])
+                        key_manual = f"load_{loader.name}_path_manual"
+                        
+                        # Init state to avoid value conflict warning
+                        if key_manual not in st.session_state:
+                            st.session_state[key_manual] = path_val if path_val else ""
+
+                        path_val = col_in.text_input(
+                            "File Path", key=key_manual)
+                        col_btn.button("📂", key="btn_browse_file", help="Pick a file",
+                                       on_click=callback_pick_file, args=(key_manual,))
+
+                    else:  # Glob Mode
+                        col_in, col_btn = st.columns([0.8, 0.2])
+                        # Manage Folder State
+                        base_folder_key = f"load_{loader.name}_base_folder"
+                        
+                        # Init state for widget
+                        if base_folder_key not in st.session_state:
+                            st.session_state[base_folder_key] = ""
+                        
+                        base_folder = col_in.text_input(
+                            "Base Folder", key=base_folder_key)
+                        col_btn.button("📂", key="btn_browse_folder", help="Pick a folder",
+                                       on_click=callback_pick_folder, args=(base_folder_key,))
+
+                        # Pattern Selector
+                        PATTERNS = {
+                            "CSV (*.csv)": "*.csv",
+                            "Excel (*.xlsx)": "*.xlsx",
+                            "Parquet (*.parquet)": "*.parquet",
+                            "JSON (*.json)": "*.json",
+                            "Recursive CSV (**/*.csv)": "**/*.csv",
+                            "Custom": "custom"
+                        }
+
+                        c1, c2 = st.columns([0.5, 0.5])
+                        pat_key = f"load_{loader.name}_glob_pattern_sel"
+                        sel_pat_label = c1.selectbox(
+                            "Pattern Type", list(PATTERNS.keys()), key=pat_key)
+
+                        final_pattern = PATTERNS[sel_pat_label]
+                        if final_pattern == "custom":
+                            final_pattern = c2.text_input(
+                                "Custom Pattern", value="*.csv", key=f"load_{loader.name}_glob_custom")
+                        else:
+                            c2.text_input("Pattern Preview",
+                                          value=final_pattern, disabled=True)
+
+                        if base_folder and final_pattern:
+                            path_val = os.path.join(base_folder, final_pattern)
+                            st.caption(f"**Effective Path:** `{path_val}`")
+                        else:
+                            path_val = ""
+
+                # 2. Check Extension (for Excel logic)
                 is_excel = path_val and (path_val.lower().endswith(
                     ".xlsx") or path_val.lower().endswith(".xls"))
 
-                # Dynamic Schema Filtering: Only show 'sheet' if it looks like Excel
+                # 3. Dynamic UI Schema Generation
+                # We filter 'path' out if we are in File mode, because we handled it separately above
                 ui_schema = []
                 for field in base_schema:
+                    if loader.name == "File" and field.name == "path":
+                        continue  # Skip rendering generic path input
+
                     if field.name == "sheet" and not is_excel:
                         continue
                     ui_schema.append(field)
@@ -56,14 +136,15 @@ def render_sidebar():
                 override_defaults = {}
 
                 sheet_options = None
-                if loader.name == "File" and is_excel:
-                    # Try to fetch sheets (handling globs via engine)
+                if (loader.name == "File" and is_excel and 
+                    isinstance(path_val, str) and 
+                    path_val.strip()):
+                    # Only try to fetch sheets if it's a valid single file. Globs containing excel can't be sheet-scanned easily pre-load.
+                    try:
                     sheets = engine.get_file_sheet_names(path_val)
                     sheet_options = sheets
-
-                on_change_handlers = None
-                if loader.name == "File":
-                    on_change_handlers = {"path": st.rerun}
+                    except:
+                        pass  # Ignore sheet scan errors for globs or invalid paths
 
                 # Enhanced UI Renderer with Override Support
                 params = render_schema_fields(
@@ -72,6 +153,10 @@ def render_sidebar():
                     override_options={
                         "sheet": sheet_options} if sheet_options else None
                 )
+
+                # Injection
+                if loader.name == "File":
+                    params["path"] = path_val
                 alias_val = params.get('alias')
 
                 if st.button("Load Data", type="primary", key=f"btn_load_{loader.name}", use_container_width=True):
