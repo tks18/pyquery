@@ -21,7 +21,8 @@ class JobManager:
 
     def start_export_job(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]],
                          exporter_name: str, params: Union[Dict[str, Any], BaseModel],
-                         project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> str:
+                         project_recipes: Optional[Dict[str, List[RecipeStep]]] = None,
+                         precomputed_lf: Optional[pl.LazyFrame] = None) -> str:
         job_id = str(uuid.uuid4())
         exporter = self._exporters.get(exporter_name)
         if not exporter:
@@ -54,19 +55,22 @@ class JobManager:
         self._jobs[job_id] = job_info
 
         t = threading.Thread(target=self._internal_export_worker, args=(
-            job_id, dataset_name, recipe, exporter_name, validated_params, project_recipes))
+            job_id, dataset_name, recipe, exporter_name, validated_params, project_recipes, precomputed_lf))
         t.start()
         return job_id
 
-    def _internal_export_worker(self, job_id, dataset_name, recipe, exporter_name, params, project_recipes=None):
+    def _internal_export_worker(self, job_id, dataset_name, recipe, exporter_name, params, project_recipes=None, precomputed_lf=None):
         start_time = time.time()
         try:
-            base_lf = self._get_dataset(dataset_name)
-            if base_lf is None:
-                raise ValueError("Dataset not found")
+            if precomputed_lf is not None:
+                final_lf = precomputed_lf
+            else:
+                base_lf = self._get_dataset(dataset_name)
+                if base_lf is None:
+                    raise ValueError("Dataset not found")
 
-            final_lf = self._apply_recipe(
-                base_lf, recipe, project_recipes)
+                final_lf = self._apply_recipe(
+                    base_lf, recipe, project_recipes)
 
             exporter = self._exporters.get(exporter_name)
             if exporter and exporter.func:
