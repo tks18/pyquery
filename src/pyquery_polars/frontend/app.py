@@ -66,7 +66,7 @@ active_dataset_name = st.session_state.active_base_dataset
 if active_dataset_name:
     st.caption(f"Active Dataset: **{active_dataset_name}**")
 
-    t1, t2 = st.tabs(["Recipe & Preview", "Profiling"])
+    t1, t2, t3 = st.tabs(["Recipe & Preview", "Profiling", "SQL Lab"])
 
     with t1:
         # Pass NAME, not LF
@@ -75,6 +75,10 @@ if active_dataset_name:
 
     with t2:
         render_profile_tab(active_dataset_name)
+
+    with t3:
+        from pyquery_polars.frontend.components.sql_tab import render_sql_tab
+        render_sql_tab()
 
 else:
     st.info("👈 Please load a dataset from the sidebar to begin.")
