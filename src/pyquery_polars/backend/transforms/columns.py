@@ -95,11 +95,11 @@ def clean_cast_func(lf: pl.LazyFrame, params: CleanCastParams, context: Optional
             exprs.append(pl.when(pl.col(t_col).is_in(null_vals)).then(
                 None).otherwise(pl.col(t_col)).alias(t_col))
         elif act == "Fix Excel Serial Date":
-            exprs.append(robust_excel_date_parser(t_col))
+            exprs.append(robust_excel_date_parser(t_col).alias(t_col))
         elif act == "Fix Excel Serial Datetime":
-            exprs.append(robust_excel_datetime_parser(t_col))
+            exprs.append(robust_excel_datetime_parser(t_col).alias(t_col))
         elif act == "Fix Excel Serial Time":
-            exprs.append(robust_excel_time_parser(t_col))
+            exprs.append(robust_excel_time_parser(t_col).alias(t_col))
 
     if exprs:
         return lf.with_columns(exprs)
