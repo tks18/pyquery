@@ -17,6 +17,8 @@ from . import execution
 class PyQueryEngine:
     def __init__(self):
         self._datasets: Dict[str, pl.LazyFrame] = {}  # In-memory storage
+        self._sql_context = pl.SQLContext()
+
 
         # IO Plugins
         self._loaders: Dict[str, PluginDef] = {}
@@ -50,6 +52,10 @@ class PyQueryEngine:
     # ==========================
     def add_dataset(self, name: str, lf: pl.LazyFrame, source_path: Optional[str] = None):
         self._datasets[name] = lf
+        try:
+            self._sql_context.register(name, lf)
+        except Exception as e:
+            print(f"SQL Registration Warning: {e}")
         if source_path:
             if not hasattr(self, '_dataset_metadata'):
                 self._dataset_metadata = {}
@@ -58,6 +64,10 @@ class PyQueryEngine:
     def remove_dataset(self, name: str):
         if name in self._datasets:
             del self._datasets[name]
+            try:
+                self._sql_context.unregister(name)
+            except:
+                pass
         if hasattr(self, '_dataset_metadata') and name in self._dataset_metadata:
             del self._dataset_metadata[name]
 
@@ -140,6 +150,31 @@ class PyQueryEngine:
 
     def get_job_status(self, job_id: str) -> Optional[JobInfo]:
         return self._job_manager.get_job_status(job_id)
+
+    # ==========================
+    # SQL ENGINE
+    # ==========================
+    def execute_sql(self, query: str) -> pl.LazyFrame:
+        """Executes a SQL query against loaded datasets."""
+        # Using execute(eager=False) to get LazyFrame
+        return self._sql_context.execute(query, eager=False)
+
+    def start_sql_export_job(self, query: str, exporter_name: str,
+                             params: Union[Dict[str, Any], BaseModel]) -> str:
+        """Starts an export job based on a SQL query."""
+        try:
+            lf = self.execute_sql(query)
+            # We pass empty recipe/dataset_name effectively, as precomputed_lf overrides them
+            return self._job_manager.start_export_job(
+                dataset_name="SQL_RESULT",
+                recipe=[],
+                exporter_name=exporter_name,
+                params=params,
+                project_recipes=None,
+                precomputed_lf=lf
+            )
+        except Exception as e:
+            raise ValueError(f"SQL Error: {e}")
 
     # ==========================
     # TRANSFORMATION ENGINE
