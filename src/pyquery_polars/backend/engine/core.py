@@ -87,6 +87,104 @@ class PyQueryEngine:
     def get_dataset_names(self) -> List[str]:
         return list(self._datasets.keys())
 
+    def infer_types(self, dataset_name: str, recipe: List[Any], project_recipes: Optional[Dict[str, List[Any]]] = None, columns: Optional[List[str]] = None, sample_size: int = 1000) -> Dict[str, str]:
+        """
+        Infer data types for specific columns based on a sample of the transformed data.
+        Returns a dictionary mapping column names to suggested PyQuery types (e.g. 'Int64', 'Date').
+        """
+        # 1. Get base dataset
+        lf = self.get_dataset(dataset_name)
+        if lf is None:
+            return {}
+            
+        # 2. Apply current recipe to get state
+        try:
+             transformed_lf = execution.apply_recipe(lf, recipe, self._datasets, project_recipes)
+        except Exception as e:
+             # If pipeline breaks, fall back to base
+             transformed_lf = lf
+
+        # 3. Slice Sample
+        try:
+            sample_df = transformed_lf.slice(0, sample_size).collect()
+        except Exception as e:
+            return {}
+
+        # 4. Determine columns to check
+        if not columns:
+            # Default: Inspect all String columns
+            columns = [c for c, t in sample_df.schema.items() if t == pl.String]
+        
+        inferred = {}
+        
+        for col in columns:
+            if col not in sample_df.columns:
+                continue
+                
+            s = sample_df[col]
+            # Skip if empty
+            if s.len() == 0:
+                continue
+                
+            # Only infer for strings (safest for now)
+            if s.dtype != pl.String:
+                continue
+            
+            # Check non-null values only
+            # If a column is mixed (valid ints + garbage), strict=False will nullify garbage.
+            # INFERENCE RULE: If > 90% of non-nulls can be cast, suggest it?
+            # Or STRICT: All non-nulls must be castable.
+            # Let's go with STRICT for safety, or High Confidence (>99%).
+            
+            non_null_s = s.drop_nulls()
+            if non_null_s.len() == 0:
+                continue
+            
+            count = non_null_s.len()
+
+            # Helper to check success rate
+            def check_cast(dtype):
+                try:
+                    casted = non_null_s.cast(dtype, strict=False)
+                    # Count nulls that weren't null before (failure to cast)
+                    new_nulls = casted.null_count()
+                    return new_nulls == 0 # Strict success
+                except:
+                    return False
+
+            # 1. Boolean (common strings)
+            # Custom check because 'True'/'False' might be case insensitive
+            try:
+                upper = non_null_s.str.to_uppercase()
+                is_bool = upper.is_in(["TRUE", "FALSE", "T", "F", "1", "0", "YES", "NO"]).all()
+                if is_bool:
+                    inferred[col] = "Boolean"
+                    continue
+            except:
+                pass
+
+            # 2. Int64
+            if check_cast(pl.Int64):
+                inferred[col] = "Int64"
+                continue
+
+            # 3. Float64
+            if check_cast(pl.Float64):
+                inferred[col] = "Float64"
+                continue
+                
+            # 4. Date (ISO)
+            if check_cast(pl.Date):
+                inferred[col] = "Date"
+                continue
+
+             # 5. Datetime (ISO)
+            if check_cast(pl.Datetime):
+                inferred[col] = "Datetime"
+                continue
+                
+        return inferred
+
     def get_dataset_schema(self, name: str) -> Optional[pl.Schema]:
         lf = self.get_dataset(name)
         if lf is None:
