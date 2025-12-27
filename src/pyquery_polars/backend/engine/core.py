@@ -351,3 +351,42 @@ class PyQueryEngine:
             return execution.get_profile(base_lf, recipe, self._datasets)
         except Exception as e:
             return {"error": str(e)}
+
+    def analyze_join_overlap(self, 
+                             left_dataset: str, 
+                             left_recipe: List[Union[dict, RecipeStep]],
+                             right_dataset: str,
+                             right_recipe: List[Union[dict, RecipeStep]],
+                             left_on: List[str],
+                             right_on: List[str]) -> Dict[str, Any]:
+        """
+        Analyzes join overlap using standardized get_preview logic.
+        """
+        # 1. Get Previews (Eager DataFrames)
+        # We reuse the robust get_preview method for consistency
+        l_df = self.get_preview(left_dataset, left_recipe)
+        r_df = self.get_preview(right_dataset, right_recipe)
+        
+        if l_df is None:
+             return {"error": f"Left dataset {left_dataset} preview failed."}
+        if r_df is None:
+             return {"error": f"Right dataset {right_dataset} preview failed."}
+
+        # 2. Compute Counts
+        try:
+            l_count = len(l_df)
+            r_count = len(r_df)
+            
+            if l_count == 0 or r_count == 0:
+                 return {"l_count": l_count, "r_count": r_count, "match_count": 0}
+
+            # 3. Join (Eager)
+            match_count = len(l_df.join(r_df, left_on=left_on, right_on=right_on, how="inner"))
+            
+            return {
+                "l_count": l_count,
+                "r_count": r_count,
+                "match_count": match_count
+            }
+        except Exception as e:
+            return {"error": str(e)}
