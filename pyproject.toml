@@ -40,6 +40,8 @@ dependencies = [
     "connectorx>=0.3.3",
     "fastexcel>=0.16.0",
     "python-multipart>=0.0.20",
+    "matplotlib>=3.9.4",
+    "seaborn>=0.13.2",
 ]
 
 [build-system]
