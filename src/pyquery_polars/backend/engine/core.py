@@ -79,6 +79,47 @@ class PyQueryEngine:
             return {}
         return self._dataset_metadata.get(name, {})
 
+    def materialize_dataset(self, name: str, lf_or_df: Union[pl.LazyFrame, pl.DataFrame], reference_name: Optional[str] = None) -> bool:
+        """
+        Materializes a DataFrame to the .staging folder and registers it as a new dataset.
+        """
+        try:
+            # 1. Determine Root Dir
+            root_dir = os.getcwd()
+            if reference_name:
+                 meta = self.get_dataset_metadata(reference_name)
+                 src = meta.get('source_path')
+                 if src:
+                      if os.path.isfile(src):
+                           root_dir = os.path.dirname(src)
+                      else:
+                           root_dir = src
+            
+            # 2. Create .staging dir
+            staging_dir = os.path.join(root_dir, ".staging")
+            os.makedirs(staging_dir, exist_ok=True)
+            
+            # 3. Sanitize Name (Basic)
+            safe_name = "".join(x for x in name if x.isalnum() or x in " _-").strip()
+            if not safe_name:
+                raise ValueError("Invalid dataset name")
+            
+            file_path = os.path.join(staging_dir, f"{safe_name}.parquet")
+            
+            # 4. Write
+            if isinstance(lf_or_df, pl.LazyFrame):
+                lf_or_df.sink_parquet(file_path)
+            else:
+                lf_or_df.write_parquet(file_path)
+                
+            # 5. Register
+            new_lf = pl.scan_parquet(file_path)
+            self.add_dataset(safe_name, new_lf, source_path=file_path)
+            return True
+        except Exception as e:
+            print(f"Materialization Error: {e}")
+            return False
+
     def get_file_sheet_names(self, file_path: str) -> List[str]:
         """Get sheet names from an Excel file."""
         from pyquery_polars.backend.utils.io import get_excel_sheet_names
