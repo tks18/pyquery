@@ -13,7 +13,7 @@ def init_session_state():
 
     if 'recipe_steps' not in st.session_state:
         st.session_state.recipe_steps = []
-
+        
     if 'history_stack' not in st.session_state:
         st.session_state.history_stack = []
     if 'redo_stack' not in st.session_state:
