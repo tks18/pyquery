@@ -279,6 +279,25 @@ class PyQueryEngine:
         # Default global context
         return self._sql_context.execute(query, eager=False)
 
+    def execute_sql_preview(self, query: str, limit: int = 1000, 
+                            project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> pl.DataFrame:
+        """
+        Executes SQL query on a sampled subset of data (Top N rows) for fast preview.
+        Returns an eager DataFrame.
+        """
+        temp_ctx = pl.SQLContext()
+        for name, lf in self._datasets.items():
+            try:
+                # Apply Recipe
+                target_lf = lf
+                if project_recipes and name in project_recipes:
+                    target_lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
+                
+                temp_ctx.register(name, target_lf.limit(limit))
+            except:
+                pass
+        return temp_ctx.execute(query, eager=True)
+
     def start_sql_export_job(self, query: str, exporter_name: str,
                              params: Union[Dict[str, Any], BaseModel]) -> str:
         """Starts an export job based on a SQL query."""
