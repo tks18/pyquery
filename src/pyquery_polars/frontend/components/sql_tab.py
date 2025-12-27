@@ -265,7 +265,12 @@ def render_sql_tab():
                 
                 # Start Job
                 try:
-                    job_id = engine.start_sql_export_job(st.session_state.sql_query, selected_exporter_name, final_params)
+                    job_id = engine.start_sql_export_job(
+                        st.session_state.sql_query, 
+                        selected_exporter_name, 
+                        final_params,
+                        project_recipes=st.session_state.get('all_recipes')
+                    )
                     
                     # Polling UI (Duplicated logic, could be refactored but safe for now)
                     status_placeholder = st.empty()
