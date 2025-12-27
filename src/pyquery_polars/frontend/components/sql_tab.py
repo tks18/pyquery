@@ -128,6 +128,33 @@ def render_sql_tab():
                             })
                         st.dataframe(profile_data, width="stretch")
                 
+                # Materialize
+                with st.expander("💾 Save as Dataset (Materialize)"):
+                    st.caption("Save the result of this query as a reusable dataset in the main pipeline.")
+                    c1, c2 = st.columns([3, 1])
+                    new_ds_name = c1.text_input("New Dataset Name", placeholder="e.g. filtered_sales", label_visibility="collapsed")
+                    if c2.button("Save to Pipeline", type="primary", disabled=not new_ds_name):
+                        try:
+                             with st.spinner("Materializing..."):
+                                # Execute Full Logic (Lazy) with Context
+                                lf = engine.execute_sql(
+                                    st.session_state.sql_query, 
+                                    project_recipes=st.session_state.get('all_recipes')
+                                )
+                                
+                                # Use first dataset as reference path
+                                all_tables = engine.get_dataset_names()
+                                ref_name = all_tables[0] if all_tables else None
+                                
+                                if engine.materialize_dataset(new_ds_name, lf, reference_name=ref_name):
+                                    st.success(f"Saved '{new_ds_name}'! It is now available in the main tab.")
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to save dataset.")
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                
         except Exception as e:
             st.error(f"SQL Error: {e}")
 
