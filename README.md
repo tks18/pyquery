@@ -53,7 +53,7 @@ _Result_: RAM fills up, swap file explodes, and PC takes a screenshot. 📸
   - Chunk comes in ➡️ Process ➡️ Write to Output ➡️ Delete from RAM.
   - Repeat.
 
-**The Flex**: Process a **10TB dataset** on an **8GB MacBook Air**. The RAM usage stays flat line. 📉
+**The Flex**: Process a **100GB dataset** on an **8GB MacBook Air**. The RAM usage stays flat line. 📉
 
 ### 2. 🛡️ Type Safety (No 'NoneType' errors)
 
@@ -153,6 +153,7 @@ pyquery run -s input.csv -r recipe.json -o output.parquet
 The evolution continues into a **Deterministic, Lazy-First Execution Engine**. The UI is just the side character; the Backend is the Main Character. 🌟
 
 ### 🔹 Milestone 1: The Trust Arc (Core Foundation)
+
 **Goal**: No flakes. Trust the process.
 
 - **DAG Execution**: Turning recipes into immutable execution graphs. Structure is key.
@@ -160,6 +161,7 @@ The evolution continues into a **Deterministic, Lazy-First Execution Engine**. T
 - **Logs that don’t gaslight**: Row counts, timings, warnings. Full transparency on every step.
 
 ### 🔹 Milestone 2: Fit Check (Schema & Types)
+
 **Goal**: Strict vibes only. No sloppy types.
 
 - **Explicit Contracts**: Define the schema upfront. No situational situationships with data.
@@ -167,6 +169,7 @@ The evolution continues into a **Deterministic, Lazy-First Execution Engine**. T
 - **Validation**: Checks the vibe before executing a single row.
 
 ### 🔹 Milestone 3: Galaxy Brain (Intelligence)
+
 **Goal**: Work smarter, not harder.
 
 - **Smart Resource Management**: Ball on a compute budget. Predicate pushdowns are pushed to the absolute limit.
@@ -174,18 +177,21 @@ The evolution continues into a **Deterministic, Lazy-First Execution Engine**. T
 - **Data Diffs**: The "Before & After" pics for data changes.
 
 ### 🔹 Milestone 4: Polyglot Rizz (SQL & Hybrid)
+
 **Goal**: Speaking everyone's language.
 
 - **SQL to IR**: Converting SQL queries into Polars Internal Representation.
 - **Hybrid Pipelines**: Pipe SQL results into a GUI recipe, then back to SQL. Best of both worlds.
 
 ### 🔹 Milestone 5: The Grind (Incremental Props)
+
 **Goal**: Production scale or nothing.
 
 - **Incremental Processing**: Upserts, appends, SCDs. Only process what's new.
 - **Resume Capability**: Failed job at 99%? Pick up exactly where you left off. Second chances are real.
 
 ### 🔹 Milestone 6: Squad Goals (Extensibility)
+
 **Goal**: Bringing the whole ecosystem.
 
 - **Plugin System**: Bring custom steps. Gatekeep nothing.
@@ -210,14 +216,14 @@ _Benchmarks run on a standard dev laptop. Results may vary but the vibe remains 
 
 Packed with every tool needed to clear the map.
 
-| Category      | The Tools                                   | Why it slaps                            |
-| :------------ | :------------------------------------------ | :-------------------------------------- |
-| **Cleaning**  | `Fill Nulls`, `Mask PII`, `Smart Extract`   | Turns garbage data into gold. ✨        |
-| **Analytics** | `Rolling Agg`, `Time Bin`, `Rank`, `Diff`   | High-frequency trading vibes. 📈        |
-| **Combining** | `Smart Join`, `Concat`, `Pivot`             | Merge datasets without the headache. 🤝 |
-| **Math**      | `Log`, `Exp`, `Clip`, `Date Offset`         | For the scientific girlies. 👩‍🔬          |
-| **Text**      | `Slice`, `Case`, `Replace`                  | String manipulation on steroids. 💪     |
-| **I/O**       | `CSV`, `Parquet`, `Excel`, `JSON`, `IPC`    | Speaks every language. 🗣️              |
+| Category      | The Tools                                 | Why it slaps                            |
+| :------------ | :---------------------------------------- | :-------------------------------------- |
+| **Cleaning**  | `Fill Nulls`, `Mask PII`, `Smart Extract` | Turns garbage data into gold. ✨        |
+| **Analytics** | `Rolling Agg`, `Time Bin`, `Rank`, `Diff` | High-frequency trading vibes. 📈        |
+| **Combining** | `Smart Join`, `Concat`, `Pivot`           | Merge datasets without the headache. 🤝 |
+| **Math**      | `Log`, `Exp`, `Clip`, `Date Offset`       | For the scientific girlies. 👩‍🔬          |
+| **Text**      | `Slice`, `Case`, `Replace`                | String manipulation on steroids. 💪     |
+| **I/O**       | `CSV`, `Parquet`, `Excel`, `JSON`, `IPC`  | Speaks every language. 🗣️               |
 
 ---
 
@@ -228,11 +234,13 @@ Want to add a feature? It's open source. **Fork it.**
 ### Adding a new Transform (The 5-Step Method) 🖐️
 
 #### Backend Implementation
+
 1.  **Define Params**: Create a Pydantic model (`src/pyquery_polars/core/params.py`).
 2.  **Backend Logic**: Write a pure polars function (`src/pyquery_polars/backend/transforms/`).
 3.  **Register**: Add your step to `register_all_steps()` in `src/pyquery_polars/backend/engine/registry.py`.
 
 #### Frontend Implementation
+
 1. **Frontend Renderer**: Create a Renderer Function (`src/pyquery_polars/frontend/steps/`).
 2. **Register**: Add your step to `register_frontend()` in `src/pyquery_polars/frontend/registry_init.py`.
 
