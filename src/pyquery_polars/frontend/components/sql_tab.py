@@ -17,12 +17,36 @@ def render_sql_tab():
         return
 
     # 1. Available Tables
-    with st.expander("📚 Available Tables"):
+    # 1. Schema Explorer
+    with st.expander("📚 Schema Explorer (Tables & Columns)", expanded=False):
         tables = engine.get_dataset_names()
-        if tables:
-            st.markdown(", ".join([f"`{t}`" for t in tables]))
-        else:
+        if not tables:
             st.warning("No datasets loaded.")
+        else:
+            # Interactive Selector for cleaner UX
+            selected_table_schema = st.selectbox("Select Table to Inspect:", tables, key="schema_table_selector")
+            if selected_table_schema:
+                schema = engine.get_dataset_schema(
+                    selected_table_schema, 
+                    project_recipes=st.session_state.get('all_recipes')
+                )
+                if schema:
+                    # Render as Dataframe for easy scanning/sorting
+                    import pandas as pd
+                    schema_df = pd.DataFrame([
+                        {"Column": col, "Type": str(dtype)} 
+                        for col, dtype in schema.items()
+                    ])
+                    st.dataframe(
+                        schema_df, 
+                        width="stretch", 
+                        height="auto", 
+                        hide_index=True,
+                        column_config={
+                            "Column": st.column_config.TextColumn("Column Name", width="medium"),
+                            "Type": st.column_config.TextColumn("Data Type", width="small"),
+                        }
+                    )
 
     # 2. Query Editor
     default_query = "SELECT * FROM " + (tables[0] if tables else "table_name") + " LIMIT 10"
