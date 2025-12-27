@@ -2,7 +2,7 @@ import streamlit as st
 import json
 from typing import cast
 import os
-from pyquery_polars.frontend.state_manager import add_step, load_recipe_from_json
+from pyquery_polars.frontend.state_manager import add_step, load_recipe_from_json, undo, redo
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
@@ -64,7 +64,7 @@ def render_sidebar():
                     if file_mode == "Single File":
                         col_in, col_btn = st.columns([0.8, 0.2])
                         key_manual = f"load_{loader.name}_path_manual"
-                        
+
                         # Init state to avoid value conflict warning
                         if key_manual not in st.session_state:
                             st.session_state[key_manual] = path_val if path_val else ""
@@ -78,11 +78,11 @@ def render_sidebar():
                         col_in, col_btn = st.columns([0.8, 0.2])
                         # Manage Folder State
                         base_folder_key = f"load_{loader.name}_base_folder"
-                        
+
                         # Init state for widget
                         if base_folder_key not in st.session_state:
                             st.session_state[base_folder_key] = ""
-                        
+
                         base_folder = col_in.text_input(
                             "Base Folder", key=base_folder_key)
                         col_btn.button("📂", key="btn_browse_folder", help="Pick a folder",
@@ -136,9 +136,9 @@ def render_sidebar():
                 override_defaults = {}
 
                 sheet_options = None
-                if (loader.name == "File" and is_excel and 
-                    isinstance(path_val, str) and 
-                    path_val.strip()):
+                if (loader.name == "File" and is_excel and
+                    isinstance(path_val, str) and
+                        path_val.strip()):
                     # Only try to fetch sheets if it's a valid single file. Globs containing excel can't be sheet-scanned easily pre-load.
                     try:
                         sheets = engine.get_file_sheet_names(path_val)
@@ -192,7 +192,7 @@ def render_sidebar():
                             src_path = metadata.get('source_path')
                             engine.add_dataset(
                                 alias_val, lf, source_path=src_path)
-                            
+
                             if alias_val not in st.session_state.all_recipes:
                                 st.session_state.all_recipes[alias_val] = []
 
@@ -206,7 +206,7 @@ def render_sidebar():
                                             from pyquery_polars.core.params import CleanCastParams, CastChange
                                             from pyquery_polars.core.models import RecipeStep
                                             import uuid
-                                            
+
                                             TYPE_ACTION_MAP = {
                                                 "Int64": "To Int",
                                                 "Float64": "To Float",
@@ -214,7 +214,7 @@ def render_sidebar():
                                                 "Datetime": "To Datetime",
                                                 "Boolean": "To Boolean"
                                             }
-                                            
+
                                             p = CleanCastParams()
                                             count = 0
                                             for col, dtype in inferred.items():
@@ -224,7 +224,7 @@ def render_sidebar():
                                                     p.changes.append(CastChange(
                                                         col=col, action=action))
                                                     count += 1
-                                            
+
                                             if count > 0:
                                                 new_step = RecipeStep(
                                                     id=str(uuid.uuid4()),
@@ -242,7 +242,7 @@ def render_sidebar():
                             if len(engine.get_dataset_names()) == 1:
                                 st.session_state.active_base_dataset = alias_val
                                 st.session_state.recipe_steps = []
-                            
+
                             # Sync active steps if this is the active dataset
                             if st.session_state.active_base_dataset == alias_val:
                                 st.session_state.recipe_steps = st.session_state.all_recipes[alias_val]
@@ -280,6 +280,15 @@ def render_sidebar():
 
         # --- 2. TRANSFORMATION PIPELINE ---
         st.subheader("🛠️ Pipeline")
+
+        c_undo, c_redo = st.columns(2)
+        can_undo = len(st.session_state.get('history_stack', [])) > 0
+        can_redo = len(st.session_state.get('redo_stack', [])) > 0
+
+        c_undo.button("↩ Undo", on_click=undo,
+                      disabled=not can_undo, width="stretch", key="btn_undo")
+        c_redo.button("↪ Redo", on_click=redo,
+                      disabled=not can_redo, width="stretch", key="btn_redo")
 
         # Dynamic Registry Usage
         registry = StepRegistry.get_all()
