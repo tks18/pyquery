@@ -1,5 +1,6 @@
 import streamlit as st
 import polars as pl
+import time
 from typing import cast
 from pyquery_polars.frontend.state_manager import move_step, delete_step, update_step_params
 from pyquery_polars.backend.engine import PyQueryEngine
@@ -124,3 +125,37 @@ def render_recipe_editor(dataset_name):
             st.warning("No preview returned.")
     except Exception as e:
         st.error(f"Pipeline Error: {e}")
+
+    st.divider()
+    # Snapshot UI
+    with st.expander("📸 Snapshot Pipeline", expanded=False):
+         st.caption("Save the current transformed state as a new dataset.")
+         snap_name = st.text_input("Snapshot Name", placeholder="e.g. clean_v1")
+         
+         if st.button("Save Snapshot", width="stretch", disabled=not snap_name or not dataset_name):
+               try:
+                   with st.spinner("Snapshoting..."):
+                        # Get current recipe logic
+                        current_recipe = st.session_state.all_recipes.get(dataset_name, [])
+                        
+                        # Get base LF
+                        lf = engine.get_dataset(dataset_name)
+                        if lf is not None:
+                             # Apply transformations
+                             transformed = engine.apply_recipe(
+                                 lf, 
+                                 current_recipe, 
+                                 project_recipes=st.session_state.all_recipes
+                             )
+                             
+                             # Materialize (ref = dataset_name)
+                             if engine.materialize_dataset(snap_name, transformed, reference_name=dataset_name):
+                                  st.success(f"Snapshot '{snap_name}' saved! It's now in your Datasets list.")
+                                  time.sleep(1)
+                                  st.rerun()
+                             else:
+                                  st.error("Snapshot failed.")
+                        else:
+                             st.error("Base dataset not found.")
+               except Exception as e:
+                   st.error(f"Error: {e}")
