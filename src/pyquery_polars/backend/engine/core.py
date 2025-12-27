@@ -185,10 +185,19 @@ class PyQueryEngine:
                 
         return inferred
 
-    def get_dataset_schema(self, name: str) -> Optional[pl.Schema]:
+    def get_dataset_schema(self, name: str, project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> Optional[pl.Schema]:
         lf = self.get_dataset(name)
         if lf is None:
             return None
+            
+        # Apply recipe if context provided
+        if project_recipes and name in project_recipes:
+            try:
+                lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
+            except:
+                # Fallback to base schema
+                pass
+                
         try:
             return lf.collect_schema()
         except:
