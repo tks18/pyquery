@@ -299,10 +299,20 @@ class PyQueryEngine:
         return temp_ctx.execute(query, eager=True)
 
     def start_sql_export_job(self, query: str, exporter_name: str,
-                             params: Union[Dict[str, Any], BaseModel]) -> str:
+                             params: Union[Dict[str, Any], BaseModel],
+                             project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> str:
         """Starts an export job based on a SQL query."""
         try:
-            lf = self.execute_sql(query)
+            # Create Context with Recipes Applied
+            ctx = pl.SQLContext()
+            for name, lf in self._datasets.items():
+                 target_lf = lf
+                 if project_recipes and name in project_recipes:
+                     target_lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
+                 ctx.register(name, target_lf)
+            
+            lf = ctx.execute(query, eager=False)
+            
             # We pass empty recipe/dataset_name effectively, as precomputed_lf overrides them
             return self._job_manager.start_export_job(
                 dataset_name="SQL_RESULT",
