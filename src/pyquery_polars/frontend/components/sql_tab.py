@@ -29,15 +29,25 @@ def render_sql_tab():
     
     if "sql_query" not in st.session_state:
         st.session_state.sql_query = default_query
+    # Use columns to position it nicely
+    st.write("###### Write Query")
+    st.selectbox(
+        "Recent Queries", 
+        ["Recall recent query..."] + st.session_state.sql_history, 
+        key="hist_picker", 
+        label_visibility="collapsed", 
+        on_change=on_hist_change,
+        placeholder="Recall recent query..."
+    )
 
-    # Standard Text Area (Fallback for stability)
+    # Standard Text Area
     st.info("💡 Tip: You can write standard SQL queries here.")
-    query = st.text_area(
+    st.text_area(
         "SQL Query", 
-        value=st.session_state.sql_query, 
         height=200, 
-        key="sql_text_input",
-        help="Write your SQL query statement here."
+        key="sql_query",
+        help="Write your SQL query statement here.",
+        label_visibility="collapsed"
     )
 
     col_run, col_clear = st.columns([1, 6])
@@ -140,7 +150,7 @@ def render_sql_tab():
         
         c2.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True) 
         c2.button("📂", key=f"btn_browse_sql_{selected_exporter_name}", 
-                 on_click=on_pick_sql_folder, args=(folder_key,), help="Pick Folder", use_container_width=True)
+                 on_click=on_pick_sql_folder, args=(folder_key,), help="Pick Folder", width="stretch")
         
         # Filename Input
         filename_val = st.text_input("Filename", key=filename_key)
