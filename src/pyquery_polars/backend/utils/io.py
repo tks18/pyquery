@@ -39,15 +39,15 @@ def get_excel_sheet_names(file_path: str) -> List[str]:
         try:
             excel = fastexcel.read_excel(target_file)
             return excel.sheet_names
-        except ImportError:
+        except Exception:
+             # Fallback
             try:
                 wb = load_workbook(
                     target_file, read_only=True, keep_links=False)
                 return wb.sheetnames
             except:
                 return ["Sheet1"]
-    except Exception as e:
-        print(f"Error reading sheets from {file_path}: {e}")
+    except Exception:
         return ["Sheet1"]
 
 
