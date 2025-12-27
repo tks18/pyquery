@@ -1,7 +1,7 @@
 import streamlit as st
 import polars as pl
 from typing import cast
-from pyquery_polars.frontend.state_manager import move_step, delete_step
+from pyquery_polars.frontend.state_manager import move_step, delete_step, update_step_params
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.renderers import render_step_ui
 
@@ -59,11 +59,12 @@ def render_recipe_editor(dataset_name):
 
             # Detect Change & Force Sync
             if updated_params != step.params:
-                step.params = updated_params
-                st.session_state.recipe_steps = st.session_state.recipe_steps
-                active_ds = st.session_state.active_base_dataset
-                if active_ds:
-                    st.session_state.all_recipes[active_ds] = st.session_state.recipe_steps
+                create_cp = True
+                if st.session_state.get("just_added_step") and step.id == st.session_state.last_added_id:
+                    create_cp = False
+                    st.session_state.just_added_step = False
+                
+                update_step_params(step.id, updated_params, create_checkpoint=create_cp)
                 st.rerun()
 
         # --- PROAGATE SCHEMA FOR NEXT STEP ---
