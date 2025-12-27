@@ -29,6 +29,16 @@ def render_sql_tab():
     
     if "sql_query" not in st.session_state:
         st.session_state.sql_query = default_query
+        
+    if 'sql_history' not in st.session_state:
+        st.session_state.sql_history = []
+        
+    # History Selectbox (Always Visible)
+    def on_hist_change():
+        val = st.session_state.get("hist_picker")
+        if val and val != "Recall recent query...":
+            st.session_state.sql_query = val
+    
     # Use columns to position it nicely
     st.write("###### Write Query")
     st.selectbox(
