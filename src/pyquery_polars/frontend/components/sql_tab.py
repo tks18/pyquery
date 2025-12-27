@@ -39,28 +39,35 @@ def render_sql_tab():
         key="sql_text_input",
         help="Write your SQL query statement here."
     )
-    
-    # Sync
-    st.session_state.sql_query = query
 
     col_run, col_clear = st.columns([1, 6])
     if col_run.button("▶ Run Query", type="primary"):
         st.session_state.sql_run_trigger = True
+        # Save History
+        q = st.session_state.sql_query
+        if q and q.strip():
+            hist = st.session_state.sql_history
+            if q in hist:
+                hist.remove(q)
+            hist.insert(0, q)
+            if len(hist) > 10:
+                hist.pop()
     
     # 3. Preview & Results
     if st.session_state.get("sql_run_trigger"):
         try:
-            with st.spinner("Executing SQL..."):
-                # Get LazyFrame from SQL
-                lf = engine.execute_sql(st.session_state.sql_query)
-                # Collect preview (Top 50)
-                preview_df = lf.limit(50).collect()
+            with st.spinner("Executing SQL (Preview)..."):
+                # Use optimized preview (Eager DF) with Context
+                preview_df = engine.execute_sql_preview(
+                    st.session_state.sql_query, 
+                    limit=1000,
+                    project_recipes=st.session_state.get('all_recipes')
+                )
                 
-                st.success(f"Query executed successfully.")
+                st.warning("⚠️ **Preview Mode**: Results based on top 1,000 rows only. Export uses full dataset.")
+                
                 st.dataframe(preview_df, width="stretch")
-                
-                # Store LF capability for export? 
-                # Actually engine.start_sql_export_job re-runs the query construction, which is fine.
+                st.caption(f"Shape: {preview_df.shape}")
         except Exception as e:
             st.error(f"SQL Error: {e}")
 
