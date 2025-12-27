@@ -261,9 +261,22 @@ class PyQueryEngine:
     # ==========================
     # SQL ENGINE
     # ==========================
-    def execute_sql(self, query: str) -> pl.LazyFrame:
+    def execute_sql(self, query: str, project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> pl.LazyFrame:
         """Executes a SQL query against loaded datasets."""
-        # Using execute(eager=False) to get LazyFrame
+        # If recipes provided, build temp context
+        if project_recipes:
+             ctx = pl.SQLContext()
+             for name, lf in self._datasets.items():
+                 target_lf = lf
+                 if name in project_recipes:
+                     try:
+                        target_lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
+                     except:
+                        pass
+                 ctx.register(name, target_lf)
+             return ctx.execute(query, eager=False)
+        
+        # Default global context
         return self._sql_context.execute(query, eager=False)
 
     def start_sql_export_job(self, query: str, exporter_name: str,
