@@ -160,9 +160,10 @@ def render_sidebar():
                 alias_val = params.get('alias')
 
                 # Auto Infer Checkbox
-                auto_infer = st.checkbox("✨ Auto Detect & Clean Types", value=False, help="Automatically scan first 1000 rows and add a cleaning step.", key=f"chk_infer_{loader.name}")
+                auto_infer = st.checkbox("✨ Auto Detect & Clean Types", value=False,
+                                         help="Automatically scan first 1000 rows and add a cleaning step.", key=f"chk_infer_{loader.name}")
 
-                if st.button("Load Data", type="primary", key=f"btn_load_{loader.name}", use_container_width=True):
+                if st.button("Load Data", type="primary", key=f"btn_load_{loader.name}", width="stretch"):
                     if not alias_val:
                         st.error("Alias required.")
                     else:
@@ -199,7 +200,8 @@ def render_sidebar():
                             if auto_infer:
                                 try:
                                     with st.spinner("Auto-detecting types..."):
-                                        inferred = engine.infer_types(alias_val, [], sample_size=1000)
+                                        inferred = engine.infer_types(
+                                            alias_val, [], sample_size=1000)
                                         if inferred:
                                             from pyquery_polars.core.params import CleanCastParams, CastChange
                                             from pyquery_polars.core.models import RecipeStep
@@ -216,9 +218,11 @@ def render_sidebar():
                                             p = CleanCastParams()
                                             count = 0
                                             for col, dtype in inferred.items():
-                                                action = TYPE_ACTION_MAP.get(dtype)
+                                                action = TYPE_ACTION_MAP.get(
+                                                    dtype)
                                                 if action:
-                                                    p.changes.append(CastChange(col=col, action=action))
+                                                    p.changes.append(CastChange(
+                                                        col=col, action=action))
                                                     count += 1
                                             
                                             if count > 0:
@@ -228,8 +232,10 @@ def render_sidebar():
                                                     label="Auto Clean Types",
                                                     params=p.model_dump()
                                                 )
-                                                st.session_state.all_recipes[alias_val].append(new_step)
-                                                st.toast(f"✨ Auto-added cleaning step for {count} columns!", icon="🪄")
+                                                st.session_state.all_recipes[alias_val].append(
+                                                    new_step)
+                                                st.toast(
+                                                    f"✨ Auto-added cleaning step for {count} columns!", icon="🪄")
                                 except Exception as e:
                                     print(f"Auto infer error: {e}")
 
@@ -255,7 +261,7 @@ def render_sidebar():
                 c1, c2 = st.columns([0.8, 0.2])
                 label = f"📂 {name}" if name != active_ds else f"🟢 **{name}**"
 
-                if c1.button(label, key=f"sel_{name}", use_container_width=True):
+                if c1.button(label, key=f"sel_{name}", width="stretch"):
                     st.session_state.active_base_dataset = name
                     st.session_state.recipe_steps = st.session_state.all_recipes.get(name, [
                     ])
@@ -314,7 +320,7 @@ def render_sidebar():
                     "Operation", list(options_map.keys()), key="sel_operation"
                 )
 
-                if selected_label and st.button("Add Step", key="btn_add_step", type="primary", use_container_width=True):
+                if selected_label and st.button("Add Step", key="btn_add_step", type="primary", width="stretch"):
                     step_type = options_map[selected_label]
                     add_step(step_type, selected_label)
 
@@ -328,14 +334,14 @@ def render_sidebar():
             recipe_json = json.dumps(serialized_recipe, indent=2)
 
             st.download_button("💾 Download JSON", recipe_json, "recipe.json",
-                               "application/json", use_container_width=True)
+                               "application/json", width="stretch")
 
             uploaded_recipe = st.file_uploader("Restore JSON", type=["json"])
-            if uploaded_recipe and st.button("Apply Restore", use_container_width=True):
+            if uploaded_recipe and st.button("Apply Restore", width="stretch"):
                 load_recipe_from_json(uploaded_recipe)
                 st.rerun()
 
-            if st.button("🗑️ Clear All Steps", type="secondary", use_container_width=True):
+            if st.button("🗑️ Clear All Steps", type="secondary", width="stretch"):
                 active_ds = st.session_state.active_base_dataset
                 if active_ds:
                     st.session_state.all_recipes[active_ds] = []
