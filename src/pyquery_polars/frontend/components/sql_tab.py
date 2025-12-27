@@ -112,6 +112,22 @@ def render_sql_tab():
                 
                 st.dataframe(preview_df, width="stretch")
                 st.caption(f"Shape: {preview_df.shape}")
+                
+                 # Result Profiling
+                with st.expander("📊 Analyze Result Quality"):
+                    if st.button("Run Profile", key="btn_sql_profile", help="Check for nulls and uniqueness in this result"):
+                        profile_data = []
+                        for col in preview_df.columns:
+                            s = preview_df[col]
+                            profile_data.append({
+                                "Column": col,
+                                "Type": str(s.dtype),
+                                "Nulls": s.null_count(),
+                                "Null %": f"{s.null_count() / len(s):.1%}" if len(s) > 0 else "0%",
+                                "Unique": s.n_unique(),
+                            })
+                        st.dataframe(profile_data, width="stretch")
+                
         except Exception as e:
             st.error(f"SQL Error: {e}")
 
