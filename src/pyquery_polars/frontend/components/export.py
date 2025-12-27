@@ -73,7 +73,7 @@ def render_export_section(dataset_name):  # Takes name
         
         c2.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True) # Spacer alignment
         c2.button("📂", key=f"btn_browse_{selected_exporter_name}", 
-                 on_click=on_pick_folder, args=(folder_key,), help="Pick Folder", use_container_width=True)
+                 on_click=on_pick_folder, args=(folder_key,), help="Pick Folder", width="stretch")
         
         # Filename Input
         filename_val = st.text_input("Filename", key=filename_key)
