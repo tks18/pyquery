@@ -25,6 +25,8 @@ def init_session_state():
         st.session_state.active_base_dataset = None
     if 'file_path_buffer' not in st.session_state:
         st.session_state.file_path_buffer = ""
+    if 'view_at_step_id' not in st.session_state:
+        st.session_state.view_at_step_id = None
 
 
 def get_active_recipe() -> List[RecipeStep]:
