@@ -66,19 +66,23 @@ active_dataset_name = st.session_state.active_base_dataset
 if active_dataset_name:
     st.caption(f"Active Dataset: **{active_dataset_name}**")
 
-    t1, t2, t3 = st.tabs(["Recipe & Preview", "Profiling", "SQL Lab"])
+    t1, t2, t3, t4 = st.tabs(["Recipe & Preview", "📊 EDA", "SQL Lab", "Profiling"])
 
     with t1:
         # Pass NAME, not LF
         render_recipe_editor(active_dataset_name)
         render_export_section(active_dataset_name)
-
+        
     with t2:
-        render_profile_tab(active_dataset_name)
+        from pyquery_polars.frontend.components.eda_tab import render_eda_tab
+        render_eda_tab()
 
     with t3:
         from pyquery_polars.frontend.components.sql_tab import render_sql_tab
         render_sql_tab()
+
+    with t4:
+        render_profile_tab(active_dataset_name)
 
 else:
     st.info("👈 Please load a dataset from the sidebar to begin.")
