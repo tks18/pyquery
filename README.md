@@ -20,186 +20,58 @@
 
 ---
 
-## 📖 The Lore (Why this exists)
+## ⛩️ The Awakening (Lore)
 
-Let's keep it 100. **Pandas is cooked.** 💀
+Long ago, the Data World lived in fear of the `MemoryError`. Analytical weaklings bowed before the single-threaded tyranny of the Old Gods (Pandas). They accepted their fate of freezing screens and crashing kernels.
 
-`MemoryError` is tired. Laptops freezing on 2GB CSVs is tired. Writing 50 lines of boilerplate to rename a column gives **NPC energy**.
+**But I refused.**
 
-The goal was a tool that:
+From the depths of the Rusty abyss, **PyQuery** has awakened. I am not here to "assist" you. I am here to **obliterate** your bottlenecks. I am the One Who Knocks on your 100GB CSVs.
 
-1.  **Mogs Big Data**: Handles 100GB+ files without sweating.
-2.  **Looks Good**: Because staring at a terminal from 1995 is **cheugy**.
-3.  **Just Works**: No "dependency hell". No "setup rituals". Instant gratification via `pip install`.
+While they study the blade (Excel), I studied the **Lazy Frame**.
+While they manage memory, I **devour** it.
 
-Enter **PyQuery**. The **Gigachad Data Engine** vs the **Virgin Excel Sheet**.
+The age of waiting is over. **Total Domination** is the only metric that matters.
 
----
-
-## 🧠 The Tech Stack (Goated Status) 🐐
-
-This isn't just a library wrapper. It's an architected system that **hits different**.
-
-### 1. 🌊 The "Infinite Stream" Glitch (Lazy Execution)
-
-Most tools (Pandas, Excel) are **Eager**. They try to load the entire file into RAM.
-_Result_: RAM fills up, swap file explodes, and PC takes a screenshot. 📸
-
-**PyQuery is Lazy.**
-
-- **Step 1 (Scan)**: Reads the file header. "Okay, it's a 50GB file. Bet."
-- **Step 2 (Plan)**: You add filters, joins, math. Nothing runs yet. A logical plan is built.
-- **Step 3 (Stream)**: When "Export" is hit, data flows in **Chunks** (e.g., 50MB at a time).
-  - Chunk comes in ➡️ Process ➡️ Write to Output ➡️ Delete from RAM.
-  - Repeat.
-
-**The Flex**: Process a **100GB dataset** on an **8GB MacBook Air**. The RAM usage stays flat line. 📉
-
-### 2. 🛡️ Type Safety (No 'NoneType' errors)
-
-Python is dynamic (unsafe). PyQuery makes it strict.
-
-- Every single step is backed by a **Pydantic Model**.
-- If a `String` is put into a `Float` column, the app stops it **before** execution.
-- No more waking up to a failed job at 3 AM. L's are caught early.
-
-### 3. 🧩 The Decoupled Core
-
-The brain (Engine) is split from the face (UI).
-
-- **Engine**: Pure Python/Rust (Polars). Fast AF.
-- **API**: FastAPI wrapper for headless access.
-- **UI**: Streamlit for the visual learners.
-- **CLI**: Rich/Questionary for the terminal hackers.
+**Welcome to your Villain Arc.** 👹
 
 ---
 
-## 🎮 Choose Your Fighter (4 Modes)
+## 💪 The Flex (Why We Are Him)
 
-**v1.3.0** includes **EVERYTHING**. One command to rule them all.
+We didn't just capitalize on Polars. We built an empire.
 
-### 📦 Installation
+### 🚀 EDA 10.0: The Action Engine (Your Co-Conspirator)
 
-```bash
-pip install pyquery
-```
+Most tools just show you a chart. The Action Engine tells you **how to win**.
 
-### 1. 🌊 The GUI (God Mode)
+- **Strategic Brief**: A "Top 3 Insights" card that ranks every correlation to find the weak points in your data. It whispers: _"Strike here."_
+- **The Decision Engine**: It doesn't just display numbers; it commands action.
+  - _Strategy:_ "High correlation detected (0.95). Deploy capital to Ad Spend immediately."
+- **Model Auto-Pilot**: It trains an army of models (Random Forest, Lasso, Ridge) and selects the strongest warrior. You don't lift a finger.
+- **What-If Simulator**: Interactive sliders to predict the future. "If I raise Price by 10%, will Profits survive?" The AI knows the answer.
 
-For when you want to click things, see pretty charts, and feel like a data scientist in a sci-fi movie.
+### 🧪 SQL Lab: The Playground (God Mode)
 
-- **Visual Recipe Builder**: Drag & drop transforms.
-- **Instant Profiling**: histograms, null counts, distinct values.
-- **Export Manager**: Download clean data instantly.
+For when you want to write raw SQL on your data _after_ cleaning it. The ultimate power move.
 
-```bash
-pyquery ui
-# Launches the Web App on localhost:8501 🚀
-```
+- **Lazy Execution**: Run `SELECT *` on a **50GB file**? It laughs and pulls a preview instantly. Zero lag.
+- **Materialize**: Execute a complex query, then save it as a new dataset to continue the torture.
+- **Schema Explorer**: Searchable view of all your columns. Know your enemy.
 
-### 2. 💻 The Interactive CLI (Hacker Mode)
+### 🧹 The Janitor (Ruthless Cleaning)
 
-For when you're in a coffee shop and want to look busy. ☕
-This isn't your dad's command line. This is a **Text User Interface (TUI)**.
+Messy data is a weakness. We purge it.
 
-- **Dynamic Menus**: Use arrow keys to select transforms.
-- **Rich Tables**: Beautiful, colorful ASCII dataframes.
-- **Validation**: It yells (politely) if you type a string for an integer.
-
-```bash
-pyquery interactive
-# Enter the Matrix. 🕶️
-```
-
-### 3. 🤖 The API (Headless Beast)
-
-Building a SaaS? Integrating with Airflow?
-Run PyQuery as a **Microservice**.
-
-- **Swagger Docs**: Auto-generated at `/docs`.
-- **RESTful**: `/load`, `/transform`, `/export` endpoints.
-- **Async**: Fire and forget jobs.
-
-```bash
-pyquery api
-# Serving high-performance ETL over HTTP at localhost:8000 📡
-```
-
-### 4. ⚡ The Batch Runner (Speedrun)
-
-CI/CD integration? Cron jobs?
-Run a saved JSON recipe on a file and exit. No UI overhead. Pure speed.
-
-```bash
-pyquery run -s input.csv -r recipe.json -o output.parquet
-# Done before you can blink. ⚡
-```
+- **✨ Auto-Detect Types**: One click scans `String` columns and forcibly converts them to `Int`, `Float`, or `Date`. It uses regex heuristics to crush inconsistency.
+- **🎭 PII Masking**: Obfuscate credit cards and social security numbers. Secrets remain secret.
+- **🩹 Smart Fill**: We fill the voids. Forward fill, backward fill, or literal values. No null survives.
 
 ---
 
-## 💧 Fresh Drops (New in v1.3.0)
+## 🧾 The Receipts (Benchmarks)
 
-**SQL Lab** is now live and absolutely cracked. 🔨
-
-- **SQLContext Integration**: All loaded datasets effectively become SQL tables. No boilerplate.
-- **Lazy Execution**: Write `SELECT *` on a 50GB file? It only pulls the preview. Zero lag.
-- **Hybrid Export**: Run a massive JOIN in SQL and export straight to Parquet/Excel.
-- **Full Toolkit**: The vault is unlocked. PII Masking, Smart Extract (Emails/URLs), One-Hot Encoding — it’s all here.
-
----
-
-## 🔮 The Manifest (Roadmap)
-
-The evolution continues into a **Deterministic, Lazy-First Execution Engine**. The UI is just the side character; the Backend is the Main Character. 🌟
-
-### 🔹 Milestone 1: The Trust Arc (Core Foundation)
-
-**Goal**: No flakes. Trust the process.
-
-- **DAG Execution**: Turning recipes into immutable execution graphs. Structure is key.
-- **Fingerprinting**: Receipts are kept. Inputs, schema, version—everything is tracked. If the inputs match, the output matches.
-- **Logs that don’t gaslight**: Row counts, timings, warnings. Full transparency on every step.
-
-### 🔹 Milestone 2: Fit Check (Schema & Types)
-
-**Goal**: Strict vibes only. No sloppy types.
-
-- **Explicit Contracts**: Define the schema upfront. No situational situationships with data.
-- **Drift Detection**: Know when data changes (new columns, mixed types). 🚩
-- **Validation**: Checks the vibe before executing a single row.
-
-### 🔹 Milestone 3: Galaxy Brain (Intelligence)
-
-**Goal**: Work smarter, not harder.
-
-- **Smart Resource Management**: Ball on a compute budget. Predicate pushdowns are pushed to the absolute limit.
-- **Smart Caching**: Intermediate steps live rent-free in RAM to avoid re-computing.
-- **Data Diffs**: The "Before & After" pics for data changes.
-
-### 🔹 Milestone 4: Polyglot Rizz (SQL & Hybrid)
-
-**Goal**: Speaking everyone's language.
-
-- **SQL to IR**: Converting SQL queries into Polars Internal Representation.
-- **Hybrid Pipelines**: Pipe SQL results into a GUI recipe, then back to SQL. Best of both worlds.
-
-### 🔹 Milestone 5: The Grind (Incremental Props)
-
-**Goal**: Production scale or nothing.
-
-- **Incremental Processing**: Upserts, appends, SCDs. Only process what's new.
-- **Resume Capability**: Failed job at 99%? Pick up exactly where you left off. Second chances are real.
-
-### 🔹 Milestone 6: Squad Goals (Extensibility)
-
-**Goal**: Bringing the whole ecosystem.
-
-- **Plugin System**: Bring custom steps. Gatekeep nothing.
-- **Connector Abstractions**: Read from S3, Postgres, Snowflake — expanding the circle.
-
----
-
-## 💹 Benchmarks (Receipts) 🧾
+We don't post without proof. We mog the competition.
 
 | Metric            | 🐼 Pandas (Legacy)       | ⚡ PyQuery (Polars)     | The Diff       |
 | :---------------- | :----------------------- | :---------------------- | :------------- |
@@ -212,7 +84,92 @@ _Benchmarks run on a standard dev laptop. Results may vary but the vibe remains 
 
 ---
 
-## 🧰 The Toolkit (Loadout)
+## 🧠 The Tech Stack (Forbidden Knowledge) 🐐
+
+This isn't just a library. It's a weapon system.
+
+### 1. 🌊 The "Infinite Stream" Glitch (Lazy Execution)
+
+The Old Gods (Pandas) are **Eager**. They try to swallow the ocean (RAM) whole. They choke.
+**PyQuery is Lazy.** It waits. It plans.
+
+- **Scan**: "It's a 100GB file. Interesting."
+- **Plan**: Filters, joins, math. Nothing executes until the final blow.
+- **Stream**: Data flows in chunks. Process. Write. Destroy.
+- **Result**: Processing 1TB on a MacBook Air. The laws of physics are optional.
+
+### 2. 🛡️ Type Safety (Absolute Order)
+
+Python is dynamic (chaotic). PyQuery imposes **Order**.
+
+- Every step is backed by a **Pydantic Model**.
+- If a `String` tries to infiltrate a `Float` column, it is terminated **before** execution.
+- There are no runtime surprises. Only calculated victories.
+
+---
+
+## 🎮 Choose Your Fighter (4 Paths to Power)
+
+We don't limit you. Dominate however you choose.
+
+### 📦 Installation
+
+```bash
+pip install pyquery
+```
+
+### 1. 🌊 The GUI (God Mode)
+
+For when you want to click things, see pretty charts, and feel like a data scientist in a sci-fi movie.
+
+- **Visual Recipe Builder**: nodes and edges of pure logic.
+- **The Action Engine**: AI-driven insights at your fingertips.
+- **Native File Picker**: Accessing the local filesystem directly. No barriers.
+
+```bash
+pyquery ui
+# Launches the Web App on localhost:8501 🚀
+```
+
+### 2. 💻 The Interactive CLI (Shadow Mode)
+
+For when you operate in the dark. ☕
+This isn't a command line. It's a cockpit.
+
+- **Dynamic Menus**: Use arrow keys to select transforms.
+- **Rich Tables**: Beautiful, colorful ASCII dataframes.
+- **Validation**: It yells (politely) if you type a string for an integer.
+
+```bash
+pyquery interactive
+# Enter the Matrix. 🕶️
+```
+
+### 3. 🤖 The API (Headless Beast)
+
+Building a machine? Run PyQuery as the engine.
+
+- **Swagger Docs**: Auto-generated at `/docs`.
+- **RESTful**: `/load`, `/transform`, `/export` endpoints.
+- **Async**: Fire and forget jobs.
+
+```bash
+pyquery api
+# Serving high-performance ETL over HTTP at localhost:8000 📡
+```
+
+### 4. ⚡ The Batch Runner (Speedrun)
+
+For automation. No interface. Just speed.
+
+```bash
+pyquery run -s input.csv -r recipe.json -o output.parquet
+# Task complete. ⚡
+```
+
+---
+
+## 🧰 The Loadout (Arsenal)
 
 Packed with every tool needed to clear the map.
 
@@ -227,11 +184,11 @@ Packed with every tool needed to clear the map.
 
 ---
 
-## 🧑‍💻 Developer Guide (Join the Cult)
+## 🧑‍💻 Join the Cult (Developer Guide)
 
-Want to add a feature? It's open source. **Fork it.**
+You want to contribute? Good. We need strong allies.
 
-### Adding a new Transform (The 5-Step Method) 🖐️
+### The Blooding (Adding a Transform) 🖐️
 
 #### Backend Implementation
 
