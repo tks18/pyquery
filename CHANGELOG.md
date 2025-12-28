@@ -2,6 +2,92 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.0.0](https://github.com/tks18/pyquery/compare/v1.3.0...v2.0.0) (2025-12-28)
+
+
+### Styling 🎨
+
+* change the name in the CLI ([fbf25e3](https://github.com/tks18/pyquery/commit/fbf25e3290aadb57153bf93740b161c9cd87c073))
+* **frontend/components:** export.py newline due to linter ([9edbd10](https://github.com/tks18/pyquery/commit/9edbd1018f9db505bfe47a23aa53a10705f73924))
+* **frontend:** state_manager.py whitespace change ([d849588](https://github.com/tks18/pyquery/commit/d849588fb4560cab61d962c1346460cd623b2ad3))
+
+
+### Bug Fixes 🛠
+
+* **api:** fix all type errors ([58c25fb](https://github.com/tks18/pyquery/commit/58c25fbabfcb0474fbbed437f9d8175d58d533aa))
+* **backend/transforms:** previously it was creating new cols for all these changes, now corrected ([4ec7b3e](https://github.com/tks18/pyquery/commit/4ec7b3e1becae6805da337b7566cd07a1013a049))
+* **backend:** fix all type errors ([c1d29e1](https://github.com/tks18/pyquery/commit/c1d29e1345ffb86a7d12be267c868d08db98eb0d))
+* **cli:** fix all type errors ([25ad08c](https://github.com/tks18/pyquery/commit/25ad08cc879506f6e67dd978aea923afa25f5586))
+
+
+### Build System 🏗
+
+* **pyproject.toml:** add seaborn and matplotlib for upcoming feature: EDA ([a2096f3](https://github.com/tks18/pyquery/commit/a2096f3498119e6e096427e390ffee07b1cd1e7f))
+* **pyproject:** add plotly, statsmodel, scikit-learn [future features] ([1165044](https://github.com/tks18/pyquery/commit/1165044058a1d07ff32f97783686f93e0aa24db4))
+* **pyproject:** require python-multipart in the backend (FastAPI) for file handling ([080c49f](https://github.com/tks18/pyquery/commit/080c49f7ee1eca4d0e1343e2ac1c236f5f5b9b33))
+
+
+### Features 🔥
+
+* **backend/core:** add a function to materialize the dataset and load to the pipeline ([6bd3f1d](https://github.com/tks18/pyquery/commit/6bd3f1d1f21fded81197eee881693c9318b3a94e))
+* **backend/core:** add a new function to analyze the join match / overlap ([58770ea](https://github.com/tks18/pyquery/commit/58770ea759d02c8a7f7a0486d0a5dcc19d1332e4))
+* **backend/core:** allow custom SQL queries to be run on the loaded datasets (for powerusers) ([68772d1](https://github.com/tks18/pyquery/commit/68772d1966152d3242b9d7c3a1caa18185c31a16))
+* **backend/core:** update get_schema to get the proper schema after applying the steps ([89d4388](https://github.com/tks18/pyquery/commit/89d4388ade7cf3b87cd0cb6119172605c4e0acb7))
+* **backend/core:** update the sql engine to run after applying steps from recipe editor ([591c3c1](https://github.com/tks18/pyquery/commit/591c3c1bba9cdf8cd4fc72c3339856731ee021b4))
+* **backend/core:** update the sql export to use the transformed data to run queries and export ([311ced7](https://github.com/tks18/pyquery/commit/311ced71603128ab642927c0634a8bd3d1cf1c7f))
+* **backend/core:** write a new function for SQL preview (limit the rows then execute sql) ([ae0b48c](https://github.com/tks18/pyquery/commit/ae0b48cdd6ae34b8263e8f4900b65da39510e984))
+* **backend/core:** write a new function to infer the types based on the sample rows selected ([2595b10](https://github.com/tks18/pyquery/commit/2595b10db128d2dcaa6b4de086f112b5150d7b62))
+* **backend/engine:** access the api for getting sheet names through engine ([11f450b](https://github.com/tks18/pyquery/commit/11f450b5c11f877d4ac4e5aeb20eefcbbfb4f5df))
+* **backend/engine:** make necessary changes as required by the loader funcs ([6b1d221](https://github.com/tks18/pyquery/commit/6b1d2219239866b64bffb615c5bbb88f78a97823))
+* **backend/io:** excel: add option to get the sheet names [both folder/file] ([35b1306](https://github.com/tks18/pyquery/commit/35b1306bd3bc22fa75afc933d76650954e34aff7))
+* **backend/jobs:** allow to pass a precomputed lf (for a upcoming feature related to SQL Queries ([92f703e](https://github.com/tks18/pyquery/commit/92f703e19ae81b8165a8a5531948dc6db6a8adc7))
+* **backend/loaders:** allow passing tuple as return so that we can return metadata ([453b89e](https://github.com/tks18/pyquery/commit/453b89e90dd980e465478350f8ab158e7ffa3913))
+* **frontend/components:** add a button to materialize the data and add to the pipeline ([21dfcf6](https://github.com/tks18/pyquery/commit/21dfcf6f5f02487db9543db73e9a7872c9a7c887))
+* **frontend/components:** add a new tab for doing EDA on the datasets ([bcb88aa](https://github.com/tks18/pyquery/commit/bcb88aa5bc417ea54e68a6f56c90f2c073eb9d4b))
+* **frontend/components:** add a new tab for running sql queries on the loaded dataset (poweruser) ([076bb0a](https://github.com/tks18/pyquery/commit/076bb0aeef0385298afa605a254fdedbf3a56fff))
+* **frontend/components:** add option to maintain the queries history for sql ([8011720](https://github.com/tks18/pyquery/commit/801172067cd387b73e3ae6daff163bff8f901e90))
+* **frontend/components:** add option to materialize the sql output as well to the pipeline ([39c0986](https://github.com/tks18/pyquery/commit/39c0986c2af99ce45c55b413e9e85a4c46ed5755))
+* **frontend/components:** get quick profile on the sql query ran ([3572eb2](https://github.com/tks18/pyquery/commit/3572eb2d420126f4688e3646dc75d8157e78fa61))
+* **frontend/components:** integrate the file / folder picker in the export component for better ux ([a23787e](https://github.com/tks18/pyquery/commit/a23787e6a09d1952e74cf52e5baa0878e3c96205))
+* **frontend/components:** integrate the file & folder picker component in the sidebar for better ux ([8874ce7](https://github.com/tks18/pyquery/commit/8874ce7d1cc2017b071acb13cf122e8753685d93))
+* **frontend/components:** revamp eda tab completely: ML kit, simulations, distributions, relations ([bb436bb](https://github.com/tks18/pyquery/commit/bb436bb9aa7e6f941727db0623fa0a63a2390025))
+* **frontend/components:** sidebar: add a checkbox to detect the types when loading the dataset ([fb5277e](https://github.com/tks18/pyquery/commit/fb5277eef951813d3992fb77fcd8e4aeafac56cd))
+* **frontend/components:** update recipe editor to support preview slicing ([16b2844](https://github.com/tks18/pyquery/commit/16b28443cb509d478ac871748829f4f1e13618f4))
+* **frontend/components:** update recipe_editor page to incorporate undo, redo & params update ([8a1ae1e](https://github.com/tks18/pyquery/commit/8a1ae1e65334801cafe1f436eb7f4be9ffd4308b))
+* **frontend/components:** update sidebar to add undo / redo buttongs ([26c4964](https://github.com/tks18/pyquery/commit/26c49640fcfb3bb17ed92527e264b44d9516e0da))
+* **frontend/components:** update the sql_tab with updated schema and table explorer ([35d691f](https://github.com/tks18/pyquery/commit/35d691fb1ed8950a034153ce67c62d1344c1199c))
+* **frontend/components:** use the update sql preview to get preview data ([d66bad8](https://github.com/tks18/pyquery/commit/d66bad809b7ebf898ad2d2af893a4f4c3e9bc54d))
+* **frontend/steps:** write a new detect types feature in clean/cast types transforms ([675fcdd](https://github.com/tks18/pyquery/commit/675fcdd7a3defa995d5c36fe716f4c818edd2474))
+* **frontend/transforms:** render the join analysis using the backend api, also minor refactors ([c524782](https://github.com/tks18/pyquery/commit/c5247825a18c192e3e198ec0d5247a6bface3936))
+* **frontend:** add a new tab for EDA ([6916e68](https://github.com/tks18/pyquery/commit/6916e68f2cf43b0b641e99cf6ff0198b70a7ed02))
+* **frontend:** add a new util to write a file & folder picker component using tkinter ([17a0f98](https://github.com/tks18/pyquery/commit/17a0f986ce597038be1325233a9f1d1f3412a693))
+* **frontend:** auto detect the output path based on the source path using the metadata in the api ([436a8dd](https://github.com/tks18/pyquery/commit/436a8dd930ab502503412a4c02987a34f40be241))
+* **frontend:** update state for future updates ([baa3e4d](https://github.com/tks18/pyquery/commit/baa3e4d75edc2128395d5616adb14cdbff15bf5c))
+* **frontend:** update the state to maintain the undo and redo stack to go back and forth the steps ([21e130a](https://github.com/tks18/pyquery/commit/21e130a5dad784a9e0001093af685276cfbbc5ca))
+* **frontend:** utilize the sheet name api from backend to increase ux for user ([8c36e88](https://github.com/tks18/pyquery/commit/8c36e88d44385800c3750c523c072e4506239636))
+
+
+### Code Refactoring 🖌
+
+* **backend/utils:** a simple refactor to handle all exceptions ([375d271](https://github.com/tks18/pyquery/commit/375d2719fd4efbfa4d3e4762111ed06167731528))
+* **frontend/app:** minor refactors ([96df0b1](https://github.com/tks18/pyquery/commit/96df0b166c4310f09cba75021471cd2b8e5c16a6))
+* **frontend/components:** minor refactors ([b59b2cc](https://github.com/tks18/pyquery/commit/b59b2cc7034e484e8ca0a69717134f81afc1c969))
+* **frontend/components:** refactor sidebar.py ([e4d8518](https://github.com/tks18/pyquery/commit/e4d8518556a26111c56741cfcadfdfa495038a07))
+* **frontend/components:** sql_tab.py minor refactoring, wording changes ([8c907a1](https://github.com/tks18/pyquery/commit/8c907a1a61ff602f7246482f10f4fdb5933bae4d))
+* **frontend/components:** use the updated signature for exporting ([f24c435](https://github.com/tks18/pyquery/commit/f24c435dd5ca9886d51b0805cf6fbd40d996163f))
+
+
+### Docs 📃
+
+* **readme:** update readme ([c490c25](https://github.com/tks18/pyquery/commit/c490c2578a810a3bff620a281bc8c91affa1a364))
+* **readme:** update readme completely to reflect new features ([050b213](https://github.com/tks18/pyquery/commit/050b21366cc42468fcc5b82e77d31bf390c1b2b3))
+* **readme:** update the readme to incorporate the new changes ([bbf0601](https://github.com/tks18/pyquery/commit/bbf06013e6cc503362505dba7a36d18de3176401))
+
+
+### Others 🔧
+
+* **pyproject:** update version to 2.0.0 - improved SQL and new EDA Tab ([3e65abd](https://github.com/tks18/pyquery/commit/3e65abd69906018bba175333eed7cbd45f443c89))
+
 ## [1.3.0](https://github.com/tks18/pyquery/compare/v1.2.0...v1.3.0) (2025-12-24)
 
 
