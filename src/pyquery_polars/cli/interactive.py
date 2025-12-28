@@ -138,8 +138,9 @@ def load_data_flow():
 
     with console.status(f"Loading {path}..."):
         try:
-            lf = engine.run_loader("File", params)
-            if lf is not None:
+            result = engine.run_loader("File", params)
+            if result is not None:
+                lf, _ = result
                 engine.add_dataset(alias, lf)
                 active_dataset = alias
                 active_dataset_path = path

@@ -35,10 +35,14 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
         other_cols = other_schema.names() if other_schema else []
 
         c1, c2, c3 = st.columns(3)
+        # Filter defaults to prevent StreamlitAPIException if columns changed
+        valid_left = [c for c in params.left_on if c in current_cols]
+        valid_right = [c for c in params.right_on if c in other_cols]
+
         left_on = c1.multiselect(
-            "Left On", current_cols, default=params.left_on, key=f"jlo_{step_id}")
+            "Left On", current_cols, default=valid_left, key=f"jlo_{step_id}")
         right_on = c2.multiselect(
-            "Right On", other_cols, default=params.right_on, key=f"jro_{step_id}")
+            "Right On", other_cols, default=valid_right, key=f"jro_{step_id}")
 
         # safely handle how index
         how_opts = ["left", "inner", "outer", "cross", "anti", "semi"]
@@ -54,6 +58,68 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
         # Fix: Cast to Literal
         params.how = cast(
             Literal["left", "inner", "outer", "cross", "anti", "semi"], how)
+            
+        # --- VISUAL JOIN ANALYSIS ---
+        st.markdown("---")
+        if st.header("📊 Analyze Overlap (Preview)"): 
+             # Use header/subheader or just a button? The user clicked a button?
+             # No, the previous code had `if st.button(...)`. 
+             # I should keep the button but make the output persistent?
+             # Streamlit buttons reset on rerun.
+             # If I want it persistent, I need session state.
+             # For now, I'll stick to the button and just fix the logic.
+             pass
+             
+        if st.button("📊 Analyze Overlap", key=f"btn_venn_{step_id}"):
+            if not (params.left_on and params.right_on):
+                st.error("Please select join columns first.")
+            else:
+                try:
+                    with st.spinner("Sampling & Analyzing..."):
+                        active_ds = st.session_state.active_base_dataset
+                        
+                        all_steps = get_active_recipe()
+                        curr_idx = next((i for i, s in enumerate(all_steps) if s.id == step_id), -1)
+                        
+                        left_recipe = all_steps[:curr_idx] if curr_idx != -1 else []
+                        right_recipe = st.session_state.all_recipes.get(join_alias, [])
+                        
+                        # Call Backend to perform analysis
+                        results = engine.analyze_join_overlap(
+                            left_dataset=active_ds,
+                            left_recipe=left_recipe,
+                            right_dataset=join_alias,
+                            right_recipe=right_recipe,
+                            left_on=params.left_on,
+                            right_on=params.right_on,
+                            limit=5000
+                        )
+                        
+                        if "error" in results:
+                            st.error(results["error"])
+                        else:
+                            l_count = results["l_count"]
+                            r_count = results["r_count"]
+                            match_count = results["match_count"]
+                            
+                            st.caption(f"⚠️ **Approximation:** Based on top 5000 rows of each dataset.")
+                            
+                            m1, m2, m3 = st.columns(3)
+                            m1.metric("Left (Sample)", l_count, delta=f"-{l_count - match_count}", delta_color="inverse")
+                            m2.metric("Matches", match_count)
+                            m3.metric("Right (Sample)", r_count, delta=f"-{r_count - match_count}", delta_color="inverse")
+                            
+                            # Safe Percentages (Capped at 1.0)
+                            l_pct = min((match_count / l_count), 1.0) if l_count > 0 else 0.0
+                            r_pct = min((match_count / r_count), 1.0) if r_count > 0 else 0.0
+                            
+                            c_bar1, c_bar2 = st.columns(2)
+                            c_bar1.progress(l_pct, text=f"Left Retention: {l_pct:.1%}")
+                            c_bar2.progress(r_pct, text=f"Right Retention: {r_pct:.1%}")
+
+                except Exception as e:
+                    st.error(f"Analysis Failed: {e}")
+
     else:
         st.error("Select a valid dataset to join.")
 
@@ -63,8 +129,9 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
 def render_aggregate(step_id: str, params: AggregateParams, schema: Optional[pl.Schema]) -> AggregateParams:
     current_cols = schema.names() if schema else []
 
+    valid_keys = [c for c in params.keys if c in current_cols]
     group_keys = st.multiselect(
-        "Group By", current_cols, default=params.keys, key=f"gb_{step_id}")
+        "Group By", current_cols, default=valid_keys, key=f"gb_{step_id}")
     params.keys = group_keys
 
     # Display existing aggregations
@@ -143,10 +210,12 @@ def render_window_func(step_id: str, params: WindowFuncParams, schema: Optional[
     win_op = c2.selectbox("Operation", ops, index=o_idx, key=f"wf_o_{step_id}")
 
     c3, c4 = st.columns(2)
+    valid_over = [c for c in params.over if c in current_cols]
     over_cols = c3.multiselect(
-        "Partition By (Over)", current_cols, default=params.over, key=f"wf_p_{step_id}")
+        "Partition By (Over)", current_cols, default=valid_over, key=f"wf_p_{step_id}")
+    valid_sort = [c for c in params.sort if c in current_cols]
     sort_cols = c4.multiselect(
-        "Sort By (Order)", current_cols, default=params.sort, key=f"wf_s_{step_id}")
+        "Sort By (Order)", current_cols, default=valid_sort, key=f"wf_s_{step_id}")
 
     # Generate default name if missing
     default_name = f"{target_col}_{win_op}" if target_col else ""
@@ -176,10 +245,15 @@ def render_reshape(step_id: str, params: ReshapeParams, schema: Optional[pl.Sche
 
     if mode == "Unpivot":
         c1, c2 = st.columns(2)
+        valid_ids = [c for c in params.id_vars if c in current_cols]
         id_vars = c1.multiselect(
-            "ID Variables (Keep)", current_cols, default=params.id_vars, key=f"rs_i_{step_id}")
-        val_vars = c2.multiselect("Value Variables (To Rows)", [
-                                  c for c in current_cols if c not in id_vars], default=params.val_vars, key=f"rs_v_{step_id}")
+            "ID Variables (Keep)", current_cols, default=valid_ids, key=f"rs_i_{step_id}")
+        
+        remaining_cols = [c for c in current_cols if c not in id_vars]
+        valid_vals = [c for c in params.val_vars if c in remaining_cols]
+        # logic: if val_vars has cols that are now id_vars, drop them from default
+        
+        val_vars = c2.multiselect("Value Variables (To Rows)", remaining_cols, default=valid_vals, key=f"rs_v_{step_id}")
         params.id_vars = id_vars
         params.val_vars = val_vars
 
@@ -187,8 +261,9 @@ def render_reshape(step_id: str, params: ReshapeParams, schema: Optional[pl.Sche
         st.warning(
             "⚠️ Pivot requires eager execution (RAM intensive). It breaks streaming.")
         c1, c2, c3 = st.columns(3)
+        valid_idx = [c for c in params.idx if c in current_cols]
         index_cols = c1.multiselect(
-            "Index (Rows)", current_cols, default=params.idx, key=f"rs_px_{step_id}")
+            "Index (Rows)", current_cols, default=valid_idx, key=f"rs_px_{step_id}")
 
         c_idx = current_cols.index(
             params.col) if params.col in current_cols else 0

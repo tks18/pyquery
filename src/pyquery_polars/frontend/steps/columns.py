@@ -1,6 +1,6 @@
 import streamlit as st
 import polars as pl
-from typing import Optional
+from typing import Optional, cast
 from pyquery_polars.core.params import (
     CastChange, SelectColsParams, DropColsParams, RenameColParams,
     KeepColsParams, AddColParams, CleanCastParams, PromoteHeaderParams,
@@ -85,6 +85,130 @@ def render_add_col(step_id: str, params: AddColParams, schema: Optional[pl.Schem
 
 def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl.Schema]) -> CleanCastParams:
     current_cols = schema.names() if schema else []
+
+    # --- AUTO DETECT SECTION ---
+    res_key = f"ad_res_{step_id}"
+    
+    # Auto-expand if we have results pending
+    with st.expander("✨ Auto Detect Types", expanded=(res_key in st.session_state)):
+        
+        # TYPE MAP
+        TYPE_ACTION_MAP = {
+            "Int64": "To Int",
+            "Float64": "To Float",
+            "Date": "To Date",
+            "Datetime": "To Datetime",
+            "Boolean": "To Boolean"
+        }
+
+        if res_key not in st.session_state:
+            # --- PHASE 1: SELECTION ---
+            c_ad1, c_ad2 = st.columns([0.7, 0.3])
+            ad_cols = c_ad1.multiselect("Inspect Columns", current_cols, default=[], key=f"ad_c_{step_id}")
+            sample_sz = c_ad2.number_input("Sample Size", 100, 1000, 500, step=50, key=f"ad_sz_{step_id}")
+            
+            if st.button("🔍 Analyze", key=f"btn_ad_{step_id}", help="Infer types from sample data"):
+                from pyquery_polars.backend.engine import PyQueryEngine
+                engine = cast(PyQueryEngine, st.session_state.get('engine'))
+                active_ds = st.session_state.get("active_base_dataset")
+                steps = st.session_state.get("recipe_steps", [])
+                
+                # Slice recipe up to this step
+                partial_recipe = []
+                for s in steps:
+                    if s.id == step_id:
+                        break
+                    partial_recipe.append(s)
+
+                if engine and active_ds:
+                    with st.spinner("Analyzing..."):
+                        inferred = engine.infer_types(
+                            active_ds, 
+                            partial_recipe, 
+                            project_recipes=st.session_state.get("all_recipes"),
+                            columns=ad_cols, 
+                            sample_size=sample_sz
+                        )
+                    
+                    if inferred:
+                        st.session_state[res_key] = inferred
+                        st.rerun()
+                    else:
+                        st.warning("No new types detected.")
+                        
+        else:
+            # --- PHASE 2: PROPOSAL ---
+            inferred = st.session_state[res_key]
+            
+            st.info(f"⚡ Detected **{len(inferred)}** potential changes. Review and edit before applying:")
+            
+            # Full Action Options
+            ALL_CAST_ACTIONS = [
+                "To String",
+                "To Int", "To Int (Robust)",
+                "To Float", "To Float (Robust)",
+                "To Boolean",
+                "To Date", "To Date (Robust)", "To Date (Format)",
+                "To Datetime", "To Datetime (Robust)", "To Datetime (Format)",
+                "To Time", "To Time (Robust)", "To Time (Format)",
+                "To Duration",
+                "Trim Whitespace", "Standardize NULLs",
+                "Fix Excel Serial Date", "Fix Excel Serial Datetime", "Fix Excel Serial Time"
+            ]
+
+            # Prepare Preview Data
+            preview_data = []
+            for col, dtype in inferred.items():
+                action = TYPE_ACTION_MAP.get(dtype, "Unknown")
+                preview_data.append({"Column": col, "Detected": dtype, "Proposed Action": action})
+            
+            # Editable Dataframe
+            edited_data = st.data_editor(
+                preview_data,
+                column_config={
+                    "Column": st.column_config.TextColumn("Column", disabled=True),
+                    "Detected": st.column_config.TextColumn("Detected Type", disabled=True),
+                    "Proposed Action": st.column_config.SelectboxColumn(
+                        "Action",
+                        options=ALL_CAST_ACTIONS,
+                        required=True,
+                        width="large"
+                    )
+                },
+                width="stretch",
+                hide_index=True,
+                key=f"ad_editor_{step_id}"
+            )
+            
+            c_yes, c_no = st.columns([1, 1])
+            
+            if c_yes.button("✅ Confirm & Apply", type="primary", key=f"ad_y_{step_id}"):
+                new_changes = []
+                
+                # Parse Edited Data
+                # Fallback to handle List[Dict] or DataFrame
+                rows = edited_data if isinstance(edited_data, list) else edited_data.to_dict('records')
+
+                for row in rows:
+                    col = row.get("Column")
+                    action = row.get("Proposed Action")
+                    
+                    if col and action and action != "Unknown":
+                        new_changes.append(CastChange(col=col, action=action))
+                
+                # Merge logic
+                changing_cols = {c.col for c in new_changes}
+                kept_changes = [c for c in params.changes if c.col not in changing_cols]
+                params.changes = kept_changes + new_changes
+                
+                # Cleanup
+                del st.session_state[res_key]
+                st.success("Applied!")
+                # Rerun implicitly via return params
+                
+            if c_no.button("❌ Discard", key=f"ad_n_{step_id}"):
+                del st.session_state[res_key]
+                st.rerun()
 
     # Params initialized with default_factory list, so params.changes exists
 

@@ -1,5 +1,5 @@
 import polars as pl
-from typing import List, Union, Dict, Optional, Any, Tuple
+from typing import List, Union, Dict, Optional, Any, Tuple, Sequence
 from pydantic import BaseModel
 
 from pyquery_polars.core.models import RecipeStep, TransformContext
@@ -23,7 +23,7 @@ def apply_step(lf: pl.LazyFrame, step: RecipeStep, datasets: Dict[str, pl.LazyFr
         raise ValueError(f"Parameters invalid for step {step_type}: {e}")
 
     # Build Context
-    def bound_apply_recipe(lf: pl.LazyFrame, recipe: List[Any], project_recipes: Optional[Dict] = None) -> pl.LazyFrame:
+    def bound_apply_recipe(lf: pl.LazyFrame, recipe: Sequence[Any], project_recipes: Optional[Dict] = None) -> pl.LazyFrame:
         return apply_recipe(lf, recipe, datasets, project_recipes)
 
     context = TransformContext(
@@ -35,7 +35,7 @@ def apply_step(lf: pl.LazyFrame, step: RecipeStep, datasets: Dict[str, pl.LazyFr
     return definition.backend_func(lf, validated_params, context)
 
 
-def apply_recipe(lf: pl.LazyFrame, recipe: List[Union[dict, RecipeStep]],
+def apply_recipe(lf: pl.LazyFrame, recipe: Sequence[Union[dict, RecipeStep]],
                  datasets: Dict[str, pl.LazyFrame],
                  project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> pl.LazyFrame:
     current_lf = lf
@@ -54,7 +54,7 @@ def apply_recipe(lf: pl.LazyFrame, recipe: List[Union[dict, RecipeStep]],
     return current_lf
 
 
-def get_preview(base_lf: pl.LazyFrame, recipe: List[Union[dict, RecipeStep]],
+def get_preview(base_lf: pl.LazyFrame, recipe: Sequence[Union[dict, RecipeStep]],
                 datasets: Dict[str, pl.LazyFrame],
                 project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> pl.DataFrame:
 
@@ -68,7 +68,7 @@ def get_preview(base_lf: pl.LazyFrame, recipe: List[Union[dict, RecipeStep]],
     return transformed_lf.collect()
 
 
-def get_profile(base_lf: pl.LazyFrame, recipe: List[Union[dict, RecipeStep]],
+def get_profile(base_lf: pl.LazyFrame, recipe: Sequence[Union[dict, RecipeStep]],
                 datasets: Dict[str, pl.LazyFrame]) -> Dict[str, Any]:
 
     # Sample for speed

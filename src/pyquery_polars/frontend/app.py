@@ -4,6 +4,8 @@ from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.components.export import render_export_section
 from pyquery_polars.frontend.components.profile import render_profile_tab
 from pyquery_polars.frontend.components.recipe_editor import render_recipe_editor
+from pyquery_polars.frontend.components.eda_tab import render_eda_tab
+from pyquery_polars.frontend.components.sql_tab import render_sql_tab
 from pyquery_polars.frontend.components.sidebar import render_sidebar
 from pyquery_polars.frontend.state_manager import init_session_state
 
@@ -66,14 +68,20 @@ active_dataset_name = st.session_state.active_base_dataset
 if active_dataset_name:
     st.caption(f"Active Dataset: **{active_dataset_name}**")
 
-    t1, t2 = st.tabs(["Recipe & Preview", "Profiling"])
+    t1, t2, t3, t4 = st.tabs(
+        ["🍴 Recipe & Preview", "📊 EDA", "🧑‍💻 SQL Lab", "💳 Profiling"])
 
     with t1:
-        # Pass NAME, not LF
         render_recipe_editor(active_dataset_name)
         render_export_section(active_dataset_name)
 
     with t2:
+        render_eda_tab()
+
+    with t3:
+        render_sql_tab()
+
+    with t4:
         render_profile_tab(active_dataset_name)
 
 else:

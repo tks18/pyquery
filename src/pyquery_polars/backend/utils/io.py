@@ -5,6 +5,8 @@ import shutil
 import uuid
 import polars as pl
 import connectorx as cx
+import fastexcel
+from openpyxl import load_workbook
 from typing import List, Literal, Optional, Any, Dict, cast
 
 
@@ -14,6 +16,39 @@ def get_files_from_path(path_str: str) -> List[str]:
     if "*" in path_str:
         return glob.glob(path_str)
     return [path_str] if os.path.exists(path_str) else []
+
+
+def get_excel_sheet_names(file_path: str) -> List[str]:
+    """
+    Efficiently retrieve sheet names from an Excel file using fastexcel.
+    Fallback to 'Sheet1' if any error occurs.
+    Handles globs and directories by inspecting the first matching file.
+    """
+    try:
+        # Resolve path (handle globs, dirs)
+        files = get_files_from_path(file_path)
+        if not files:
+            return ["Sheet1"]
+
+        target_file = files[0]
+
+        ext = os.path.splitext(target_file)[1].lower()
+        if ext not in [".xlsx", ".xls", ".xlsm"]:
+            return ["Sheet1"]
+
+        try:
+            excel = fastexcel.read_excel(target_file)
+            return excel.sheet_names
+        except Exception:
+             # Fallback
+            try:
+                wb = load_workbook(
+                    target_file, read_only=True, keep_links=False)
+                return wb.sheetnames
+            except:
+                return ["Sheet1"]
+    except Exception:
+        return ["Sheet1"]
 
 
 def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1") -> Optional[pl.LazyFrame]:
