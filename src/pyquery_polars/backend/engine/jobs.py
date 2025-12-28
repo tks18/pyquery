@@ -2,7 +2,7 @@ import threading
 import uuid
 import time
 import os
-from typing import Dict, Optional, List, Union, Callable, Any
+from typing import Dict, Optional, List, Union, Callable, Any, Sequence
 from pydantic import BaseModel
 import polars as pl
 
@@ -12,14 +12,14 @@ from pyquery_polars.core.models import JobInfo, RecipeStep, PluginDef
 class JobManager:
     def __init__(self,
                  get_dataset_func: Callable[[str], Optional[pl.LazyFrame]],
-                 apply_recipe_func: Callable[[pl.LazyFrame, List[Any], Optional[Dict]], pl.LazyFrame],
+                 apply_recipe_func: Callable[[pl.LazyFrame, Sequence[Any], Optional[Dict]], pl.LazyFrame],
                  exporters: Dict[str, PluginDef]):
         self._jobs: Dict[str, JobInfo] = {}
         self._get_dataset = get_dataset_func
         self._apply_recipe = apply_recipe_func
         self._exporters = exporters
 
-    def start_export_job(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]],
+    def start_export_job(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
                          exporter_name: str, params: Union[Dict[str, Any], BaseModel],
                          project_recipes: Optional[Dict[str, List[RecipeStep]]] = None,
                          precomputed_lf: Optional[pl.LazyFrame] = None) -> str:

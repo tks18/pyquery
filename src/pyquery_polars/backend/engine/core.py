@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Sequence, Tuple
 import polars as pl
 import os
 from pydantic import BaseModel
@@ -128,7 +128,7 @@ class PyQueryEngine:
     def get_dataset_names(self) -> List[str]:
         return list(self._datasets.keys())
 
-    def infer_types(self, dataset_name: str, recipe: List[Any], project_recipes: Optional[Dict[str, List[Any]]] = None, columns: Optional[List[str]] = None, sample_size: int = 1000) -> Dict[str, str]:
+    def infer_types(self, dataset_name: str, recipe: Sequence[Any], project_recipes: Optional[Dict[str, List[Any]]] = None, columns: Optional[List[str]] = None, sample_size: int = 1000) -> Dict[str, str]:
         """
         Infer data types for specific columns based on a sample of the transformed data.
         Returns a dictionary mapping column names to suggested PyQuery types (e.g. 'Int64', 'Date').
@@ -244,7 +244,7 @@ class PyQueryEngine:
         except:
             return None
 
-    def get_transformed_schema(self, name: str, recipe: List[Union[dict, RecipeStep]]) -> Optional[pl.Schema]:
+    def get_transformed_schema(self, name: str, recipe: Sequence[Union[dict, RecipeStep]]) -> Optional[pl.Schema]:
         base_lf = self.get_dataset(name)
         if base_lf is None:
             return None
@@ -264,7 +264,7 @@ class PyQueryEngine:
     def get_exporters(self) -> List[PluginDef]:
         return list(self._exporters.values())
 
-    def run_loader(self, loader_name: str, params: Union[Dict[str, Any], BaseModel]) -> Union[Optional[pl.LazyFrame], tuple]:
+    def run_loader(self, loader_name: str, params: Union[Dict[str, Any], BaseModel]) -> Optional[Tuple[pl.LazyFrame, Dict[str, Any]]]:
         loader = self._loaders.get(loader_name)
         if not loader:
             return None
@@ -291,7 +291,7 @@ class PyQueryEngine:
             print(f"Loader Error: {e}")
             return None
 
-    def start_export_job(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]],
+    def start_export_job(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
                          exporter_name: str, params: Union[Dict[str, Any], BaseModel],
                          project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> str:
         return self._job_manager.start_export_job(dataset_name, recipe, exporter_name, params, project_recipes)
@@ -373,18 +373,18 @@ class PyQueryEngine:
                    project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> pl.LazyFrame:
         return execution.apply_step(lf, step, self._datasets, project_recipes)
 
-    def apply_recipe(self, lf: pl.LazyFrame, recipe: List[Union[dict, RecipeStep]],
+    def apply_recipe(self, lf: pl.LazyFrame, recipe: Sequence[Union[dict, RecipeStep]],
                      project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> pl.LazyFrame:
         return execution.apply_recipe(lf, recipe, self._datasets, project_recipes)
 
-    def get_preview(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]],
+    def get_preview(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
                     limit: int = 50, project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> Optional[pl.DataFrame]:
         base_lf = self.get_dataset(dataset_name)
         if base_lf is None:
             return None
         return execution.get_preview(base_lf, recipe, self._datasets, project_recipes)
 
-    def get_profile(self, dataset_name: str, recipe: List[Union[dict, RecipeStep]]) -> Optional[Dict[str, Any]]:
+    def get_profile(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]]) -> Optional[Dict[str, Any]]:
         base_lf = self.get_dataset(dataset_name)
         if base_lf is None:
             return None
@@ -395,9 +395,9 @@ class PyQueryEngine:
 
     def analyze_join_overlap(self, 
                              left_dataset: str, 
-                             left_recipe: List[Union[dict, RecipeStep]],
+                             left_recipe: Sequence[Union[dict, RecipeStep]],
                              right_dataset: str,
-                             right_recipe: List[Union[dict, RecipeStep]],
+                             right_recipe: Sequence[Union[dict, RecipeStep]],
                              left_on: List[str],
                              right_on: List[str]) -> Dict[str, Any]:
         """
