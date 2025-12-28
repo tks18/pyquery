@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.0.2](https://github.com/tks18/pyquery/compare/v2.0.1...v2.0.2) (2025-12-28)
+
+
+### Bug Fixes 🛠
+
+* **frontend/components:** eda tab - fix depreciation warnings ([f60fb2b](https://github.com/tks18/pyquery/commit/f60fb2b6489be33f8d9580c5019a6c912c19c4c7))
+
+
+### Others 🔧
+
+* **pyproject:** update app to v2.0.2 - fix eda tab depreciation warnings ([e433cfd](https://github.com/tks18/pyquery/commit/e433cfd67463b03e99c3305d515c1725f47b081a))
+
 ### [2.0.1](https://github.com/tks18/pyquery/compare/v2.0.0...v2.0.1) (2025-12-28)
 
 
