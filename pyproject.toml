@@ -42,6 +42,9 @@ dependencies = [
     "python-multipart>=0.0.20",
     "matplotlib>=3.9.4",
     "seaborn>=0.13.2",
+    "plotly>=6.5.0",
+    "statsmodels>=0.14.6",
+    "scikit-learn>=1.6.1",
 ]
 
 [build-system]
