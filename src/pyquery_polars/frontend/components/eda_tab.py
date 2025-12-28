@@ -220,7 +220,7 @@ def render_eda_tab():
             if show_labels:
                 fig.update_traces(
                     texttemplate='%{text:.2s}', textposition='outside')
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig)
 
         # B. Null Matrix
         if missing > 0:
@@ -231,7 +231,7 @@ def render_eda_tab():
                             '#f0f2f6', '#ff4b4b'], template=theme)
             fig.update_layout(coloraxis_showscale=False,
                               height=300, margin=dict(l=0, r=0, t=0, b=0))
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig)
 
     # ==========================
     # 2. DECISION GRADE ML
@@ -396,16 +396,16 @@ def render_eda_tab():
                                             fig_cal.add_shape(type="line", x0=0, y0=0, x1=1, y1=1, line=dict(
                                                 dash="dash", color="grey"))
                                             st.plotly_chart(
-                                                fig_cal, width="stretch")
+                                                fig_cal)
                                         else:
                                             cm = confusion_matrix(
                                                 y_test, y_pred)
                                             st.plotly_chart(px.imshow(
-                                                cm, text_auto=True, title="Confusion Matrix", color_continuous_scale="Blues", template=theme), width="stretch")
+                                                cm, text_auto=True, title="Confusion Matrix", color_continuous_scale="Blues", template=theme))
                                     else:
                                         residuals = y_test - y_pred
                                         st.plotly_chart(px.histogram(
-                                            residuals, nbins=30, title="Residual Histogram", template=theme, text_auto=show_labels), width="stretch")
+                                            residuals, nbins=30, title="Residual Histogram", template=theme, text_auto=show_labels))
 
                                 # 3. Permutation Importance
                                 with c2:
@@ -417,7 +417,7 @@ def render_eda_tab():
                                         'Importance', ascending=True)
                                     fig_perm = px.bar(perm_df, x='Importance', y='Feature', orientation='h', title="Key Drivers (Permutation)", template=theme, text_auto=cast(
                                         Any, '.4f' if show_labels else False))
-                                    st.plotly_chart(fig_perm, width="stretch")
+                                    st.plotly_chart(fig_perm)
 
                             except Exception as e:
                                 st.error(f"Error: {e}")
@@ -452,15 +452,17 @@ def render_eda_tab():
                         c1, c2 = st.columns([2, 1])
                         with c1:
                             st.dataframe(df_clus.groupby('Cluster').mean(
-                            ).style.background_gradient(cmap='RdBu'), width="stretch")
+                            ).style.background_gradient(cmap='RdBu'))
                         with c2:
                             st.plotly_chart(
-                                px.pie(df_clus, names='Cluster', title="Size"), width="stretch")
+                                px.pie(df_clus, names='Cluster', title="Size")
+                                .update_traces(textinfo='percent+label' if show_labels else 'percent'), 
+                                use_container_width=True)
 
                         pca = PCA(n_components=2).fit_transform(X_scaled)
                         df_clus['PCA1'], df_clus['PCA2'] = pca[:, 0], pca[:, 1]
                         st.plotly_chart(px.scatter(
-                            df_clus, x='PCA1', y='PCA2', color='Cluster', title="PCA Projection"), width="stretch")
+                            df_clus, x='PCA1', y='PCA2', color='Cluster', title="PCA Projection"))
                     except Exception as e:
                         st.error(f"Cluster Error: {e}")
 
@@ -479,7 +481,7 @@ def render_eda_tab():
                         X_a['Type'] = np.where(
                             preds == -1, 'Outlier', 'Normal')
                         st.plotly_chart(px.scatter(X_a, x=cols_anom[0], y=cols_anom[1] if len(cols_anom) > 1 else cols_anom[0], color='Type', color_discrete_map={
-                                        'Normal': 'blue', 'Outlier': 'red'}, title="Outlier Map"), width="stretch")
+                                        'Normal': 'blue', 'Outlier': 'red'}, title="Outlier Map"))
 
                         outliers = X_a[X_a['Type'] == 'Outlier']
                         if not outliers.empty:
@@ -488,7 +490,7 @@ def render_eda_tab():
                             dev_df = pd.DataFrame({'Feature': cols_anom, 'Deviation %': (
                                 (outlier_mean - global_median) / global_median) * 100}).sort_values('Deviation %', key=abs, ascending=False)
                             st.plotly_chart(px.bar(dev_df, x='Deviation %', y='Feature', orientation='h', title="Avg Deviation of Outliers vs Median",
-                                            color='Deviation %', color_continuous_scale='RdBu_r', text_auto=cast(Any, '.1f' if show_labels else False)), width="stretch")
+                                            color='Deviation %', color_continuous_scale='RdBu_r', text_auto=cast(Any, '.1f' if show_labels else False)))
                     except Exception as e:
                         st.error(f"Error: {e}")
 
@@ -590,8 +592,11 @@ def render_eda_tab():
                             x_grid = np.linspace(
                                 X[pdp_feat].min(), X[pdp_feat].max(), 50).reshape(-1, 1)
                             y_grid = rf.predict(x_grid)
-                            st.plotly_chart(px.line(x=x_grid.flatten(), y=y_grid, labels={
-                                            'x': pdp_feat, 'y': f"Pred {target}"}, title="Partial Dependence (Impact Curve)"), width="stretch")
+                            fig = px.line(x=x_grid.flatten(), y=y_grid, labels={
+                                            'x': pdp_feat, 'y': f"Pred {target}"}, title="Partial Dependence (Impact Curve)", text=y_grid if show_labels else None)
+                            if show_labels:
+                                fig.update_traces(textposition="top center")
+                            st.plotly_chart(fig)
                         except:
                             pass
 
@@ -607,7 +612,7 @@ def render_eda_tab():
                         pivot_ia = df.groupby(['x_bin', 'y_bin'], observed=True)[
                             target].mean().unstack()
                         st.plotly_chart(px.imshow(pivot_ia, title=f"Mean {target} by {ia_x} & {ia_y}", labels=dict(
-                            x=ia_y, y=ia_x)), width="stretch")
+                            x=ia_y, y=ia_x)))
 
     # ==========================
     # 5. TIME SERIES
@@ -623,12 +628,18 @@ def render_eda_tab():
                 if cat_split != "None":
                     agg_df = df.groupby([dt_col, cat_split])[
                         y_col].sum().reset_index()
-                    st.plotly_chart(px.area(agg_df, x=dt_col, y=y_col,
-                                    color=cat_split, title="Stacked Area"), use_container_width=True)
+                    fig = px.area(agg_df, x=dt_col, y=y_col,
+                                    color=cat_split, title="Stacked Area", text=y_col if show_labels else None)
+                    if show_labels:
+                        fig.update_traces(textposition="top center")
+                    st.plotly_chart(fig)
                 else:
                     agg_df = df.groupby(dt_col)[y_col].sum().reset_index()
-                    st.plotly_chart(px.line(agg_df, x=dt_col, y=y_col,
-                                    title="Trend Line"), use_container_width=True)
+                    fig = px.line(agg_df, x=dt_col, y=y_col,
+                                    title="Trend Line", text=y_col if show_labels else None)
+                    if show_labels:
+                        fig.update_traces(textposition="top center")
+                    st.plotly_chart(fig)
             else:
                 st.warning("Please select a Value column.")
         else:
@@ -658,7 +669,7 @@ def render_eda_tab():
                 else:
                     fig = px.violin(df, x=col)
             fig.update_layout(template=theme)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig)
 
     # ==========================
     # 7. HIERARCHY
@@ -673,7 +684,7 @@ def render_eda_tab():
                 funnel_data = df.groupby(stage_col)[val_col].sum(
                 ).reset_index().sort_values(val_col, ascending=False)
                 st.plotly_chart(px.funnel(funnel_data, x=val_col, y=stage_col,
-                                text=val_col if show_labels else None, template=theme), width="stretch")
+                                text=val_col if show_labels else None, template=theme))
             else:
                 st.warning("Select Value column.")
         else:
@@ -687,7 +698,7 @@ def render_eda_tab():
             else:
                 fig = px.treemap(df, path=path, values=v_arg)
             fig.update_layout(template=theme)
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig)
 
     # ==========================
     # 8. RELATIONSHIPS PRO
@@ -716,11 +727,18 @@ def render_eda_tab():
             if x and y:
                 if row_arg or col_arg:
                     # Check for None explicitly to avoid Plotly errors
-                    st.plotly_chart(px.scatter(df, x=x, y=y, facet_row=row_arg, facet_col=col_arg, trendline="ols" if trend else None,
-                                    template=theme, title=f"Facet: {x} vs {y}"), use_container_width=True, height=600 if row_arg else 450)
+                    fig = px.scatter(df, x=x, y=y, facet_row=row_arg, facet_col=col_arg, trendline="ols" if trend else None,
+                                    template=theme, title=f"Facet: {x} vs {y}", text=y if show_labels else None)
+                    fig.update_layout(height=600 if row_arg else 450)
+                    if show_labels:
+                        fig.update_traces(textposition="top center")
+                    st.plotly_chart(fig)
                 else:
-                    st.plotly_chart(px.scatter(df, x=x, y=y, trendline="ols" if trend else None,
-                                    template=theme, title=f"Scatter: {x} vs {y}"), use_container_width=True)
+                    fig = px.scatter(df, x=x, y=y, trendline="ols" if trend else None,
+                                    template=theme, title=f"Scatter: {x} vs {y}", text=y if show_labels else None)
+                    if show_labels:
+                        fig.update_traces(textposition="top center")
+                    st.plotly_chart(fig)
             else:
                 st.warning("Please select X and Y variables.")
 
@@ -732,7 +750,7 @@ def render_eda_tab():
                 tgt = st.selectbox("Target", cat_cols, index=1, key="sank_tgt")
                 if src != tgt:
                     st.plotly_chart(px.parallel_categories(
-                        df, dimensions=[src, tgt], template=theme), use_container_width=True)
+                        df, dimensions=[src, tgt], template=theme))
                 else:
                     st.warning("Select distinct columns.")
 
@@ -751,18 +769,18 @@ def render_eda_tab():
                 anim_df = df.groupby(['Frame', clr])[
                     [x, y, sz]].mean().reset_index().sort_values('Frame')
                 st.plotly_chart(px.scatter(anim_df, x=x, y=y, animation_frame='Frame', animation_group=clr, size=sz, color=clr, hover_name=clr, range_x=[
-                                df[x].min(), df[x].max()], range_y=[df[y].min(), df[y].max()], template=theme, title="Evolution"), use_container_width=True)
+                                df[x].min(), df[x].max()], range_y=[df[y].min(), df[y].max()], template=theme, title="Evolution"))
 
         elif mode == "Contour":
             x = st.selectbox("X", num_cols, index=0, key="cnt_x")
             y = st.selectbox("Y", num_cols, index=1, key="cnt_y")
             if x and y:
                 st.plotly_chart(px.density_contour(df, x=x, y=y, marginal_x="histogram",
-                                marginal_y="histogram", template=theme), use_container_width=True)
+                                marginal_y="histogram", template=theme))
 
         elif mode == "Parallel Coords":
             dims = st.multiselect("Dimensions", num_cols, default=num_cols[:5])
             c = st.selectbox("Color Scale", num_cols, index=0, key="par_c")
             if dims and c:
                 st.plotly_chart(px.parallel_coordinates(
-                    df, dimensions=dims, color=c, template=theme), use_container_width=True)
+                    df, dimensions=dims, color=c, template=theme))
