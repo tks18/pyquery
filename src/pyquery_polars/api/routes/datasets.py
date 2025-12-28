@@ -30,11 +30,13 @@ def get_datasets(engine: PyQueryEngine = Depends(get_engine)):
 def load_dataset(req: LoadRequest, engine: PyQueryEngine = Depends(get_engine)):
     """Load a dataset using a specific loader."""
     # Run the loader
-    lf = engine.run_loader(req.loader, req.params)
+    result = engine.run_loader(req.loader, req.params)
 
-    if lf is None:
+    if result is None:
         raise HTTPException(
             status_code=400, detail="Failed to load dataset. Check params.")
+
+    lf, _ = result
 
     # Register in engine
     engine.add_dataset(req.alias, lf)
