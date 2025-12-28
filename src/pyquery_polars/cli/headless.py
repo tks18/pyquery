@@ -73,10 +73,11 @@ def run_headless(args):
     loader_params = FileLoaderParams(path=args.source, alias="cli_data")
 
     try:
-        lf = engine.run_loader("File", loader_params)
-        if lf is None:
+        result = engine.run_loader("File", loader_params)
+        if result is None:
             print("❌ Failed to load file.")
             sys.exit(1)
+        lf, _ = result
     except Exception as e:
         print(f"❌ Loader Error: {e}")
         sys.exit(1)
