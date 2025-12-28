@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.0.1](https://github.com/tks18/pyquery/compare/v2.0.0...v2.0.1) (2025-12-28)
+
+
+### Bug Fixes 🛠
+
+* **frontend/components:** eda tab becoming non-responsive ([0268365](https://github.com/tks18/pyquery/commit/0268365e3a67d886214bc67aaae9f09785d3f89c))
+
+
+### Others 🔧
+
+* **pyproject:** update project to v2.0.1 - critical fix for eda ([5601f37](https://github.com/tks18/pyquery/commit/5601f37a6631ad8eff138c167579fdba15038af4))
+
 ## [2.0.0](https://github.com/tks18/pyquery/compare/v1.3.0...v2.0.0) (2025-12-28)
 
 

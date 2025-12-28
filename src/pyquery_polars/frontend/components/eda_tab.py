@@ -23,7 +23,7 @@ from sklearn.calibration import calibration_curve
 HAS_SKLEARN = True
 
 # --- CONFIG ---
-EDA_SAMPLE_LIMIT = 20000
+EDA_SAMPLE_LIMIT = 5000
 
 
 def render_eda_tab():
@@ -76,7 +76,8 @@ def render_eda_tab():
         return
 
     # 3. Global Settings (Sidebar or Top)
-    with st.expander("⚙️ Analysis Settings", expanded=False):
+    # 3. Global Settings (Sidebar or Top)
+    with st.expander("⚙️ Analysis Settings", expanded=True):
         c1, c2, c3 = st.columns(3)
         show_labels = c1.toggle("🔠 Show Data Labels", value=False)
         theme = c2.selectbox(
@@ -84,12 +85,29 @@ def render_eda_tab():
 
         # SMART FILTERING: Exclude columns
         excluded_cols = st.multiselect(
-            "🚫 Exclude Numeric Columns from Analysis (e.g. IDs, Serial Dates)", num_cols)
+            "🚫 Exclude Columns from Analysis (All Types)", all_cols)
 
     # Apply Exclusion Logic
     if excluded_cols:
+        all_cols = [c for c in all_cols if c not in excluded_cols]
         num_cols = [c for c in num_cols if c not in excluded_cols]
+        cat_cols = [c for c in cat_cols if c not in excluded_cols]
+        date_cols = [c for c in date_cols if c not in excluded_cols]
+        df = df[all_cols]
         st.caption(f"Excluding {len(excluded_cols)} columns from analysis.")
+
+    # LAZY LOAD BUFFER
+    if 'eda_ready' not in st.session_state:
+        st.session_state['eda_ready'] = False
+
+    col_gen, _ = st.columns([1, 2])
+    if col_gen.button("🚀 Generate Insights & Charts", type="primary"):
+        st.session_state['eda_ready'] = True
+        st.rerun()
+
+    if not st.session_state.get('eda_ready', False):
+        st.info("👆 Click 'Generate' to initialize the charts and analysis engine.")
+        return
 
     # --- TABS ---
     tabs = st.tabs([
@@ -527,8 +545,14 @@ def render_eda_tab():
                 mean_v = float(X_orig[feat].mean())
                 step = (max_v - min_v) / 100 if max_v != min_v else 0.1
                 with cols[i % 3]:
-                    user_inputs[feat] = st.slider(
-                        f"{feat}", min_value=min_v, max_value=max_v, value=mean_v, step=step)
+                    if min_v < max_v:
+                        user_inputs[feat] = st.slider(
+                            f"{feat}", min_value=min_v, max_value=max_v, value=mean_v, step=step)
+                    else:
+                        st.caption(f"🔒 {feat} (Constant)")
+                        st.number_input(f"{feat}", value=min_v,
+                                        disabled=True, key=f"fix_{feat}")
+                        user_inputs[feat] = min_v
 
             # Predict
             input_df = pd.DataFrame([user_inputs])
@@ -595,14 +619,18 @@ def render_eda_tab():
             cat_split = st.selectbox(
                 "Stack/Split By", ["None"] + cat_cols, key="time_stack")
             ts_df = df.copy().set_index(pd.to_datetime(df[dt_col]))
-            if cat_split != "None":
-                agg_df = df.groupby([dt_col, cat_split])[
-                    y_col].sum().reset_index()
-                st.plotly_chart(px.area(agg_df, x=dt_col, y=y_col,
-                                color=cat_split, title="Stacked Area"), width="stretch")
+            if y_col:
+                if cat_split != "None":
+                    agg_df = df.groupby([dt_col, cat_split])[
+                        y_col].sum().reset_index()
+                    st.plotly_chart(px.area(agg_df, x=dt_col, y=y_col,
+                                    color=cat_split, title="Stacked Area"), use_container_width=True)
+                else:
+                    agg_df = df.groupby(dt_col)[y_col].sum().reset_index()
+                    st.plotly_chart(px.line(agg_df, x=dt_col, y=y_col,
+                                    title="Trend Line"), use_container_width=True)
             else:
-                st.plotly_chart(px.line(df, x=dt_col, y=y_col,
-                                title="Trend Line"), width="stretch")
+                st.warning("Please select a Value column.")
         else:
             st.info("No DateTime columns found.")
 
@@ -641,10 +669,13 @@ def render_eda_tab():
         if type_ == "Funnel":
             stage_col = st.selectbox("Stage", cat_cols, key="funnel_stage")
             val_col = st.selectbox("Value", num_cols, key="funnel_val")
-            funnel_data = df.groupby(stage_col)[val_col].sum(
-            ).reset_index().sort_values(val_col, ascending=False)
-            st.plotly_chart(px.funnel(funnel_data, x=val_col, y=stage_col,
-                            text=val_col if show_labels else None, template=theme), width="stretch")
+            if val_col:
+                funnel_data = df.groupby(stage_col)[val_col].sum(
+                ).reset_index().sort_values(val_col, ascending=False)
+                st.plotly_chart(px.funnel(funnel_data, x=val_col, y=stage_col,
+                                text=val_col if show_labels else None, template=theme), width="stretch")
+            else:
+                st.warning("Select Value column.")
         else:
             path = st.multiselect("Hierarchy Path", cat_cols, default=cat_cols[:2] if len(
                 cat_cols) >= 2 else cat_cols)
@@ -681,8 +712,17 @@ def render_eda_tab():
             row_arg = row if row != "None" else None
             col_arg = col if col != "None" else None
 
-            st.plotly_chart(px.scatter(df, x=x, y=y, facet_row=row_arg, facet_col=col_arg, trendline="ols" if trend else None,
-                            template=theme, title=f"Facet: {x} vs {y}"), width="stretch", height=600 if row_arg else 450)
+            # Fix: Ensure logic handles None correctly for Plotly
+            if x and y:
+                if row_arg or col_arg:
+                    # Check for None explicitly to avoid Plotly errors
+                    st.plotly_chart(px.scatter(df, x=x, y=y, facet_row=row_arg, facet_col=col_arg, trendline="ols" if trend else None,
+                                    template=theme, title=f"Facet: {x} vs {y}"), use_container_width=True, height=600 if row_arg else 450)
+                else:
+                    st.plotly_chart(px.scatter(df, x=x, y=y, trendline="ols" if trend else None,
+                                    template=theme, title=f"Scatter: {x} vs {y}"), use_container_width=True)
+            else:
+                st.warning("Please select X and Y variables.")
 
         elif mode == "Sankey Flow":
             if len(cat_cols) < 2:
@@ -692,7 +732,7 @@ def render_eda_tab():
                 tgt = st.selectbox("Target", cat_cols, index=1, key="sank_tgt")
                 if src != tgt:
                     st.plotly_chart(px.parallel_categories(
-                        df, dimensions=[src, tgt], template=theme), width="stretch")
+                        df, dimensions=[src, tgt], template=theme), use_container_width=True)
                 else:
                     st.warning("Select distinct columns.")
 
@@ -711,16 +751,18 @@ def render_eda_tab():
                 anim_df = df.groupby(['Frame', clr])[
                     [x, y, sz]].mean().reset_index().sort_values('Frame')
                 st.plotly_chart(px.scatter(anim_df, x=x, y=y, animation_frame='Frame', animation_group=clr, size=sz, color=clr, hover_name=clr, range_x=[
-                                df[x].min(), df[x].max()], range_y=[df[y].min(), df[y].max()], template=theme, title="Evolution"), width="stretch")
+                                df[x].min(), df[x].max()], range_y=[df[y].min(), df[y].max()], template=theme, title="Evolution"), use_container_width=True)
 
         elif mode == "Contour":
             x = st.selectbox("X", num_cols, index=0, key="cnt_x")
             y = st.selectbox("Y", num_cols, index=1, key="cnt_y")
-            st.plotly_chart(px.density_contour(df, x=x, y=y, marginal_x="histogram",
-                            marginal_y="histogram", template=theme), width="stretch")
+            if x and y:
+                st.plotly_chart(px.density_contour(df, x=x, y=y, marginal_x="histogram",
+                                marginal_y="histogram", template=theme), use_container_width=True)
 
         elif mode == "Parallel Coords":
             dims = st.multiselect("Dimensions", num_cols, default=num_cols[:5])
             c = st.selectbox("Color Scale", num_cols, index=0, key="par_c")
-            st.plotly_chart(px.parallel_coordinates(
-                df, dimensions=dims, color=c, template=theme), width="stretch")
+            if dims and c:
+                st.plotly_chart(px.parallel_coordinates(
+                    df, dimensions=dims, color=c, template=theme), use_container_width=True)
