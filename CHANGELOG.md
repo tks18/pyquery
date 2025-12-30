@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://github.com/tks18/pyquery/compare/v2.0.2...v2.1.0) (2025-12-30)
+
+
+### Bug Fixes 🛠
+
+* **frontend/components:** recipe_editor: sometimes the updated schema doesnt propogate for next step ([c8c466c](https://github.com/tks18/pyquery/commit/c8c466c0b79974024d0a110612b24b523a609244))
+
+
+### Build System 🏗
+
+* **pyproject:** add scipy as dependency for build ([907c157](https://github.com/tks18/pyquery/commit/907c157a5732babbdecd519885b2620d88c91975))
+
+
+### Code Refactoring 🖌
+
+* **backend/core:** use the updated centralized staging function across all io ops ([d8a8386](https://github.com/tks18/pyquery/commit/d8a8386f9f661e02e89f3ba6cd1256b45371c82a))
+* **frontend/app:** refactor the main entry point for eda tab ([e8ed1b5](https://github.com/tks18/pyquery/commit/e8ed1b5803c199c35315ebadeaaf8a77b69b3557))
+* **frontend/components:** remove the old eda_tab file as it has been refactored completely ([ac8d415](https://github.com/tks18/pyquery/commit/ac8d415f50925f5a83a22542276a91bdc8c30e57))
+
+
+### Features 🔥
+
+* **backend/analysis:** create a centralized analysis class that will handle all analysis ops ([eddf6ed](https://github.com/tks18/pyquery/commit/eddf6ed56b6518b1a4fcb79c4e9b6b7c017be4b1))
+* **backend/analysis:** create a new analysis engine in the backend ([588c6a0](https://github.com/tks18/pyquery/commit/588c6a05497e260107b355556e9ac319f271ce64))
+* **backend/analysis:** create a new ML engine in the backend ([15b2fb9](https://github.com/tks18/pyquery/commit/15b2fb9e650549ef62fd5ca9e11b53368da06216))
+* **backend/core:** expose the analysis engine through the api ([0ab8417](https://github.com/tks18/pyquery/commit/0ab8417170f72bfd70f8fbbaf7d09d03f8d1567a))
+* **backend/core:** use the updated centralized staging dir for handling all intermediate saving ([b7a3a36](https://github.com/tks18/pyquery/commit/b7a3a36a7a2f1254cf74648762164471c9093542))
+* **backend/core:** write a new function that will handle the centralized staging directory handling ([6d3c146](https://github.com/tks18/pyquery/commit/6d3c1467cc5367d08830a0a219c5ce9e4670faaa))
+* **frontend/app:** add the cleanup program at start to clean all old staging files ([6298ac6](https://github.com/tks18/pyquery/commit/6298ac6c7a1b53207f152d9e28f88f8006905393))
+* **frontend/components:** eda: create a new ML component for frontend ([3cb1ecb](https://github.com/tks18/pyquery/commit/3cb1ecb7d3b14d7766fb48e7dd71ce0209da7583))
+* **frontend/components:** eda: create a overview component ([7131e63](https://github.com/tks18/pyquery/commit/7131e636b62eb5e40a5e924346abcbc025e743f8))
+* **frontend/components:** eda: create a shared context for all components in EDA ([3d80abd](https://github.com/tks18/pyquery/commit/3d80abd74ae4a6b9163d456ebaf8ca5f91b436f4))
+* **frontend/components:** eda: now orchestrate all the tabs using this start point ([35fbd12](https://github.com/tks18/pyquery/commit/35fbd12ca1403398643bd54abdaaf311042b1bdc))
+* **frontend/components:** eda: write a new plots module which will have all the charting components ([075d3b2](https://github.com/tks18/pyquery/commit/075d3b2ecba1cbd1ebe1d2f84565aed50271db8f))
+* **frontend/components:** eda: write a simulation tab component ([4d7b431](https://github.com/tks18/pyquery/commit/4d7b4316d3ad730eb2df61cbfbed612851b90e10))
+* **frontend/components:** sidebar: add option for the user to do manual cleanup of staging folder ([a00bff4](https://github.com/tks18/pyquery/commit/a00bff456bdadae47ab737accad1adc4ee82ae68))
+* **frontend/state:** update the state manager to hold states related to eda_tab (future update) ([42f6258](https://github.com/tks18/pyquery/commit/42f62589a7a21015f9fb3e3055e1f4f0892db19c))
+
+
+### Styling 🎨
+
+* **backend/core:** linter changes ([0cd0dde](https://github.com/tks18/pyquery/commit/0cd0dde8a8ebbe5fc8f05504b5e0a660b112ee8d))
+* **frontend/components:** sidebar: just a import refactor ([65835f3](https://github.com/tks18/pyquery/commit/65835f3a8ca6fdb48f1d04889f2cbf43007c7a9f))
+
+
+### Docs 📃
+
+* **eda guide:** add a new eda guide file to the database ([a753137](https://github.com/tks18/pyquery/commit/a753137975d92748fb32d9acecdb6f5387d73f13))
+* **readme:** update readme to reflect recent app changes ([5593d42](https://github.com/tks18/pyquery/commit/5593d427de4d72cc649a0fb0984467fc9f27b5a7))
+
+
+### Others 🔧
+
+* **pyproject:** update app version to 2.1.0 ([0a56244](https://github.com/tks18/pyquery/commit/0a562446e11f72b64672180f934aa6a844c7c286))
+
 ### [2.0.2](https://github.com/tks18/pyquery/compare/v2.0.1...v2.0.2) (2025-12-28)
 
 
