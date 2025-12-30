@@ -8,6 +8,7 @@ from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
 from pyquery_polars.frontend.utils.io_schemas import get_loader_schema
 from pyquery_polars.frontend.utils.file_picker import pick_file, pick_folder
+from pyquery_polars.backend.utils.io import cleanup_staging_files
 
 
 def render_sidebar():
@@ -356,3 +357,14 @@ def render_sidebar():
                     st.session_state.all_recipes[active_ds] = []
                     st.session_state.recipe_steps = []
                     st.rerun()
+
+        st.divider()
+
+        # --- 4. SETTINGS ---
+        with st.expander("⚙️ Application Settings", expanded=False):
+            if st.button("🧹 Clear Cache / Staging", help="Force delete all temporary files.", width="stretch"):
+                try:
+                    cleanup_staging_files(max_age_hours=0)  # Force clear
+                    st.toast("Cache cleared successfully!", icon="🧹")
+                except Exception as e:
+                    st.error(f"Cleanup failed: {e}")

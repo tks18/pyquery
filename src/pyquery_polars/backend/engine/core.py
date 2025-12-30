@@ -7,11 +7,13 @@ from pydantic import BaseModel
 from pyquery_polars.backend.io_plugins.standard import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep
 from pyquery_polars.core.registry import StepRegistry
+from pyquery_polars.backend.utils.io import get_staging_dir, get_excel_sheet_names
 
 # Modules
 from .registry import register_all_steps
 from .jobs import JobManager
 from . import execution
+from ..analysis import AnalysisEngine
 
 
 class PyQueryEngine:
@@ -19,6 +21,8 @@ class PyQueryEngine:
         self._datasets: Dict[str, pl.LazyFrame] = {}  # In-memory storage
         self._sql_context = pl.SQLContext()
 
+        # Analysis Engine
+        self.analysis = AnalysisEngine()
 
         # IO Plugins
         self._loaders: Dict[str, PluginDef] = {}
@@ -81,38 +85,27 @@ class PyQueryEngine:
 
     def materialize_dataset(self, name: str, lf_or_df: Union[pl.LazyFrame, pl.DataFrame], reference_name: Optional[str] = None) -> bool:
         """
-        Materializes a DataFrame to the .staging folder and registers it as a new dataset.
+        Materializes a DataFrame to the centralized staging folder and registers it as a new dataset.
         """
         try:
-            # 1. Determine Root Dir
-            root_dir = os.getcwd()
-            if reference_name:
-                 meta = self.get_dataset_metadata(reference_name)
-                 src = meta.get('source_path')
-                 if src:
-                      if os.path.isfile(src):
-                           root_dir = os.path.dirname(src)
-                      else:
-                           root_dir = src
-            
-            # 2. Create .staging dir
-            staging_dir = os.path.join(root_dir, ".staging")
-            os.makedirs(staging_dir, exist_ok=True)
-            
-            # 3. Sanitize Name (Basic)
-            safe_name = "".join(x for x in name if x.isalnum() or x in " _-").strip()
+            # 1. Get Centralized Staging Dir
+            staging_dir = get_staging_dir()
+
+            # 2. Sanitize Name (Basic)
+            safe_name = "".join(
+                x for x in name if x.isalnum() or x in " _-").strip()
             if not safe_name:
                 raise ValueError("Invalid dataset name")
-            
+
             file_path = os.path.join(staging_dir, f"{safe_name}.parquet")
-            
-            # 4. Write
+
+            # 3. Write
             if isinstance(lf_or_df, pl.LazyFrame):
                 lf_or_df.sink_parquet(file_path)
             else:
                 lf_or_df.write_parquet(file_path)
-                
-            # 5. Register
+
+            # 4. Register
             new_lf = pl.scan_parquet(file_path)
             self.add_dataset(safe_name, new_lf, source_path=file_path)
             return True
@@ -122,7 +115,6 @@ class PyQueryEngine:
 
     def get_file_sheet_names(self, file_path: str) -> List[str]:
         """Get sheet names from an Excel file."""
-        from pyquery_polars.backend.utils.io import get_excel_sheet_names
         return get_excel_sheet_names(file_path)
 
     def get_dataset_names(self) -> List[str]:
@@ -137,13 +129,14 @@ class PyQueryEngine:
         lf = self.get_dataset(dataset_name)
         if lf is None:
             return {}
-            
+
         # 2. Apply current recipe to get state
         try:
-             transformed_lf = execution.apply_recipe(lf, recipe, self._datasets, project_recipes)
+            transformed_lf = execution.apply_recipe(
+                lf, recipe, self._datasets, project_recipes)
         except Exception as e:
-             # If pipeline breaks, fall back to base
-             transformed_lf = lf
+            # If pipeline breaks, fall back to base
+            transformed_lf = lf
 
         # 3. Slice Sample
         try:
@@ -154,33 +147,34 @@ class PyQueryEngine:
         # 4. Determine columns to check
         if not columns:
             # Default: Inspect all String columns
-            columns = [c for c, t in sample_df.schema.items() if t == pl.String]
-        
+            columns = [c for c, t in sample_df.schema.items() if t ==
+                       pl.String]
+
         inferred = {}
-        
+
         for col in columns:
             if col not in sample_df.columns:
                 continue
-                
+
             s = sample_df[col]
             # Skip if empty
             if s.len() == 0:
                 continue
-                
+
             # Only infer for strings (safest for now)
             if s.dtype != pl.String:
                 continue
-            
+
             # Check non-null values only
             # If a column is mixed (valid ints + garbage), strict=False will nullify garbage.
             # INFERENCE RULE: If > 90% of non-nulls can be cast, suggest it?
             # Or STRICT: All non-nulls must be castable.
             # Let's go with STRICT for safety, or High Confidence (>99%).
-            
+
             non_null_s = s.drop_nulls()
             if non_null_s.len() == 0:
                 continue
-            
+
             count = non_null_s.len()
 
             # Helper to check success rate
@@ -189,7 +183,7 @@ class PyQueryEngine:
                     casted = non_null_s.cast(dtype, strict=False)
                     # Count nulls that weren't null before (failure to cast)
                     new_nulls = casted.null_count()
-                    return new_nulls == 0 # Strict success
+                    return new_nulls == 0  # Strict success
                 except:
                     return False
 
@@ -197,7 +191,8 @@ class PyQueryEngine:
             # Custom check because 'True'/'False' might be case insensitive
             try:
                 upper = non_null_s.str.to_uppercase()
-                is_bool = upper.is_in(["TRUE", "FALSE", "T", "F", "1", "0", "YES", "NO"]).all()
+                is_bool = upper.is_in(
+                    ["TRUE", "FALSE", "T", "F", "1", "0", "YES", "NO"]).all()
                 if is_bool:
                     inferred[col] = "Boolean"
                     continue
@@ -213,32 +208,33 @@ class PyQueryEngine:
             if check_cast(pl.Float64):
                 inferred[col] = "Float64"
                 continue
-                
+
             # 4. Date (ISO)
             if check_cast(pl.Date):
                 inferred[col] = "Date"
                 continue
 
-             # 5. Datetime (ISO)
+            # 5. Datetime (ISO)
             if check_cast(pl.Datetime):
                 inferred[col] = "Datetime"
                 continue
-                
+
         return inferred
 
     def get_dataset_schema(self, name: str, project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> Optional[pl.Schema]:
         lf = self.get_dataset(name)
         if lf is None:
             return None
-            
+
         # Apply recipe if context provided
         if project_recipes and name in project_recipes:
             try:
-                lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
+                lf = self.apply_recipe(
+                    lf, project_recipes[name], project_recipes)
             except:
                 # Fallback to base schema
                 pass
-                
+
         try:
             return lf.collect_schema()
         except:
@@ -280,13 +276,13 @@ class PyQueryEngine:
                 result = loader.func(validated_params)
             else:
                 result = loader.func(params)
-            
+
             # Handle Legacy (LF only) vs New (LF, Metadata)
             if isinstance(result, tuple):
                 return result
             else:
                 return result, {}  # Default empty metadata
-                
+
         except Exception as e:
             print(f"Loader Error: {e}")
             return None
@@ -306,21 +302,22 @@ class PyQueryEngine:
         """Executes a SQL query against loaded datasets."""
         # If recipes provided, build temp context
         if project_recipes:
-             ctx = pl.SQLContext()
-             for name, lf in self._datasets.items():
-                 target_lf = lf
-                 if name in project_recipes:
-                     try:
-                        target_lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
-                     except:
+            ctx = pl.SQLContext()
+            for name, lf in self._datasets.items():
+                target_lf = lf
+                if name in project_recipes:
+                    try:
+                        target_lf = self.apply_recipe(
+                            lf, project_recipes[name], project_recipes)
+                    except:
                         pass
-                 ctx.register(name, target_lf)
-             return ctx.execute(query, eager=False)
-        
+                ctx.register(name, target_lf)
+            return ctx.execute(query, eager=False)
+
         # Default global context
         return self._sql_context.execute(query, eager=False)
 
-    def execute_sql_preview(self, query: str, limit: int = 1000, 
+    def execute_sql_preview(self, query: str, limit: int = 1000,
                             project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> pl.DataFrame:
         """
         Executes SQL query on a sampled subset of data (Top N rows) for fast preview.
@@ -332,8 +329,9 @@ class PyQueryEngine:
                 # Apply Recipe
                 target_lf = lf
                 if project_recipes and name in project_recipes:
-                    target_lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
-                
+                    target_lf = self.apply_recipe(
+                        lf, project_recipes[name], project_recipes)
+
                 temp_ctx.register(name, target_lf.limit(limit))
             except:
                 pass
@@ -347,13 +345,14 @@ class PyQueryEngine:
             # Create Context with Recipes Applied
             ctx = pl.SQLContext()
             for name, lf in self._datasets.items():
-                 target_lf = lf
-                 if project_recipes and name in project_recipes:
-                     target_lf = self.apply_recipe(lf, project_recipes[name], project_recipes)
-                 ctx.register(name, target_lf)
-            
+                target_lf = lf
+                if project_recipes and name in project_recipes:
+                    target_lf = self.apply_recipe(
+                        lf, project_recipes[name], project_recipes)
+                ctx.register(name, target_lf)
+
             lf = ctx.execute(query, eager=False)
-            
+
             # We pass empty recipe/dataset_name effectively, as precomputed_lf overrides them
             return self._job_manager.start_export_job(
                 dataset_name="SQL_RESULT",
@@ -393,8 +392,8 @@ class PyQueryEngine:
         except Exception as e:
             return {"error": str(e)}
 
-    def analyze_join_overlap(self, 
-                             left_dataset: str, 
+    def analyze_join_overlap(self,
+                             left_dataset: str,
                              left_recipe: Sequence[Union[dict, RecipeStep]],
                              right_dataset: str,
                              right_recipe: Sequence[Union[dict, RecipeStep]],
@@ -407,23 +406,24 @@ class PyQueryEngine:
         # We reuse the robust get_preview method for consistency
         l_df = self.get_preview(left_dataset, left_recipe)
         r_df = self.get_preview(right_dataset, right_recipe)
-        
+
         if l_df is None:
-             return {"error": f"Left dataset {left_dataset} preview failed."}
+            return {"error": f"Left dataset {left_dataset} preview failed."}
         if r_df is None:
-             return {"error": f"Right dataset {right_dataset} preview failed."}
+            return {"error": f"Right dataset {right_dataset} preview failed."}
 
         # 2. Compute Counts
         try:
             l_count = len(l_df)
             r_count = len(r_df)
-            
+
             if l_count == 0 or r_count == 0:
-                 return {"l_count": l_count, "r_count": r_count, "match_count": 0}
+                return {"l_count": l_count, "r_count": r_count, "match_count": 0}
 
             # 3. Join (Eager)
-            match_count = len(l_df.join(r_df, left_on=left_on, right_on=right_on, how="inner"))
-            
+            match_count = len(l_df.join(r_df, left_on=left_on,
+                              right_on=right_on, how="inner"))
+
             return {
                 "l_count": l_count,
                 "r_count": r_count,

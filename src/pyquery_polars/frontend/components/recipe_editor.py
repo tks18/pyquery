@@ -24,8 +24,10 @@ def render_recipe_editor(dataset_name):
         return
 
     # Use Engine to check active columns (Schema)
-    base_schema = engine.get_dataset_schema(dataset_name)
-    current_schema = base_schema
+    # Strategy: We maintain a running LazyFrame state to propagate schema correctly
+    # even for data-dependent steps like "Promote Headers".
+    current_lf = engine.get_dataset(dataset_name)
+    current_schema = None
     
     # Callback for View Inspection
     def _set_view_step(sid):
@@ -36,6 +38,14 @@ def render_recipe_editor(dataset_name):
 
     # --- RECIPE UI LOOP ---
     for i, step in enumerate(st.session_state.recipe_steps):
+        # 1. Resolve Schema for THIS step
+        try:
+            if current_lf is not None:
+                current_schema = current_lf.collect_schema()
+        except:
+            # Fallback if pipeline broke previously
+            pass
+
         step_type = step.type
         params = step.params  # Generic Dict
         step_id = step.id
@@ -82,21 +92,16 @@ def render_recipe_editor(dataset_name):
                 update_step_params(step.id, updated_params, create_checkpoint=create_cp)
                 st.rerun()
 
-        # --- PROAGATE SCHEMA FOR NEXT STEP ---
-        # We simulate the step on a dummy Frame to get output schema
-        if current_schema:
+        # --- UPDATE STATE FOR NEXT STEP ---
+        if current_lf is not None:
             try:
-                # 1. Create Dummy LF with current schema
-                schema_dict = dict(current_schema)
-                dummy_lf = pl.LazyFrame([], schema=schema_dict)
-
-                # 2. Apply Step (Engine handles Dict -> Pydantic conversion)
-                next_lf = engine.apply_step(dummy_lf, step)
-
-                # 3. Get New Schema
-                current_schema = next_lf.collect_schema()
+                # Apply this step to the running LF
+                # We use internal engine logic which handles params conversion
+                current_lf = engine.apply_step(current_lf, step)
             except Exception as e:
-                pass
+                # If step fails (e.g. invalid params while typing), we invalidate LF
+                # This prevents cascading errors but stops schema propagation
+                current_lf = None
 
     st.divider()
 

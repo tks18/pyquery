@@ -28,6 +28,27 @@ def init_session_state():
     if 'view_at_step_id' not in st.session_state:
         st.session_state.view_at_step_id = None
 
+    init_eda_state()
+
+def init_eda_state():
+    """Initialize EDA-specific session state variables."""
+    if 'eda_ready' not in st.session_state:
+        st.session_state.eda_ready = False
+    if 'eda_show_labels' not in st.session_state:
+        st.session_state.eda_show_labels = False
+    
+    # Simulation State
+    if 'sim_model' not in st.session_state:
+        st.session_state.sim_model = None
+    if 'sim_feats' not in st.session_state:
+        st.session_state.sim_feats = []
+    if 'sim_X' not in st.session_state:
+        st.session_state.sim_X = None
+
+    # Config
+    if 'eda_sample_limit' not in st.session_state:
+        st.session_state.eda_sample_limit = 5000
+
 
 def get_active_recipe() -> List[RecipeStep]:
     active_ds = st.session_state.active_base_dataset

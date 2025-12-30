@@ -1,6 +1,6 @@
 [project]
 name = "pyquery-polars"
-version = "2.0.2"
+version = "2.1.0"
 description = "Enterprise-grade Headless ETL Engine with Interactive UI"
 authors = [
   { name="Shan", email="tksudharshan@gmail.com" },
@@ -45,6 +45,7 @@ dependencies = [
     "plotly>=6.5.0",
     "statsmodels>=0.14.6",
     "scikit-learn>=1.6.1",
+    "scipy>=1.13.1",
 ]
 
 [build-system]

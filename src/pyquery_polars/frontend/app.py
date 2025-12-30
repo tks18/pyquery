@@ -4,10 +4,11 @@ from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.components.export import render_export_section
 from pyquery_polars.frontend.components.profile import render_profile_tab
 from pyquery_polars.frontend.components.recipe_editor import render_recipe_editor
-from pyquery_polars.frontend.components.eda_tab import render_eda_tab
+from pyquery_polars.frontend.components.eda import render_eda_tab
 from pyquery_polars.frontend.components.sql_tab import render_sql_tab
 from pyquery_polars.frontend.components.sidebar import render_sidebar
 from pyquery_polars.frontend.state_manager import init_session_state
+from pyquery_polars.backend.utils.io import cleanup_staging_files
 
 import streamlit as st
 import sys
@@ -38,6 +39,11 @@ st.session_state.engine = get_engine()
 register_frontend()
 
 init_session_state()
+
+# AUTO CLEANUP (Once per session)
+if "cleanup_done" not in st.session_state:
+    cleanup_staging_files(max_age_hours=24)
+    st.session_state["cleanup_done"] = True
 
 # ==========================================
 # 1. CONFIGURATION & STATE
@@ -76,7 +82,7 @@ if active_dataset_name:
         render_export_section(active_dataset_name)
 
     with t2:
-        render_eda_tab()
+        render_eda_tab(active_dataset_name)
 
     with t3:
         render_sql_tab()

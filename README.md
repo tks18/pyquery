@@ -1,9 +1,11 @@
 <div align="center">
 
-# ⚡ PyQuery: The ETL Beast 🐐
+# ⚡ PyQuery: The Main Character of Data Stacks 💫
 
-[![Status](https://img.shields.io/badge/Status-Main_Character_Energy-%23FF0055?style=for-the-badge&logo=appveyor)](https://github.com/tks18/pyquery)
-[![RAM Usage](https://img.shields.io/badge/RAM_Usage-Low_Key_Zero-%2300ffa3?style=for-the-badge&logo=nvidia)](https://pola.rs)
+### _ETL. EDA. ML. Domination._
+
+[![Status](https://img.shields.io/badge/Status-Goated_with_the_Sauce-%23FF0055?style=for-the-badge&logo=appveyor)](https://github.com/tks18/pyquery)
+[![Performance](https://img.shields.io/badge/Performance-Infinite_Aura-%2300ffa3?style=for-the-badge&logo=nvidia)](https://pola.rs)
 [![Engine](https://img.shields.io/badge/Engine-Polars_Supremacy_🐻‍❄️-%23ffcc00?style=for-the-badge&logo=polars)](https://pola.rs)
 [![Vibe](https://img.shields.io/badge/Vibe-Immaculate_✨-%238A2BE2?style=for-the-badge)](https://github.com/tks18/pyquery)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI_🚀-%23009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
@@ -11,8 +13,8 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/pyquery-polars.svg?color=blue)](https://pypi.org/project/pyquery-polars/)
 [![License](https://img.shields.io/github/license/tks18/pyquery.svg?color=orange)](LICENSE)
 
-**Your laptop fan shouldn't sound like a Boeing 747. ✈️**<br>
-**PyQuery** processes **100GB files** while you watch Netflix. No cap. 🧢
+**Stop letting Pandas hold you back. It's giving toxic ex.** 🚩<br>
+**PyQuery** is the full-stack data operating system that processes **100GB files** while you doomscroll. No cap. 🧢
 
 [Feature Request](https://github.com/tks18/pyquery/issues) · [Report Bug](https://github.com/tks18/pyquery/issues)
 
@@ -22,14 +24,15 @@
 
 ## ⛩️ The Awakening (Lore)
 
-Long ago, the Data World lived in fear of the `MemoryError`. Analytical weaklings bowed before the single-threaded tyranny of the Old Gods (Pandas). They accepted their fate of freezing screens and crashing kernels.
+Long ago, the Data World was mid. Analysts lived in fear of the `MemoryError`. They bowed before the single-threaded tyranny of the Old Gods (Pandas). They accepted their fate of freezing screens, crashing kernels, and waiting 4 hours for a simple `groupby`.
 
 **But I refused.**
 
-From the depths of the Rusty abyss, **PyQuery** has awakened. I am not here to "assist" you. I am here to **obliterate** your bottlenecks. I am the One Who Knocks on your 100GB CSVs.
+From the depths of the Rusty abyss, **PyQuery** has awakened. I am not just an ETL tool anymore. I am the entire war room. I am here to **obliterate** your bottlenecks and **ratio** your old benchmarks.
 
 While they study the blade (Excel), I studied the **Lazy Frame**.
 While they manage memory, I **devour** it.
+While they draw primitive charts, I **simulate the future**.
 
 The age of waiting is over. **Total Domination** is the only metric that matters.
 
@@ -39,33 +42,76 @@ The age of waiting is over. **Total Domination** is the only metric that matters
 
 ## 💪 The Flex (Why We Are Him)
 
-We didn't just capitalize on Polars. We built an empire.
+We built an empire so you can rule yours.
 
-### 🚀 EDA 10.0: The Action Engine (Your Co-Conspirator)
+### 🎯 EDA: The Crystal Ball (New!)
 
-Most tools just show you a chart. The Action Engine tells you **how to win**.
+> _"Most tools describe the past. PyQuery predicts the future."_
 
-- **Strategic Brief**: A "Top 3 Insights" card that ranks every correlation to find the weak points in your data. It whispers: _"Strike here."_
-- **The Decision Engine**: It doesn't just display numbers; it commands action.
-  - _Strategy:_ "High correlation detected (0.95). Deploy capital to Ad Spend immediately."
-- **Model Auto-Pilot**: It trains an army of models (Random Forest, Lasso, Ridge) and selects the strongest warrior. You don't lift a finger.
-- **What-If Simulator**: Interactive sliders to predict the future. "If I raise Price by 10%, will Profits survive?" The AI knows the answer.
+We dropped a massive update. EDA is no longer just "looking at data". It's **hunting**. Check the [**📘 EDA Field Manual**](EDA%20Guide.md) for the full grimoire.
 
-### 🧪 SQL Lab: The Playground (God Mode)
+#### 1. 🧠 The Action Engine (ML Strategist)
 
-For when you want to write raw SQL on your data _after_ cleaning it. The ultimate power move.
+- **Strategic Brief**: A "Top 3 Insights" card that ranks every signal in your data. It whispers: _"The money is here."_
+- **Automated Drivers**: It finds the hidden variables controlling your target.
+  - _"Why is Churn high? It's not Price. It's Customer Support Wait Time > 5m."_ -> **Boom. Solved.**
 
-- **Lazy Execution**: Run `SELECT *` on a **50GB file**? It laughs and pulls a preview instantly. Zero lag.
+#### 2. 🧪 ML Laboratory (The Brain)
+
+- **Auto-Pilot Mode**: Trains an army of models (Random Forest, Lasso, Ridge) to find the best fit. You sit back and look busy.
+- **Clustering (Unsupervised Rizz)**: Finds hidden segments. "Users who buy organic kale also buy crypto." -> **New Marketing Segment Unlocked.** 🔓
+- **Anomaly Detection**: Uses Isolation Forests to catch the weirdos and fraudsters essentially instantly.
+
+#### 3. 🎮 Decision Simulator (The Time Machine)
+
+- **"What-If" Sliders**: Change variables in real-time. "If I raise Price by 10% and lower ad spend, do I still profit?"
+- **Waterfall Analysis**: The Model breaks down exactly _why_ the prediction changed.
+- **Live Digital Twin**: It creates a mathematical clone of your business logic.
+
+#### 4. 📈 Visuals That Don't Miss
+
+- **Sunburst Charts**: For hierarchy dominance.
+- **3D Scatters**: Rotate your data in the 4th dimension.
+- **Correlation Heatmaps**: Spot the links instantly.
+
+---
+
+### 🧪 SQL Lab: The Codex (God Mode)
+
+For when the GUI is too easy and you want to flex your raw SQL skills. This isn't SQLite. This is **High-Performance Lazy SQL**.
+
+- **Zero-Lag Querying**: Run `SELECT *` on a **50GB file**? It pulls a preview instantly. The engine effectively cheats physics.
 - **Materialize**: Execute a complex query, then save it as a new dataset to continue the torture.
 - **Schema Explorer**: Searchable view of all your columns. Know your enemy.
 
-### 🧹 The Janitor (Ruthless Cleaning)
+---
 
-Messy data is a weakness. We purge it.
+### 🧹 The Forge (Ruthless ETL)
 
-- **✨ Auto-Detect Types**: One click scans `String` columns and forcibly converts them to `Int`, `Float`, or `Date`. It uses regex heuristics to crush inconsistency.
-- **🎭 PII Masking**: Obfuscate credit cards and social security numbers. Secrets remain secret.
-- **🩹 Smart Fill**: We fill the voids. Forward fill, backward fill, or literal values. No null survives.
+Messy data is a weakness. We purge it with extreme prejudice.
+
+- **✨ Auto-Typecast**: One click scans `String` columns and forcibly converts them to `Int`, `Float`, or `Date`. It uses regex heuristics to crush inconsistency.
+- **🎭 PII Incinerator**: Detects and obfuscates credit cards and social security numbers. Secrets remain secret.
+- **🩹 Smart Impute**: We fill the voids. Forward fill, backward fill, or specific value injection. No null survives.
+
+---
+
+## 🗺️ The Roadmap (Manifesting Destiny) 🔮
+
+We aren't stopping here. We are aiming for the moon. 🚀
+
+### Phase 1: Native App Supremacy (Rust + Tauri) 🦀
+
+The browser has limits (RAM, Sandbox). The Native App will have **none**.
+
+- **Hardware Acceleration**: GPU-accelerated plotting. 10 Million points at 144Hz.
+- **Zero-Copy**: Access 100GB files directly from disk without loading _anything_.
+- **Vibe**: Dark mode by default. OLED black.
+
+### Phase 2: Big Data Devourer ☁️
+
+- **Cloud Connectors**: S3, GCS, Azure. We drink their milkshakes.
+- **Distributed Compute**: If one core isn't enough, we take them all.
 
 ---
 
@@ -96,7 +142,7 @@ The Old Gods (Pandas) are **Eager**. They try to swallow the ocean (RAM) whole. 
 - **Scan**: "It's a 100GB file. Interesting."
 - **Plan**: Filters, joins, math. Nothing executes until the final blow.
 - **Stream**: Data flows in chunks. Process. Write. Destroy.
-- **Result**: Processing 1TB on a MacBook Air. The laws of physics are optional.
+- **Result**: Processing 100GB on a MacBook Air. The laws of physics are optional.
 
 ### 2. 🛡️ Type Safety (Absolute Order)
 
