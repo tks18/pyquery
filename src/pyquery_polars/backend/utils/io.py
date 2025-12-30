@@ -73,7 +73,7 @@ def get_excel_sheet_names(file_path: str) -> List[str]:
             excel = fastexcel.read_excel(target_file)
             return excel.sheet_names
         except Exception:
-             # Fallback
+            # Fallback
             try:
                 wb = load_workbook(
                     target_file, read_only=True, keep_links=False)
@@ -124,11 +124,9 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1") -> Optional[pl
                     df = pl.read_excel(f, sheet_name=sheet_name,
                                        infer_schema_length=0)
 
-                    # STAGING: Use file's directory instead of script root
+                    # STAGING: Centralized
                     # Prevents cluttering the app directory
-                    base_dir = os.path.dirname(os.path.abspath(f))
-                    staging_dir = os.path.join(base_dir, ".staging")
-                    os.makedirs(staging_dir, exist_ok=True)
+                    staging_dir = get_staging_dir()
 
                     stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{uuid.uuid4().hex[:8]}.parquet"
                     stage_path = os.path.join(staging_dir, stage_filename)
@@ -180,8 +178,7 @@ def load_from_sql(connection_string: str, query: str) -> Optional[pl.LazyFrame]:
 def load_from_api(url: str) -> Optional[pl.LazyFrame]:
     try:
         # Enterprise Staged Loading: Stream to disk first
-        staging_dir = os.path.join(os.getcwd(), ".staging")
-        os.makedirs(staging_dir, exist_ok=True)
+        staging_dir = get_staging_dir()
 
         file_name = f"api_dump_{uuid.uuid4()}.json"
         file_path = os.path.join(staging_dir, file_name)
