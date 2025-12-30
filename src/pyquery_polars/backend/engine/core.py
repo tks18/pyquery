@@ -12,6 +12,7 @@ from pyquery_polars.core.registry import StepRegistry
 from .registry import register_all_steps
 from .jobs import JobManager
 from . import execution
+from ..analysis import AnalysisEngine
 
 
 class PyQueryEngine:
@@ -19,6 +20,8 @@ class PyQueryEngine:
         self._datasets: Dict[str, pl.LazyFrame] = {}  # In-memory storage
         self._sql_context = pl.SQLContext()
 
+        # Analysis Engine
+        self.analysis = AnalysisEngine()
 
         # IO Plugins
         self._loaders: Dict[str, PluginDef] = {}
