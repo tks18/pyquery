@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/tks18/pyquery/compare/v2.1.0...v2.2.0) (2025-12-31)
+
+
+### Bug Fixes 🛠
+
+* **backend/transforms:** clean cast: sometimes boolean doest cast properly ([bbbc700](https://github.com/tks18/pyquery/commit/bbbc700abef4e44ba9ef6687ba0fe5729b6badc5))
+
+
+### Styling 🎨
+
+* **backend/analysis:** stats: minor styling changes ([2688b3d](https://github.com/tks18/pyquery/commit/2688b3d4f87bfe1c4cd4c501955262263f05a3df))
+
+
+### Features 🔥
+
+* **backend/analysis:** add sensitivity analysis and PDP ([a01e001](https://github.com/tks18/pyquery/commit/a01e001fccd3ca478870d1f93ff36acf3439e481))
+* **backend/analysis:** enhance existing ml functions to give more information ([d1438f4](https://github.com/tks18/pyquery/commit/d1438f43c6f455fca3b84925ae76a9c80cc1fdd4))
+* **backend/analysis:** stats: add more helper functions such as kde curve, normal dist plotting, ec ([7347b50](https://github.com/tks18/pyquery/commit/7347b5028eebddae8dc9fbd7ffd6ba8e03e91e02))
+* **frontend/components:** eda: add another tab for group contrast metric ([5afa041](https://github.com/tks18/pyquery/commit/5afa0416d3abd4cb3cbcb7166ea97cd9a7a6dcb1))
+* **frontend/components:** eda: completely rewrite ML tab based on the new engine changes ([d0de0c4](https://github.com/tks18/pyquery/commit/d0de0c4027108b67ce0835dfa5898ec3ce81c724))
+* **frontend/components:** eda: completely rewrite plots module based on new engine changes ([465dade](https://github.com/tks18/pyquery/commit/465dade36fdfaeb99c540bbfde5ca0682deb75be))
+* **frontend/components:** eda: core - use the new cached api for storing data, also tab reordering ([4ee1c7e](https://github.com/tks18/pyquery/commit/4ee1c7ef8bddfe076b9222d5143735f0e2161116))
+* **frontend/components:** eda: implement caching across entire tab for faster processing ([2967179](https://github.com/tks18/pyquery/commit/2967179c505bd77343e2aade009549fe83ef24f8))
+* **frontend/components:** eda: introduce new tab for advanced profiling ([502f190](https://github.com/tks18/pyquery/commit/502f190d8f83a81334e47322528a635c6534964f))
+* **frontend/components:** eda: rewrite simulation tab with new functionalities from the engine ([794d2cf](https://github.com/tks18/pyquery/commit/794d2cfdfc94553b89d10fc671be70b3b55f69eb))
+
+
+### Code Refactoring 🖌
+
+* **frontend/components:** eda: use the cached df for processing ([24b8b21](https://github.com/tks18/pyquery/commit/24b8b21588410f6d476b858c038ac0c8b7455e7e))
+
+
+### Docs 📃
+
+* **readme:** update readme completely to give more detailed information about the tool ([158d54e](https://github.com/tks18/pyquery/commit/158d54ec8740fa0b31751ae01df7263ef63bbc24))
+
+
+### Others 🔧
+
+* **pyproject:** update app to version 2.2.0 ([696214f](https://github.com/tks18/pyquery/commit/696214f973b3f73b12029fa9cb0ac4ff7d21e156))
+
 ## [2.1.0](https://github.com/tks18/pyquery/compare/v2.0.2...v2.1.0) (2025-12-30)
 
 
