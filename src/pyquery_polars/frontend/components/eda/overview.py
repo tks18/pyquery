@@ -12,13 +12,9 @@ def render_overview(ctx: EDAContext):
 
     # 1. Data Collection (Auto-Run if possible, or Button)
     # Ideally Overview should be fast and auto-load. 5k rows is trivial.
-    if ctx.df is None:
-        try:
-            df = ctx.lf.collect().to_pandas()
-        except:
-            return
-    else:
-        df = ctx.df
+    df = ctx.get_pandas()
+    if df is None:
+        return
 
     engine = ctx.engine
 
