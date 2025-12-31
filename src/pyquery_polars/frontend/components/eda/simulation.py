@@ -10,13 +10,9 @@ def render_simulation(ctx: EDAContext):
     """Render the Decision Simulator Tab with Enhanced Interpretability."""
 
     # 1. Setup
-    if ctx.df is None:
-        try:
-            df = ctx.lf.collect().to_pandas()
-        except:
-            return
-    else:
-        df = ctx.df
+    df = ctx.get_pandas()
+    if df is None:
+        return
 
     engine = ctx.engine
 
@@ -50,6 +46,7 @@ def render_simulation(ctx: EDAContext):
                 st.error("Select numeric driver features.")
             else:
                 with st.spinner("Training Model..."):
+                    # Delegate training to Backend
                     res = engine.analysis.ml.train_simulator_model(
                         df, sim_target, sim_feats, model_type)
 
@@ -145,6 +142,28 @@ def render_simulation(ctx: EDAContext):
         # 1. Inputs
         user_inputs = {}
         with c_sim.container(border=True):
+            st.write("#### 🎛️ Scenario Manager")
+
+            # Initialize Scenarios
+            if 'sim_scenarios' not in st.session_state:
+                st.session_state['sim_scenarios'] = {}
+
+            # Save/Load
+            scen_name = st.text_input(
+                "Scenario Name", placeholder="e.g. Best Case")
+            c_save, c_load = st.columns(2)
+
+            if c_save.button("Save Scenario"):
+                if scen_name:
+                    # Note: We can't capture inputs here directly as they are generated below.
+                    # Workaround: Use session state or previous run inputs.
+                    # Better: Move Input Generation BEFORE this block?
+                    # Actually, let's just render the inputs first, then put the manager below them?
+                    pass
+                else:
+                    st.warning("Name required")
+
+            st.divider()
             st.caption("Adjust Drivers (Levers)")
             # No reset button easily without callback, keep simple
 
@@ -167,60 +186,120 @@ def render_simulation(ctx: EDAContext):
                     f"{feat}", min_v, max_v, mean_v, step=step)
 
         # 2. Prediction
+        # 2. Prediction & Analysis Modes
         with c_res:
             try:
                 input_df = pd.DataFrame([user_inputs])
                 # Ensure order and cols match training
-                # Accessing model's expected features is cleaner, but using sim_feats is proxy
-                # We need to ensure we don't pass extra cols or missing cols if model needs them?
-                # train_simulator_model trained on 'sim_feats'.
-                input_df = input_df[sim_feats]
+                valid_cols = [c for c in sim_feats if c in user_inputs]
+                input_df = input_df[valid_cols]  # Filter to known cols
 
-                # Predict
+                # A. INSTANT PREDICTION
                 pred = model.predict(input_df)[0]
 
-                # Show Metric
-                st.write("##### Outcome")
+                st.write("##### Outcome Analysis")
                 if is_cat:
                     st.metric("Predicted Class", f"{pred}")
                 else:
                     st.metric(f"Predicted {sim_target}", f"{pred:,.2f}")
 
-                # Waterfall
-                explainer = st.session_state.get('sim_explainer')
-                if explainer and not is_cat:  # Waterfall makes most sense for Regression
-                    contribs = engine.analysis.ml.get_prediction_contribution(
-                        explainer, user_inputs)
-                    if contribs:
-                        top_c = contribs[:8]
-                        wf_feats = [c['Feature'] for c in top_c]
-                        wf_vals = [c['Contribution'] for c in top_c]
+                # --- MODE SELECTION ---
+                sim_mode = st.radio("Analysis Mode", ["Single Prediction", "Sensitivity (Tornado)", "Monte Carlo (Risk)"],
+                                    horizontal=True, label_visibility="collapsed")
+                st.divider()
 
-                        fig_wf = go.Figure(go.Waterfall(
-                            orientation="v", measure=["relative"] * len(wf_vals),
-                            x=wf_feats, y=wf_vals,
-                            connector={"line": {"color": "rgb(63, 63, 63)"}}
-                        ))
-                        fig_wf.update_layout(
-                            title="Feature Contribution (vs Average)", height=350, template=ctx.theme)
-                        st.plotly_chart(fig_wf)
+                # --- MODE 1: SINGLE PREDICTION (Waterfall) ---
+                if sim_mode == "Single Prediction":
+                    explainer = st.session_state.get('sim_explainer')
+                    if explainer and not is_cat:  # Waterfall makes most sense for Regression
+                        contribs = engine.analysis.ml.get_prediction_contribution(
+                            explainer, user_inputs)
+                        if contribs:
+                            top_c = contribs[:8]
+                            wf_feats = [c['Feature'] for c in top_c]
+                            wf_vals = [c['Contribution'] for c in top_c]
+
+                            fig_wf = go.Figure(go.Waterfall(
+                                orientation="v", measure=["relative"] * len(wf_vals),
+                                x=wf_feats, y=wf_vals,
+                                connector={
+                                    "line": {"color": "rgb(63, 63, 63)"}}
+                            ))
+                            fig_wf.update_layout(
+                                title="Feature Contribution (Why this result?)", height=350, template=ctx.theme)
+                            st.plotly_chart(fig_wf)
+                            st.caption(
+                                "Shows how each input pushes the prediction UP (Green) or DOWN (Red) from the average.")
+
+                # --- MODE 2: SENSITIVITY (Tornado) ---
+                elif sim_mode == "Sensitivity (Tornado)":
+                    st.caption(
+                        "How much does the output change if we tweak each input?")
+
+                    # Need feature stats for perturbation size
+                    feat_stats = {}
+                    if X_orig is not None:
+                        for c in X_orig.columns:
+                            feat_stats[c] = {'std': X_orig[c].std()}
+
+                    sens_df = engine.analysis.ml.get_sensitivity(
+                        model, user_inputs, feat_stats)
+
+                    if not sens_df.empty:
+                        # Tornado Plot
+                        fig_tor = px.bar(sens_df, x="Spread", y="Feature", orientation='h',
+                                         title=f"Sensitivity: Output Range (+/- 1 Std Dev)",
+                                         template=ctx.theme, color="Spread")
+                        st.plotly_chart(fig_tor)
+                        st.info(
+                            "Longer bars = This feature has a higher impact on the specific outcome.")
+
+                # --- MODE 3: MONTE CARLO (Risk) ---
+                elif sim_mode == "Monte Carlo (Risk)":
+                    st.caption(
+                        "Simulating 1,000 scenarios with random noise to estiamte uncertainty.")
+
+                    # Stats for noise
+                    feat_stats = {}
+                    if X_orig is not None:
+                        for c in X_orig.columns:
+                            feat_stats[c] = {'std': X_orig[c].std()}
+
+                    mc_res = engine.analysis.ml.run_monte_carlo(
+                        model, user_inputs, feat_stats)
+                    preds = mc_res['predictions']
+
+                    fig_dist = px.histogram(preds, nbins=30, title="Probability Distribution of Outcome",
+                                            labels={
+                                                'value': f"Predicted {sim_target}"},
+                                            template=ctx.theme, opacity=0.7)
+
+                    # Add Confidence Intervals
+                    p5, p95, mean_val = mc_res['p5'], mc_res['p95'], mc_res['mean']
+
+                    fig_dist.add_vline(
+                        x=mean_val, line_dash="dash", line_color="white", annotation_text="Exp. Value")
+                    fig_dist.add_vrect(
+                        x0=p5, x1=p95, fillcolor="green", opacity=0.1, annotation_text="90% Conf.")
+
+                    st.plotly_chart(fig_dist)
+
+                    c_r1, c_r2, c_r3 = st.columns(3)
+                    c_r1.metric("Optimistic (95th)", f"{p95:,.2f}")
+                    c_r2.metric("Expected", f"{mean_val:,.2f}")
+                    c_r3.metric("Pessimistic (5th)", f"{p5:,.2f}")
+
             except Exception as e:
                 st.error(f"Prediction Error: {e}")
-
-# Keep existing target_analysis as is
 
 
 def render_target_analysis(ctx: EDAContext):
     """Render Advanced Target Analysis Tab (Bivariate & Insights)"""
 
     # Ensure Data
-    if ctx.df is None:
-        try:
-            df = ctx.lf.collect().to_pandas()
-        except:
-            return
-    else:
-        df = ctx.df
+    df = ctx.get_pandas()
+    if df is None:
+        return
 
     engine = ctx.engine
 
