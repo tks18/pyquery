@@ -417,27 +417,65 @@ class MLEngine:
             return []
 
     @staticmethod
-    def get_partial_dependence(df: pd.DataFrame, target: str, feature: str) -> Dict[str, Any]:
-        """Calculate Partial Dependence for a feature on target."""
+    def get_partial_dependence(df: pd.DataFrame, target: str, feature: str, features_list: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Calculate Partial Dependence for a feature on target.
+        Trains a temporary Random Forest to estimate the dependence.
+        """
         if not HAS_SKLEARN:
             return {}
         try:
-            X_df = df[[feature]].dropna()
-            # We need Y matching X indices
-            y = df.loc[X_df.index, target]
 
-            # Simple RF
-            rf = RandomForestRegressor(
-                n_estimators=10, max_depth=3, random_state=42)
-            rf.fit(X_df, y)
+            # Use provided feature list or default to all numeric/categorical
+            valid_feats = features_list if features_list else df.select_dtypes(
+                include=[np.number, 'category', 'object']).columns.tolist()
+            if target in valid_feats:
+                valid_feats.remove(target)
 
-            x_grid = np.linspace(X_df[feature].min(),
-                                 X_df[feature].max(), 50).reshape(-1, 1)
-            y_grid = rf.predict(x_grid)
+            X, y = MLEngine.prepare_data(df, valid_feats, target)
+
+            # Determine mode
+            is_cat = y.nunique() < 10 or str(y.dtype) == 'object'
+
+            # Quick Proxy Model
+            model = RandomForestClassifier(n_estimators=20, max_depth=5, random_state=42) if is_cat \
+                else RandomForestRegressor(n_estimators=20, max_depth=5, random_state=42)
+            model.fit(X, y)
+
+            # Calculate PDP
+            # Note: feature must be in X.columns
+            if feature not in X.columns:
+                return {"error": f"Feature {feature} not found in model input."}
+
+            pdp_res = partial_dependence(
+                # type: ignore
+                model, X, [feature], grid_resolution=50, kind='average')
 
             return {
-                "x": x_grid.flatten(),
-                "y": y_grid
+                "x": pdp_res['grid_values'][0],
+                "y": pdp_res['average'][0]
+            }
+        except Exception as e:
+            return {"error": f"PDP Error: {str(e)}"}
+
+    @staticmethod
+    def get_silhouette_samples(df: pd.DataFrame, features: List[str], labels: Any) -> Dict[str, Any]:
+        """Calculate Silhouette Coefficient for each sample."""
+        if not HAS_SKLEARN:
+            return {}
+        try:
+            X, _ = MLEngine.prepare_data(df, features)
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+
+            if len(set(labels)) < 2:
+                return {"error": "Need > 1 cluster"}
+
+            sample_scores = silhouette_samples(X_scaled, labels)
+
+            return {
+                "scores": sample_scores,
+                "mean_score": float(sample_scores.mean())  # type: ignore
             }
         except Exception as e:
             return {"error": str(e)}
@@ -506,3 +544,92 @@ class MLEngine:
             return res
         except Exception as e:
             return {"error": str(e)}
+
+    @staticmethod
+    def get_sensitivity(model: Any, base_inputs: Dict[str, float], feature_stats: Dict[str, Dict[str, float]]) -> pd.DataFrame:
+        """
+        Calculate local sensitivity (Tornado Data).
+        Perturbs each feature by +/- 1 Std Dev (or 10% range) and measures output change.
+        """
+        results = []
+        base_df = pd.DataFrame([base_inputs])
+        # Ensure correct column order
+        cols = model.feature_names_in_ if hasattr(
+            model, "feature_names_in_") else list(base_inputs.keys())
+        base_df = base_df[cols]
+
+        base_pred = model.predict(base_df)[0]
+
+        for feat, val in base_inputs.items():
+            if feat not in cols:
+                continue
+
+            # Determine perturbation size
+            std = feature_stats.get(feat, {}).get(
+                'std', abs(val)*0.1 if val != 0 else 1.0)
+            if std == 0:
+                std = 1.0
+
+            # Low Case
+            low_input = base_df.copy()
+            low_input[feat] = val - std
+            low_pred = model.predict(low_input)[0]
+
+            # High Case
+            high_input = base_df.copy()
+            high_input[feat] = val + std
+            high_pred = model.predict(high_input)[0]
+
+            # Impact
+            change = abs(high_pred - low_pred)
+
+            results.append({
+                "Feature": feat,
+                "Base": base_pred,
+                "Low_Val": val - std,
+                "High_Val": val + std,
+                "Low_Pred": low_pred,
+                "High_Pred": high_pred,
+                "Spread": high_pred - low_pred,
+                "Impact_Abs": change
+            })
+
+        return pd.DataFrame(results).sort_values("Impact_Abs", ascending=True)
+
+    @staticmethod
+    def run_monte_carlo(model: Any, base_inputs: Dict[str, float], feature_stats: Dict[str, Dict[str, float]], n_sims: int = 1000) -> Dict[str, Any]:
+        """
+        Run Monte Carlo Simulation for Risk Analysis.
+        Injects Gaussian noise into inputs based on their historical Std Dev.
+        """
+        # 1. Generate Inputs
+        cols = model.feature_names_in_ if hasattr(
+            model, "feature_names_in_") else list(base_inputs.keys())
+        sim_data = {}
+
+        for col in cols:
+            base_val = base_inputs.get(col, 0)
+            # Default noise: 10% of std dev (small uncertainty) or 5% of value
+            std = feature_stats.get(col, {}).get('std', abs(base_val)*0.1)
+            if std == 0:
+                std = 0.01
+
+            # Random samples
+            # 0.5 factor to keep it realistic
+            noise = np.random.normal(0, std * 0.5, n_sims)
+            sim_data[col] = base_val + noise
+
+        sim_df = pd.DataFrame(sim_data)
+
+        # 2. Predict
+        preds = model.predict(sim_df)
+
+        # 3. Analyze Results
+        return {
+            "predictions": preds,
+            "mean": np.mean(preds),
+            "p5": np.percentile(preds, 5),
+            "p95": np.percentile(preds, 95),
+            "std": np.std(preds),
+            "sim_df": sim_df  # Return inputs too if needed for detailed analysis
+        }
