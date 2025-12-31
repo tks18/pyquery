@@ -7,11 +7,12 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.ensemble import IsolationForest, RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, Lasso
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
-from sklearn.metrics import confusion_matrix, r2_score, mean_absolute_error, accuracy_score, silhouette_score, roc_curve, precision_recall_curve, auc
+from sklearn.preprocessing import StandardScaler, LabelEncoder, PolynomialFeatures
+from sklearn.model_selection import train_test_split, cross_val_score, KFold, learning_curve
+from sklearn.metrics import confusion_matrix, r2_score, mean_absolute_error, accuracy_score, silhouette_samples, silhouette_score, roc_curve, precision_recall_curve, auc
 from sklearn.inspection import permutation_importance
 from sklearn.utils import resample
+from sklearn.inspection import partial_dependence
 
 HAS_SKLEARN = True
 
@@ -43,10 +44,9 @@ class MLEngine:
         return X, y
 
     @staticmethod
-    def run_diagnostic_model(df: pd.DataFrame, target: str, features: List[str], model_type: str, is_categorical: bool) -> Dict[str, Any]:
+    def run_diagnostic_model(df: pd.DataFrame, target: str, features: List[str], model_type: str, is_categorical: bool, use_poly: bool = False) -> Dict[str, Any]:
         """
-        Run a diagnostic model (Regression or Classification).
-        Supports 'Auto-Pilot' to find best model.
+        Run a diagnostic model (Regression or Classification) with advanced diagnostics.
         """
         if not HAS_SKLEARN:
             return {"error": "Scikit-Learn not installed"}
@@ -54,6 +54,16 @@ class MLEngine:
         X, y = MLEngine.prepare_data(df, features, target)
         if y is None:
             return {"error": "Target not found"}
+
+        # Polynomial Features (Interactions)
+        if use_poly:
+            # Degree 2, Interaction Only to keep it sane
+            poly = PolynomialFeatures(
+                degree=2, interaction_only=True, include_bias=False)
+            X_poly = poly.fit_transform(X)
+            # Reconstruct DF for names
+            new_feats = poly.get_feature_names_out(features)
+            X = pd.DataFrame(X_poly, columns=new_feats)
 
         # Define Models
         models_to_run = []
@@ -90,7 +100,10 @@ class MLEngine:
         best_score = -999
         best_name = ""
         best_cv_results = []
+        best_name = ""
+        best_cv_results = []
 
+        # 1. Train/Test Split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42)
 
@@ -106,22 +119,58 @@ class MLEngine:
                 best_name = name
                 best_cv_results = scores
 
-        # Retrain best on split for detailed metrics
         if best_model is None:
             return {"error": "No suitable model found"}
 
+        # 2. Final Fit
         best_model.fit(X_train, y_train)
         y_pred = best_model.predict(X_test)
 
-        # Metrics
+        # 3. Advanced Diagnostics
+        diagnostics = {}
+
+        # Learning Curve (Bias/Variance)
+        # Learning Curve (Bias/Variance)
+        try:
+            lc_res = learning_curve(
+                best_model, X, y, cv=5, n_jobs=-1,
+                train_sizes=np.linspace(0.1, 1.0, 5)
+            )
+            # Unpack first 3 safely (train_sizes, train_scores, test_scores)
+            train_sizes, train_scores, test_scores = lc_res[:3]
+
+            diagnostics['learning_curve'] = {
+                "train_sizes": train_sizes,
+                "train_mean": np.mean(train_scores, axis=1),
+                "test_mean": np.mean(test_scores, axis=1)
+            }
+        except:
+            pass
+
         metrics = {}
         if is_categorical:
             metrics['accuracy'] = accuracy_score(y_test, y_pred)
             metrics['confusion_matrix'] = confusion_matrix(y_test, y_pred)
+
+            # ROC / PR
+            if hasattr(best_model, "predict_proba"):
+                y_prob = best_model.predict_proba(X_test)  # type: ignore
+                # Handle multi-class vs binary
+                if len(np.unique(y)) == 2:
+                    fpr, tpr, _ = roc_curve(y_test, y_prob[:, 1])
+                    precision, recall, _ = precision_recall_curve(
+                        y_test, y_prob[:, 1])
+                    diagnostics['roc'] = {"fpr": fpr,
+                                          "tpr": tpr, "auc": auc(fpr, tpr)}
+                    diagnostics['pr'] = {
+                        "precision": precision, "recall": recall}
         else:
             metrics['r2'] = r2_score(y_test, y_pred)
             metrics['mae'] = mean_absolute_error(y_test, y_pred)
             metrics['residuals'] = y_test - y_pred
+            diagnostics['residuals'] = metrics['residuals']
+            diagnostics['actual'] = y_test
+            diagnostics['predicted'] = y_pred
 
         return {
             "model_name": best_name,
@@ -129,6 +178,8 @@ class MLEngine:
             "cv_scores": best_cv_results,
             "metrics": metrics,
             "model_obj": best_model,
+            "train_cols": X.columns.tolist(),
+            "diagnostics": diagnostics,
             "X_test": X_test,
             "y_test": y_test,
             "y_pred": y_pred
@@ -142,8 +193,8 @@ class MLEngine:
         return result['importances_mean']
 
     @staticmethod
-    def cluster_data(df: pd.DataFrame, features: List[str], n_clusters: int = 3, algo: str = "K-Means") -> Dict[str, Any]:
-        """Run Clustering (KMeans/DBSCAN) and return DF with Clusters + PCA + Metrics."""
+    def cluster_data(df: pd.DataFrame, features: List[str], n_clusters: int = 3, algo: str = "K-Means", optimize_k: bool = False) -> Dict[str, Any]:
+        """Run Clustering (KMeans/DBSCAN) with support for Elbow Method Optimization."""
         if not HAS_SKLEARN:
             return {"error": "Sklearn missing"}
 
@@ -151,6 +202,16 @@ class MLEngine:
             X, _ = MLEngine.prepare_data(df, features)
             scaler = StandardScaler()
             X_scaled = scaler.fit_transform(X)
+
+            # Optimization: Elbow Method
+            elbow_data = {}
+            if optimize_k and algo == "K-Means":
+                inertias = []
+                ks = range(2, 11)
+                for k in ks:
+                    km = KMeans(n_clusters=k, random_state=42).fit(X_scaled)
+                    inertias.append(km.inertia_)
+                elbow_data = {"k": list(ks), "inertia": inertias}
 
             labels = None
             if algo == "K-Means":
@@ -179,10 +240,18 @@ class MLEngine:
             res_df['PCA1'] = coords[:, 0]
             res_df['PCA2'] = coords[:, 1]
 
+            # Cluster Profiles (Mean of features per cluster)
+            # Need strict numeric DF
+            num_df = res_df[features].select_dtypes(include=[np.number])
+            num_df['Cluster'] = labels.astype(str)
+            profiles = num_df.groupby('Cluster').mean().to_dict()
+
             return {
                 "df": res_df,
                 "silhouette_score": sil_score,
-                "labels": labels
+                "labels": labels,
+                "elbow_data": elbow_data,
+                "centroids": profiles
             }
         except Exception as e:
             return {"error": str(e)}
@@ -348,27 +417,65 @@ class MLEngine:
             return []
 
     @staticmethod
-    def get_partial_dependence(df: pd.DataFrame, target: str, feature: str) -> Dict[str, Any]:
-        """Calculate Partial Dependence for a feature on target."""
+    def get_partial_dependence(df: pd.DataFrame, target: str, feature: str, features_list: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Calculate Partial Dependence for a feature on target.
+        Trains a temporary Random Forest to estimate the dependence.
+        """
         if not HAS_SKLEARN:
             return {}
         try:
-            X_df = df[[feature]].dropna()
-            # We need Y matching X indices
-            y = df.loc[X_df.index, target]
 
-            # Simple RF
-            rf = RandomForestRegressor(
-                n_estimators=10, max_depth=3, random_state=42)
-            rf.fit(X_df, y)
+            # Use provided feature list or default to all numeric/categorical
+            valid_feats = features_list if features_list else df.select_dtypes(
+                include=[np.number, 'category', 'object']).columns.tolist()
+            if target in valid_feats:
+                valid_feats.remove(target)
 
-            x_grid = np.linspace(X_df[feature].min(),
-                                 X_df[feature].max(), 50).reshape(-1, 1)
-            y_grid = rf.predict(x_grid)
+            X, y = MLEngine.prepare_data(df, valid_feats, target)
+
+            # Determine mode
+            is_cat = y.nunique() < 10 or str(y.dtype) == 'object'
+
+            # Quick Proxy Model
+            model = RandomForestClassifier(n_estimators=20, max_depth=5, random_state=42) if is_cat \
+                else RandomForestRegressor(n_estimators=20, max_depth=5, random_state=42)
+            model.fit(X, y)
+
+            # Calculate PDP
+            # Note: feature must be in X.columns
+            if feature not in X.columns:
+                return {"error": f"Feature {feature} not found in model input."}
+
+            pdp_res = partial_dependence(
+                # type: ignore
+                model, X, [feature], grid_resolution=50, kind='average')
 
             return {
-                "x": x_grid.flatten(),
-                "y": y_grid
+                "x": pdp_res['grid_values'][0],
+                "y": pdp_res['average'][0]
+            }
+        except Exception as e:
+            return {"error": f"PDP Error: {str(e)}"}
+
+    @staticmethod
+    def get_silhouette_samples(df: pd.DataFrame, features: List[str], labels: Any) -> Dict[str, Any]:
+        """Calculate Silhouette Coefficient for each sample."""
+        if not HAS_SKLEARN:
+            return {}
+        try:
+            X, _ = MLEngine.prepare_data(df, features)
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+
+            if len(set(labels)) < 2:
+                return {"error": "Need > 1 cluster"}
+
+            sample_scores = silhouette_samples(X_scaled, labels)
+
+            return {
+                "scores": sample_scores,
+                "mean_score": float(sample_scores.mean())  # type: ignore
             }
         except Exception as e:
             return {"error": str(e)}
@@ -437,3 +544,92 @@ class MLEngine:
             return res
         except Exception as e:
             return {"error": str(e)}
+
+    @staticmethod
+    def get_sensitivity(model: Any, base_inputs: Dict[str, float], feature_stats: Dict[str, Dict[str, float]]) -> pd.DataFrame:
+        """
+        Calculate local sensitivity (Tornado Data).
+        Perturbs each feature by +/- 1 Std Dev (or 10% range) and measures output change.
+        """
+        results = []
+        base_df = pd.DataFrame([base_inputs])
+        # Ensure correct column order
+        cols = model.feature_names_in_ if hasattr(
+            model, "feature_names_in_") else list(base_inputs.keys())
+        base_df = base_df[cols]
+
+        base_pred = model.predict(base_df)[0]
+
+        for feat, val in base_inputs.items():
+            if feat not in cols:
+                continue
+
+            # Determine perturbation size
+            std = feature_stats.get(feat, {}).get(
+                'std', abs(val)*0.1 if val != 0 else 1.0)
+            if std == 0:
+                std = 1.0
+
+            # Low Case
+            low_input = base_df.copy()
+            low_input[feat] = val - std
+            low_pred = model.predict(low_input)[0]
+
+            # High Case
+            high_input = base_df.copy()
+            high_input[feat] = val + std
+            high_pred = model.predict(high_input)[0]
+
+            # Impact
+            change = abs(high_pred - low_pred)
+
+            results.append({
+                "Feature": feat,
+                "Base": base_pred,
+                "Low_Val": val - std,
+                "High_Val": val + std,
+                "Low_Pred": low_pred,
+                "High_Pred": high_pred,
+                "Spread": high_pred - low_pred,
+                "Impact_Abs": change
+            })
+
+        return pd.DataFrame(results).sort_values("Impact_Abs", ascending=True)
+
+    @staticmethod
+    def run_monte_carlo(model: Any, base_inputs: Dict[str, float], feature_stats: Dict[str, Dict[str, float]], n_sims: int = 1000) -> Dict[str, Any]:
+        """
+        Run Monte Carlo Simulation for Risk Analysis.
+        Injects Gaussian noise into inputs based on their historical Std Dev.
+        """
+        # 1. Generate Inputs
+        cols = model.feature_names_in_ if hasattr(
+            model, "feature_names_in_") else list(base_inputs.keys())
+        sim_data = {}
+
+        for col in cols:
+            base_val = base_inputs.get(col, 0)
+            # Default noise: 10% of std dev (small uncertainty) or 5% of value
+            std = feature_stats.get(col, {}).get('std', abs(base_val)*0.1)
+            if std == 0:
+                std = 0.01
+
+            # Random samples
+            # 0.5 factor to keep it realistic
+            noise = np.random.normal(0, std * 0.5, n_sims)
+            sim_data[col] = base_val + noise
+
+        sim_df = pd.DataFrame(sim_data)
+
+        # 2. Predict
+        preds = model.predict(sim_df)
+
+        # 3. Analyze Results
+        return {
+            "predictions": preds,
+            "mean": np.mean(preds),
+            "p5": np.percentile(preds, 5),
+            "p95": np.percentile(preds, 95),
+            "std": np.std(preds),
+            "sim_df": sim_df  # Return inputs too if needed for detailed analysis
+        }

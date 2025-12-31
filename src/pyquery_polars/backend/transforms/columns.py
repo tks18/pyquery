@@ -60,7 +60,18 @@ def clean_cast_func(lf: pl.LazyFrame, params: CleanCastParams, context: Optional
         elif act == "To Float":
             exprs.append(pl.col(t_col).cast(pl.Float64, strict=False))
         elif act == "To Boolean":
-            exprs.append(pl.col(t_col).cast(pl.Boolean, strict=False))
+            # Robust Boolean Cast: Handles Utf8View issue and common variations
+            # 1. Ensure String (Utf8) to allow regex/str methods
+            # 2. Check against True/False variants
+            c = pl.col(t_col).cast(pl.Utf8).str.to_uppercase()
+            exprs.append(
+                pl.when(c.is_in(["TRUE", "T", "YES", "Y", "1", "ON"]))
+                .then(pl.lit(True))
+                .when(c.is_in(["FALSE", "F", "NO", "N", "0", "OFF"]))
+                .then(pl.lit(False))
+                .otherwise(None)
+                .alias(t_col)
+            )
         elif act == "To Date":
             exprs.append(pl.col(t_col).cast(pl.Date, strict=False))
         elif act == "To Datetime":

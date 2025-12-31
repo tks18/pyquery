@@ -6,20 +6,15 @@ import plotly.graph_objects as go
 from typing import cast, Any
 from .core import EDAContext
 
-# Since we don't depend on sklearn directly in frontend, we don't import it unless for local safe plotting if needed.
 HAS_SKLEARN = True
 
 
 def render_ml(ctx: EDAContext):
     """Render the Decision ML Tab (Diagnostic, Clustering, Anomalies)"""
 
-    if ctx.df is None:
-        try:
-            df = ctx.lf.collect().to_pandas()
-        except:
-            return
-    else:
-        df = ctx.df
+    df = ctx.get_pandas()
+    if df is None:
+        return
 
     engine = ctx.engine
 
@@ -49,228 +44,343 @@ def render_ml(ctx: EDAContext):
         model_type = c2.selectbox("Model Type", ["Linear Regression (OLS)", "Ridge (L2)", "Lasso (L1)",
                                                  "Logistic Regression", "Random Forest", "Auto-Pilot (Best Model)"], key="qm_type")
 
+        # Smart defaults
         def_chk = [c for c in (ctx.num_cols[:5] if len(
             ctx.num_cols) >= 5 else ctx.num_cols) if c != target]
         feats = c3.multiselect("Features", [
                                c for c in ctx.all_cols if c != target], default=def_chk, key="qm_feats")
 
-        if st.button("RUN DECISION MODEL", type="primary"):
+        with st.expander("⚙️ hyper-parameters"):
+            use_poly = st.checkbox("Enable Interaction Effects (Polynomial Features)",
+                                   help="Captures non-linear relationships (e.g. A*B). Can increase overfit risk.")
+
+        # Persistence Key
+        session_key = "ml_results"
+        param_key = "ml_params"
+
+        # Define is_cat globally for this run (needed for rendering)
+        is_cat = target in ctx.cat_cols or df[target].nunique() < 10
+
+        # Check if we should use cached results or run new
+        run_clicked = st.button("RUN DECISION MODEL", type="primary")
+
+        res = None
+
+        # Current Params for cache validation
+        current_params = {
+            "target": target,
+            "feats": feats,
+            "model_type": model_type,
+            "poly": use_poly,
+            "df_shape": df.shape
+        }
+
+        if run_clicked:
             if not feats:
                 st.error("Select features.")
+                return
             else:
-                with st.spinner("Executing Analysis..."):
-                    try:
-                        # Define is_cat for backend hint
-                        is_cat = target in ctx.cat_cols or df[target].nunique(
-                        ) < 10
+                with st.spinner("Training & Calibrating Model..."):
+                    # --- BACKEND CALL ---
+                    res = engine.analysis.ml.run_diagnostic_model(
+                        df, target, feats, model_type, is_cat, use_poly)
 
-                        # --- BACKEND CALL ---
-                        res = engine.analysis.ml.run_diagnostic_model(
-                            df, target, feats, model_type, is_cat)
+                    # Cache Results
+                    st.session_state[session_key] = res
+                    st.session_state[param_key] = current_params
 
-                        if "error" in res:
-                            st.error(res['error'])
-                            return
+        elif session_key in st.session_state and st.session_state.get(param_key) == current_params:
+            # Load from Cache if params haven't changed
+            res = st.session_state[session_key]
 
-                        best_model = res.get('model_obj')
-                        best_score = res.get('best_score', 0)
-                        best_name = res.get('model_name', "Unknown")
-                        metrics = res.get('metrics', {})
-                        X_test = res.get('X_test')
-                        y_test = res.get('y_test')
+        # Render if we have results (either new or cached)
+        # Render if we have results (either new or cached)
+        if res:
+            if "error" in res:
+                st.error(res['error'])
+                return
 
-                        # 1. High Level Summary
-                        st.divider()
-                        c_s1, c_s2, c_s3 = st.columns(3)
-                        c_s1.metric("Model Selected", best_name)
-                        c_s2.metric("Test Score", f"{best_score:.3f}",
-                                    delta="Strong" if best_score > 0.7 else "Weak", delta_color="normal")
+            best_model = res.get('model_obj')
+            best_score = res.get('best_score', 0)
+            best_name = res.get('model_name', "Unknown")
+            metrics = res.get('metrics', {})
+            diagnostics = res.get('diagnostics', {})
 
-                        tabs = st.tabs(
-                            ["📊 Diagnostic Plots", "🔑 Feature Importance", "🧠 Model Logic"])
+            # Datasets
+            X_test = res.get('X_test')
+            y_test = res.get('y_test')
+            y_pred = res.get('y_pred')
 
-                        # Tab 1: Diagnostics
-                        with tabs[0]:
-                            c_d1, c_d2 = st.columns(2)
-                            if is_cat:
-                                # A. Confusion Matrix
-                                cm = metrics.get('confusion_matrix')
-                                if cm is not None:
-                                    c_d1.plotly_chart(px.imshow(cm, text_auto=True, title="Confusion Matrix",
-                                                                color_continuous_scale="Blues", template=ctx.theme))
+            if best_model is None or y_test is None or y_pred is None:
+                st.error("Model returned incomplete results.")
+                return
 
-                                # B. ROC / Calibration
-                                if best_model and hasattr(best_model, "predict_proba"):
-                                    # ROC
-                                    roc_data = engine.analysis.ml.get_classification_curves(
-                                        best_model, X_test, y_test)
-                                    if 'roc' in roc_data:
-                                        rd = roc_data['roc']
-                                        fig_roc = px.area(x=rd['fpr'], y=rd['tpr'], title=f"ROC Curve (AUC={rd['auc']:.3f})",
-                                                          labels={'x': 'False Positive Rate', 'y': 'True Positive Rate'}, template=ctx.theme)
-                                        fig_roc.add_shape(type='line', line=dict(
-                                            dash='dash'), x0=0, x1=1, y0=0, y1=1)
-                                        c_d2.plotly_chart(
-                                            fig_roc)
-                            else:
-                                # A. Fitted vs Actual
-                                y_pred = res.get('y_pred')
-                                if y_pred is not None:
-                                    fig_pred = px.scatter(x=y_test, y=y_pred, labels={'x': "Actual", 'y': "Predicted"},
-                                                          title="Actual vs Predicted", template=ctx.theme, opacity=0.6)
-                                    if y_pred is not None and y_test is not None:
-                                        fig_pred.add_shape(type='line', line=dict(dash='dash', color='red'),
-                                                           x0=y_test.min(), x1=y_test.max(), y0=y_test.min(), y1=y_test.max())
-                                    c_d1.plotly_chart(
-                                        fig_pred)
+            # Results Layout
+            st.divider()
 
-                                # B. Residuals
-                                resid = metrics.get('residuals')
-                                if resid is not None:
-                                    fig_res = px.histogram(
-                                        resid, nbins=30, title="Residuals Distribution", template=ctx.theme)
-                                    c_d2.plotly_chart(
-                                        fig_res)
+            # 1. Headline Metrics
+            c_s1, c_s2, c_s3, c_s4 = st.columns(4)
+            c_s1.metric("Model Selected", best_name)
 
-                        # Tab 2: Importance
-                        with tabs[1]:
-                            importances = engine.analysis.ml.get_permutation_importance(
-                                best_model, X_test, y_test)
-                            if len(importances) == len(feats):
-                                perm_df = pd.DataFrame({'Feature': feats, 'Importance': importances}).sort_values(
-                                    'Importance', ascending=True)
-                                fig_perm = px.bar(perm_df, x='Importance', y='Feature', orientation='h',
-                                                  title="Permutation Importance (Model Agnostic)", template=ctx.theme)
-                                st.plotly_chart(
-                                    fig_perm)
+            score_label = "Accuracy" if is_cat else "R² Score"
+            c_s2.metric(f"Test {score_label}", f"{best_score:.3f}",
+                        delta="Strong" if best_score > 0.7 else "Weak", delta_color="normal")
 
-                        # Tab 3: Model Logic (Coefficients)
-                        with tabs[2]:
-                            if best_model is not None and hasattr(best_model, "coef_"):
-                                st.write(
-                                    "###### Interpretation (Linear Weights)")
-                                coefs = best_model.coef_
-                                if len(coefs.shape) > 1:
-                                    # Handle multiclass or weird shape
-                                    coefs = coefs[0]
-                                coef_df = pd.DataFrame({"Feature": feats, "Weight": coefs}).sort_values(
-                                    "Weight", ascending=False)
-                                st.dataframe(
-                                    coef_df, hide_index=True)
-                            else:
-                                st.info(
-                                    "Tree-based models are non-parametric (no simple coefficients). See Feature Importance.")
+            if not is_cat:
+                c_s3.metric("MAE", f"{metrics.get('mae', 0):.2f}")
 
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+            st.divider()
+
+            # 2. Deep Dive Tabs
+            tabs = st.tabs([
+                "📊 Performance Stats",
+                "👁️ Explainability (PDP)",
+                "📉 Learning Curves",
+                "🧠 Residuals/Errors"
+            ])
+
+            # Tab 1: Performance (ROC / Lift / Confusion / Actual vs Pred)
+            with tabs[0]:
+                c_p1, c_p2 = st.columns(2)
+                if is_cat:
+                    # A. Confusion Matrix
+                    cm = metrics.get('confusion_matrix')
+                    if cm is not None:
+                        c_p1.plotly_chart(px.imshow(cm, text_auto=True, title="Confusion Matrix",
+                                                    color_continuous_scale="Blues", template=ctx.theme))
+
+                    # B. Probability Separation Plot
+                    if hasattr(best_model, "predict_proba"):
+                        y_probs = best_model.predict_proba(X_test)
+                        # Assuming binary for simple separation plot
+                        if y_probs.shape[1] == 2:
+                            prob_pos = y_probs[:, 1]
+                            sep_df = pd.DataFrame(
+                                {'Probability': prob_pos, 'Truth': y_test})
+                            fig_sep = px.histogram(sep_df, x="Probability", color="Truth", barmode="overlay",
+                                                   title="Separation Plot (Predicted Probabilities)", template=ctx.theme, opacity=0.6)
+                            c_p2.plotly_chart(fig_sep)
+
+                            # C. Lift Chart / ROC
+                            # ROC (already computed)
+                            if 'roc' in diagnostics and diagnostics['roc']:
+                                roc = diagnostics['roc']
+                                fig_roc = px.area(x=roc['fpr'], y=roc['tpr'], title=f"ROC Curve (AUC={roc['auc']:.2f})",
+                                                  labels={'x': 'False Positive Rate', 'y': 'True Positive Rate'}, template=ctx.theme)
+                                fig_roc.add_shape(type='line', line=dict(
+                                    dash='dash'), x0=0, x1=1, y0=0, y1=1)
+                                st.plotly_chart(fig_roc)
+
+                else:
+                    # Regression Performance
+                    # A. Actual vs Predicted (Identity Plot)
+                    df_res = pd.DataFrame(
+                        {'Actual': y_test, 'Predicted': y_pred})
+                    fig_avp = px.scatter(df_res, x="Actual", y="Predicted", trendline="ols",
+                                         title="Prediction Error Plot", template=ctx.theme, opacity=0.6)
+                    # Add Identity Line
+                    min_val = min(y_test.min(), y_pred.min())
+                    max_val = max(y_test.max(), y_pred.max())
+                    fig_avp.add_shape(type="line", x0=min_val, y0=min_val, x1=max_val, y1=max_val,
+                                      line=dict(color="Red", dash="dash"))
+                    c_p1.plotly_chart(fig_avp)
+
+                    # B. Error Distribution
+                    errors = y_test - y_pred
+                    fig_err = px.histogram(
+                        errors, title="Error Distribution", template=ctx.theme)
+                    c_p2.plotly_chart(fig_err)
+
+            # Tab 2: Explainability (PDP & Importance)
+            with tabs[1]:
+                st.caption("Understand HOW features affect the prediction.")
+
+                # 1. Permutation Importance
+                imp_vals = engine.analysis.ml.get_permutation_importance(
+                    best_model, X_test, y_test)
+                feat_names = res.get('train_cols', feats)
+                df_imp = pd.DataFrame({'Feature': feat_names, 'Importance': imp_vals}).sort_values(
+                    'Importance', ascending=True)
+
+                c_ex1, c_ex2 = st.columns([1, 2])
+
+                fig_imp = px.bar(df_imp, x='Importance', y='Feature', orientation='h',
+                                 title="Global Feature Importance", template=ctx.theme)
+                c_ex1.plotly_chart(fig_imp)
+
+                # 2. Partial Dependence Plot (Interactive)
+                with c_ex2:
+                    pdp_feat = st.selectbox(
+                        "View Effect of Feature:", feats, key="pdp_sel")
+                    if pdp_feat:
+                        pdp_data = engine.analysis.ml.get_partial_dependence(
+                            df, target, pdp_feat, feats)
+                        if 'x' in pdp_data:
+                            fig_pdp = px.line(x=pdp_data['x'], y=pdp_data['y'], markers=True,
+                                              title=f"Partial Dependence: Effect of '{pdp_feat}' on Target",
+                                              labels={'x': pdp_feat, 'y': f"Expected {target}"}, template=ctx.theme)
+                            st.plotly_chart(fig_pdp)
+                        else:
+                            st.warning(
+                                "Could not calculate PDP for this feature.")
+
+            # Tab 3: Learning Curves
+            with tabs[2]:
+                lc = diagnostics.get('learning_curve')
+                if lc:
+                    df_lc = pd.DataFrame({
+                        "Training Size": lc['train_sizes'],
+                        "Training Score": lc['train_mean'],
+                        "Validation Score": lc['test_mean']
+                    })
+                    df_lc_melt = df_lc.melt(
+                        "Training Size", var_name="Metric", value_name="Score")
+                    fig_lc = px.line(df_lc_melt, x="Training Size", y="Score", color="Metric", markers=True,
+                                     title="Learning Curve (Bias vs Variance Diagnosis)", template=ctx.theme)
+                    st.plotly_chart(fig_lc)
+                    st.info(
+                        "Large gap = Overfitting (needs more data/regularization). Low scores = Underfitting (needs more complex model).")
+                else:
+                    st.info("Learning curve data unavailable.")
+
+            # Tab 4: Residuals
+            with tabs[3]:
+                if not is_cat:
+                    r = diagnostics.get('residuals')
+                    p = diagnostics.get('predicted')
+                    fig_res = px.scatter(x=p, y=r, labels={'x': 'Predicted', 'y': 'Residuals'},
+                                         title="Residual Plot (Check for Heteroscedasticity)", template=ctx.theme)
+                    fig_res.add_hline(y=0, line_dash="dash")
+                    st.plotly_chart(fig_res)
+                else:
+                    st.info("Residual analysis is best suited for regression.")
 
     # ==========================================
-    # B. ADVANCED CLUSTERING
+    # B. ADVANCED CLUSTERING (OPTIMIZED)
     # ==========================================
     elif mode_ml == "Advanced Clustering":
-        st.write("#### 🧬 Clustering Laboratory")
+        st.write("#### 🧬 Unsupervised Pattern Detection")
+        st.caption("Group similar data points and discover segments.")
 
-        c1, c2 = st.columns([1, 3])
-        algo = c1.selectbox("Algorithm", ["K-Means", "DBSCAN"])
-        feats = c2.multiselect("Features", ctx.num_cols, default=ctx.num_cols[:4] if len(
-            ctx.num_cols) >= 4 else ctx.num_cols)
+        c1, c2, c3 = st.columns(3)
+        c_feats = c1.multiselect(
+            "Features", ctx.num_cols, default=ctx.num_cols[:3], key="cl_feats")
+        n_k = c2.slider("Clusters (K)", 2, 10, 3, key="cl_k")
+        algo = c3.selectbox("Algorithm", ["K-Means", "DBSCAN"], key="cl_algo")
 
-        # Optimization Expander
-        with st.expander("🔎 Determine Optimal Clusters (Elbow Method)"):
-            if st.button("Analyze Optimal K"):
-                with st.spinner(" optimizing..."):
-                    opt = engine.analysis.ml.get_clustering_optimization(
-                        df, feats)
-                    if opt and 'k' in opt:
-                        c_opt1, c_opt2 = st.columns(2)
-                        # Elbow
-                        fig_elb = px.line(x=opt['k'], y=opt['wcss'], markers=True, title="Elbow Method (Inertia)",
-                                          labels={'x': 'K (Clusters)', 'y': 'Inertia'}, template=ctx.theme)
-                        c_opt1.plotly_chart(fig_elb)
-                        # Silhouette
-                        fig_sil = px.line(x=opt['k'], y=opt['silhouette'], markers=True, title="Silhouette Score (Higher is Better)",
-                                          labels={'x': 'K (Clusters)', 'y': 'Silhouette'}, template=ctx.theme)
-                        c_opt2.plotly_chart(fig_sil)
+        # ACTION BAR
+        col_run, col_opt = st.columns([1, 1])
+        run_clustering = col_run.button("RUN CLUSTERING", type="primary")
+        find_optimal = col_opt.button(
+            "Find Optimal K (Elbow)", type="secondary")
 
-        st.divider()
-
-        c_k, c_u = st.columns([1, 4])
-        k = 3
-        if algo == "K-Means":
-            k = c_k.slider("Number of Clusters (K)", 2, 10, 3)
-
-        if c_u.button("RUN CLUSTERING", type="primary"):
-            with st.spinner("Running Clustering..."):
+        if find_optimal and c_feats:
+            with st.spinner("Scanning ideal cluster count..."):
                 res = engine.analysis.ml.cluster_data(
-                    df, feats, n_clusters=k, algo=algo)
+                    df, c_feats, n_k, algo, optimize_k=True)
+                elbow = res.get('elbow_data')
+                if elbow:
+                    fig_elb = px.line(x=elbow['k'], y=elbow['inertia'], markers=True,
+                                      title="Elbow Method: Optimal K", labels={'x': 'K (Clusters)', 'y': 'Inertia (SSE)'},
+                                      template=ctx.theme)
+                    st.plotly_chart(fig_elb)
+                    st.success(
+                        "Look for the 'elbow' point where inertia reduction slows down.")
 
-                if res and "error" not in res:
-                    df_clus = res['df']
-                    sil_score = res.get('silhouette_score', -1)
+        if run_clustering and c_feats:
+            with st.spinner("Clustering..."):
+                res = engine.analysis.ml.cluster_data(
+                    df, c_feats, n_k, algo, optimize_k=False)
+                if "error" in res:
+                    st.error(res["error"])
+                    return
 
-                    st.metric("Cluster Quality (Silhouette)",
-                              f"{sil_score:.3f}", delta="Good" if sil_score > 0.5 else "Weak")
+                res_df = res['df']
+                labels = res['labels']
+                sil = res['silhouette_score']
+                centroids = res.get('centroids', {})
 
-                    if df_clus is not None:
-                        # 1. Projection
-                        c_p1, c_p2 = st.columns([2, 1])
-                        if 'PCA1' in df_clus.columns:
-                            c_p1.plotly_chart(px.scatter(df_clus, x='PCA1', y='PCA2', color='Cluster',
-                                                         title="2D Cluster Map (PCA)", template=ctx.theme, opacity=0.7))
-                        c_p2.plotly_chart(px.pie(
-                            df_clus, names='Cluster', title="Cluster Size Distribution", template=ctx.theme))
+                c1, c2 = st.columns(2)
+                c1.metric("Silhouette Score", f"{sil:.3f}")
+                c2.caption("Clustering Quality (1.0 = Perfect separation)")
 
-                        # 2. Profiling
-                        st.subheader("🧬 Cluster DNA (Profiling)")
-                        profile = df_clus.groupby(
-                            'Cluster')[feats].mean().reset_index()
-                        # Heatmap of means
-                        st.plotly_chart(px.imshow(profile.set_index('Cluster'), text_auto=True, aspect="auto",
-                                                  title="Average Feature Values by Cluster", color_continuous_scale="RdBu_r", template=ctx.theme))
-                else:
-                    st.error(res.get('error'))
+                tabs = st.tabs(["Space Projection (PCA)",
+                               "Cluster DNA (Radar)", "Silhouette Analysis"])
+
+                # Tab 1: PCA
+                with tabs[0]:
+                    fig_pca = px.scatter(res_df, x='PCA1', y='PCA2', color='Cluster',
+                                         title=f"2D Projection ({algo})", template=ctx.theme,
+                                         hover_data=c_feats)
+                    st.plotly_chart(fig_pca)
+
+                # Tab 2: Radar DNA
+                with tabs[1]:
+                    if centroids:
+                        categories = list(
+                            centroids[list(centroids.keys())[0]].keys())
+                        fig_rad = go.Figure()
+                        for cluster_id, feats_vals in centroids.items():
+                            vals = list(feats_vals.values())
+                            vals += [vals[0]]
+                            cats = categories + [categories[0]]
+                            fig_rad.add_trace(go.Scatterpolar(
+                                r=vals, theta=cats, fill='toself', name=f"Cluster {cluster_id}"
+                            ))
+                        fig_rad.update_layout(
+                            polar=dict(radialaxis=dict(visible=True, range=[
+                                       0, max([max(v.values()) for v in centroids.values()])])),
+                            title="Cluster Centroid Signatures", template=ctx.theme
+                        )
+                        st.plotly_chart(fig_rad)
+
+                # Tab 3: Silhouette Analysis
+                with tabs[2]:
+                    sil_data = engine.analysis.ml.get_silhouette_samples(
+                        df, c_feats, labels)
+                    if sil_data and 'scores' in sil_data:
+                        scores = sil_data['scores']
+                        # Create Knife Plot DF
+                        k_df = pd.DataFrame(
+                            {'Score': scores, 'Cluster': labels})
+                        k_df = k_df.sort_values(['Cluster', 'Score'])
+                        k_df['Sample'] = range(len(k_df))
+
+                        fig_knife = px.bar(k_df, x="Sample", y="Score", color="Cluster",
+                                           title="Silhouette 'Knife' Plot (Sample Cohesion)",
+                                           template=ctx.theme)
+                        fig_knife.add_hline(
+                            y=sil, line_dash="dash", annotation_text="Avg Score")
+                        st.plotly_chart(fig_knife)
+                        st.caption(
+                            "Bars above avg are well-clustered. Negative bars might be misclassified.")
+
+                st.dataframe(res_df.head(100))
 
     # ==========================================
-    # C. EXPLAINABLE ANOMALIES
+    # C. ANOMALIES
     # ==========================================
     elif mode_ml == "Explainable Anomalies":
-        st.write("#### 🚨 Explainable Outlier Detection")
+        st.write("#### 🛡️ Anomaly Detection")
+        st.caption("Indentify outliers using Isolation Forests.")
 
-        c1, c2 = st.columns([1, 3])
-        contam = c1.slider("Contamination", 0.01, 0.15, 0.05)
-        cols_anom = c2.multiselect("Features", ctx.num_cols, default=ctx.num_cols[:3] if len(
-            ctx.num_cols) >= 3 else ctx.num_cols)
+        c1, c2 = st.columns(2)
+        anom_feats = c1.multiselect(
+            "Features", ctx.num_cols, default=ctx.num_cols, key="anom_feats")
+        contam = c2.slider("Contamination", 0.01, 0.2, 0.05, key="anom_cont")
 
-        if st.button("DETECT & EXPLAIN", type="primary"):
-            with st.spinner("Detecting Anomalies..."):
-                res = engine.analysis.ml.detect_anomalies(
-                    df, cols_anom, contamination=contam)
+        if st.button("SCAN FOR OUTLIERS", type="primary"):
+            if not anom_feats:
+                st.error("Select features.")
+                return
 
-                if res and "error" not in res:
-                    X_a = res.get('df')
-                    st.plotly_chart(px.scatter(X_a, x=cols_anom[0], y=cols_anom[1] if len(cols_anom) > 1 else cols_anom[0],
-                                               color='Type', color_discrete_map={'Normal': 'lightgrey', 'Outlier': 'red'},
-                                               symbol='Type', title="Outlier Identification Map", template=ctx.theme))
+            res = engine.analysis.ml.detect_anomalies(df, anom_feats, contam)
+            if "error" in res:
+                st.error(res['error'])
+                return
 
-                    if X_a is not None:
-                        outliers = X_a[X_a['Type'] == 'Outlier']
-                        if not outliers.empty:
-                            st.write(f"Found **{len(outliers)}** outliers.")
+            outliers = res['outliers']
 
-                            # Compare Outliers vs Normal
-                            normal_subset = X_a[X_a['Type'] == 'Normal']
-                            normal_mean = normal_subset[cols_anom].mean()
-                            outlier_mean = outliers[cols_anom].mean()
-
-                            diff = ((outlier_mean - normal_mean) /
-                                    normal_mean) * 100
-                            diff_df = pd.DataFrame({"Feature": cols_anom, "Deviation %": diff}).sort_values(
-                                "Deviation %", key=abs, ascending=False)
-
-                            st.plotly_chart(px.bar(diff_df, x="Deviation %", y="Feature", orientation='h',
-                                                   title="Why are they outliers? (Avg Deviation from Normal)",
-                                                   color="Deviation %", color_continuous_scale="RdBu_r", template=ctx.theme))
-                    else:
-                        st.info("No outliers found.")
-                else:
-                    st.error(res.get('error'))
+            st.metric("Outliers Detected", len(outliers),
+                      f"{len(outliers)/len(df):.1%}")
+            st.dataframe(outliers.head(50))

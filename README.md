@@ -2,7 +2,7 @@
 
 # ⚡ PyQuery: The Main Character of Data Stacks 💫
 
-### _ETL. EDA. ML. Domination._
+### _ETL. EDA. ML. World Domination._
 
 [![Status](https://img.shields.io/badge/Status-Goated_with_the_Sauce-%23FF0055?style=for-the-badge&logo=appveyor)](https://github.com/tks18/pyquery)
 [![Performance](https://img.shields.io/badge/Performance-Infinite_Aura-%2300ffa3?style=for-the-badge&logo=nvidia)](https://pola.rs)
@@ -13,12 +13,23 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/pyquery-polars.svg?color=blue)](https://pypi.org/project/pyquery-polars/)
 [![License](https://img.shields.io/github/license/tks18/pyquery.svg?color=orange)](LICENSE)
 
-**Stop letting Pandas hold you back. It's giving toxic ex.** 🚩<br>
+![Rows of Data](https://i.giphy.com/sRFEa8lbeC7zbcIZZR.webp)
+
+**Stop letting Pandas hold you back. It's giving toxic ex.** 🚩
+
 **PyQuery** is the full-stack data operating system that processes **100GB files** while you doomscroll. No cap. 🧢
 
 [Feature Request](https://github.com/tks18/pyquery/issues) · [Report Bug](https://github.com/tks18/pyquery/issues)
 
 </div>
+
+---
+
+## 🧠 TL;DR (For the goldfish attention spans)
+
+1. **Install it:** `pip install pyquery-polars` (Don't be basic).
+2. **Run it:** `pyquery ui` (Visuals) or `pyquery run` (Speedrun).
+3. **The Flex:** It's a local-first, privacy-focused engine that eats Excel sheets and CSVs for breakfast using Rust. It has built-in ML, Monte Carlo sims, and SQL. It's basically a Data Scientist in a box.
 
 ---
 
@@ -40,39 +51,66 @@ The age of waiting is over. **Total Domination** is the only metric that matters
 
 ---
 
+## 🧾 PyQuery vs. Power Query: The Roast
+
+We don't usually punch down, but you asked for it.
+
+| Feature      | ⚡ **PyQuery** (The Chad)                                      | 🐢 **Power Query** (The Virgin)                                             |
+| ------------ | -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Speed**    | **Rust-Powered.** Processes millions of rows before you blink. | **Single-Threaded.** Spends 20 mins saying "Loading Data..." just to crash. |
+| **Language** | **Python/SQL/Polars.** The languages of gods.                  | **M-Code.** A language invented to punish humanity.                         |
+| **AI/ML**    | **Built-in.** Random Forests, Clustering, & Monte Carlo Sims.  | **Non-existent.** You need a generic "AI Plugin" that costs extra.          |
+| **Vibe**     | **Dark Mode CLI & Streamlit.** Cyberpunk aesthetic.            | **Corporate Grey.** It sucks the soul out of your body.                     |
+| **Price**    | **Free & Open Source.**                                        | **Requires an Office 365 License** (Subscription L).                        |
+
+---
+
 ## 💪 The Flex (Why We Are Him)
 
-We built an empire so you can rule yours.
+We built an empire so you can rule yours. This isn't just software; it's a lifestyle.
 
-### 🎯 EDA: The Crystal Ball (New!)
+### 🎯 EDA: The Crystal Ball (Expanded)
 
 > _"Most tools describe the past. PyQuery predicts the future."_
 
-We dropped a massive update. EDA is no longer just "looking at data". It's **hunting**. Check the [**📘 EDA Field Manual**](EDA%20Guide.md) for the full grimoire.
+We dropped a massive update. EDA is no longer just "looking at data". It's **hunting**. Check the **EDA Field Manual** for the full grimoire, but here's the tea:
 
-#### 1. 🧠 The Action Engine (ML Strategist)
+#### 1. 🧬 Dataset DNA & Health Check
+
+We scan your data's soul.
+
+- **Missing Cells**: We don't just count nulls; we judge them. (<1% is excellence, >10% is sloppy).
+- **Cardinality Checks**: Instantly know if a column is categorical or continuous.
+- **Duplicate Detection**: We find the clones and eliminate them.
+
+#### 2. 🚀 The Action Engine (ML Strategist)
 
 - **Strategic Brief**: A "Top 3 Insights" card that ranks every signal in your data. It whispers: _"The money is here."_
 - **Automated Drivers**: It finds the hidden variables controlling your target.
-  - _"Why is Churn high? It's not Price. It's Customer Support Wait Time > 5m."_ -> **Boom. Solved.**
+- _"Why is Churn high? It's not Price. It's Customer Support Wait Time > 5m."_ -> **Boom. Solved.**
 
-#### 2. 🧪 ML Laboratory (The Brain)
+- **Correlation Matrix**: We calculate Pearson, Cramer’s V, and F-Tests automatically. We know the relationships better than you know your own situationship.
+
+#### 3. 🧪 ML Laboratory (The Brain)
 
 - **Auto-Pilot Mode**: Trains an army of models (Random Forest, Lasso, Ridge) to find the best fit. You sit back and look busy.
-- **Clustering (Unsupervised Rizz)**: Finds hidden segments. "Users who buy organic kale also buy crypto." -> **New Marketing Segment Unlocked.** 🔓
-- **Anomaly Detection**: Uses Isolation Forests to catch the weirdos and fraudsters essentially instantly.
+- **Clustering (Unsupervised Rizz)**:
+- **Elbow Plots & Silhouette Scores**: We optimize so you don't have to guess.
+- **Cluster DNA**: We name the segments for you. "Cluster 1 = High Spend, Low Age."
 
-#### 3. 🎮 Decision Simulator (The Time Machine)
+- **Explainable Anomalies**: Uses Isolation Forests to catch the weirdos and fraudsters essentially instantly. We provide a **Contextual Profiler** to tell you _why_ they are weird.
+
+#### 4. 🎮 Decision Simulator (The Time Machine)
 
 - **"What-If" Sliders**: Change variables in real-time. "If I raise Price by 10% and lower ad spend, do I still profit?"
+- **Monte Carlo Sims**: Run 1,000+ simulations with Normal/Uniform distributions. We don't guess; we calculate the probability of your success.
 - **Waterfall Analysis**: The Model breaks down exactly _why_ the prediction changed.
-- **Live Digital Twin**: It creates a mathematical clone of your business logic.
 
-#### 4. 📈 Visuals That Don't Miss
+#### 5. 📈 Time Series & Visuals That Don't Miss
 
-- **Sunburst Charts**: For hierarchy dominance.
-- **3D Scatters**: Rotate your data in the 4th dimension.
-- **Correlation Heatmaps**: Spot the links instantly.
+- **Holt-Winters Forecasting**: We predict the future with confidence intervals.
+- **Decomposition**: We split your data into Trend, Seasonality, and Noise.
+- **Cohort Comparison (Volcano Plots)**: Visualizing "Effect Size" vs "Significance." We bring the science.
 
 ---
 
@@ -81,8 +119,9 @@ We dropped a massive update. EDA is no longer just "looking at data". It's **hun
 For when the GUI is too easy and you want to flex your raw SQL skills. This isn't SQLite. This is **High-Performance Lazy SQL**.
 
 - **Zero-Lag Querying**: Run `SELECT *` on a **50GB file**? It pulls a preview instantly. The engine effectively cheats physics.
+- **Cross-Dataset Joins**: Join your `sales.csv` with `targets.xlsx` using standard SQL. We bridge the gap.
 - **Materialize**: Execute a complex query, then save it as a new dataset to continue the torture.
-- **Schema Explorer**: Searchable view of all your columns. Know your enemy.
+- **Direct Export**: SQL results straight to Parquet/Excel.
 
 ---
 
@@ -90,9 +129,11 @@ For when the GUI is too easy and you want to flex your raw SQL skills. This isn'
 
 Messy data is a weakness. We purge it with extreme prejudice.
 
-- **✨ Auto-Typecast**: One click scans `String` columns and forcibly converts them to `Int`, `Float`, or `Date`. It uses regex heuristics to crush inconsistency.
+- **📂 Recursive Folder Globbing**: Point us to a folder, give us a pattern (`data/**/*.csv`), and we ingest hundreds of files into a single dataset instantly. We eat directories for breakfast.
+- **✨ Auto-Typecast (The Magic Button)**: One click scans rows and forcibly converts `Strings` to `Int`, `Float`, or `Date`. It uses regex heuristics to crush inconsistency.
 - **🎭 PII Incinerator**: Detects and obfuscates credit cards and social security numbers. Secrets remain secret.
-- **🩹 Smart Impute**: We fill the voids. Forward fill, backward fill, or specific value injection. No null survives.
+- **🩹 Smart Impute**: We fill the voids. Forward fill, backward fill, median, or specific value injection. No null survives.
+- **💥 Explode & Coalesce**: Flatten lists and merge columns like a boss.
 
 ---
 
@@ -120,7 +161,7 @@ The browser has limits (RAM, Sandbox). The Native App will have **none**.
 We don't post without proof. We mog the competition.
 
 | Metric            | 🐼 Pandas (Legacy)       | ⚡ PyQuery (Polars)     | The Diff       |
-| :---------------- | :----------------------- | :---------------------- | :------------- |
+| ----------------- | ------------------------ | ----------------------- | -------------- |
 | **Load 10GB CSV** | `MemoryError` (Crash) 💥 | **0.2s** (Lazy Scan) ⚡ | **Infinite**   |
 | **Filter Rows**   | 15.4s (Slow)             | **0.5s** (Parallel)     | **30x Faster** |
 | **Group By**      | 45s (Painful)            | **2.1s** (Instant)      | **20x Faster** |
@@ -154,41 +195,41 @@ Python is dynamic (chaotic). PyQuery imposes **Order**.
 
 ---
 
-## 🎮 Choose Your Fighter (4 Paths to Power)
+## 🎮 Choose Your Fighter (5 Paths to Power)
 
 We don't limit you. Dominate however you choose.
 
 ### 📦 Installation
 
 ```bash
-pip install pyquery
+pip install pyquery-polars
+
 ```
 
 ### 1. 🌊 The GUI (God Mode)
 
 For when you want to click things, see pretty charts, and feel like a data scientist in a sci-fi movie.
 
-- **Visual Recipe Builder**: nodes and edges of pure logic.
-- **The Action Engine**: AI-driven insights at your fingertips.
+- **Visual Recipe Builder**: Nodes and edges of pure logic.
 - **Native File Picker**: Accessing the local filesystem directly. No barriers.
 
 ```bash
 pyquery ui
 # Launches the Web App on localhost:8501 🚀
+
 ```
 
 ### 2. 💻 The Interactive CLI (Shadow Mode)
 
-For when you operate in the dark. ☕
-This isn't a command line. It's a cockpit.
+For when you operate in the dark. ☕ This isn't a command line. It's a cockpit.
 
 - **Dynamic Menus**: Use arrow keys to select transforms.
 - **Rich Tables**: Beautiful, colorful ASCII dataframes.
-- **Validation**: It yells (politely) if you type a string for an integer.
 
 ```bash
 pyquery interactive
 # Enter the Matrix. 🕶️
+
 ```
 
 ### 3. 🤖 The API (Headless Beast)
@@ -196,12 +237,12 @@ pyquery interactive
 Building a machine? Run PyQuery as the engine.
 
 - **Swagger Docs**: Auto-generated at `/docs`.
-- **RESTful**: `/load`, `/transform`, `/export` endpoints.
-- **Async**: Fire and forget jobs.
+- **Async**: Fire and forget jobs via `POST /recipes/run`.
 
 ```bash
 pyquery api
 # Serving high-performance ETL over HTTP at localhost:8000 📡
+
 ```
 
 ### 4. ⚡ The Batch Runner (Speedrun)
@@ -211,6 +252,18 @@ For automation. No interface. Just speed.
 ```bash
 pyquery run -s input.csv -r recipe.json -o output.parquet
 # Task complete. ⚡
+
+```
+
+### 5. 🧙‍♂️ The Sorcerer (Python SDK)
+
+For the developers who want to weave PyQuery into their own code.
+
+```python
+from pyquery_polars.backend.engine import PyQueryEngine
+# Full programmatic control over the recipe engine.
+# You are the architect now.
+
 ```
 
 ---
@@ -219,14 +272,14 @@ pyquery run -s input.csv -r recipe.json -o output.parquet
 
 Packed with every tool needed to clear the map.
 
-| Category      | The Tools                                 | Why it slaps                            |
-| :------------ | :---------------------------------------- | :-------------------------------------- |
-| **Cleaning**  | `Fill Nulls`, `Mask PII`, `Smart Extract` | Turns garbage data into gold. ✨        |
-| **Analytics** | `Rolling Agg`, `Time Bin`, `Rank`, `Diff` | High-frequency trading vibes. 📈        |
-| **Combining** | `Smart Join`, `Concat`, `Pivot`           | Merge datasets without the headache. 🤝 |
-| **Math**      | `Log`, `Exp`, `Clip`, `Date Offset`       | For the scientific girlies. 👩‍🔬          |
-| **Text**      | `Slice`, `Case`, `Replace`                | String manipulation on steroids. 💪     |
-| **I/O**       | `CSV`, `Parquet`, `Excel`, `JSON`, `IPC`  | Speaks every language. 🗣️               |
+| Category      | The Tools                                            | Why it slaps                            |
+| ------------- | ---------------------------------------------------- | --------------------------------------- |
+| **Cleaning**  | `Fill Nulls`, `Mask PII`, `Smart Extract`, `Regex`   | Turns garbage data into gold. ✨        |
+| **Analytics** | `Rolling Agg`, `Time Bin`, `Rank`, `Diff`, `Z-Score` | High-frequency trading vibes. 📈        |
+| **Combining** | `Smart Join`, `Concat`, `Pivot`, `Unpivot`           | Merge datasets without the headache. 🤝 |
+| **Math**      | `Log`, `Exp`, `Clip`, `Date Offset`                  | For the scientific girlies. 👩‍🔬          |
+| **Text**      | `Slice`, `Case`, `Replace`, `One-Hot`                | String manipulation on steroids. 💪     |
+| **I/O**       | `CSV`, `Parquet`, `Excel`, `JSON`, `IPC`             | Speaks every language. 🗣️               |
 
 ---
 
@@ -238,9 +291,9 @@ You want to contribute? Good. We need strong allies.
 
 #### Backend Implementation
 
-1.  **Define Params**: Create a Pydantic model (`src/pyquery_polars/core/params.py`).
-2.  **Backend Logic**: Write a pure polars function (`src/pyquery_polars/backend/transforms/`).
-3.  **Register**: Add your step to `register_all_steps()` in `src/pyquery_polars/backend/engine/registry.py`.
+1. **Define Params**: Create a Pydantic model (`src/pyquery_polars/core/params.py`).
+2. **Backend Logic**: Write a pure polars function (`src/pyquery_polars/backend/transforms/`).
+3. **Register**: Add your step to `register_all_steps()` in `src/pyquery_polars/backend/engine/registry.py`.
 
 #### Frontend Implementation
 
@@ -252,6 +305,7 @@ It appears in the CLI, API, and UI **automatically**. 🤯
 ```python
 # Only certified ballers contribute code.
 # Are you up for it?
+
 ```
 
 ---
