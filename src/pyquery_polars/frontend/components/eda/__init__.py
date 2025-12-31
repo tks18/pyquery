@@ -15,6 +15,8 @@ from .plots import (
     render_hierarchy,
     render_relationships
 )
+from .contrast import render_contrast
+from .profiling import render_profiling
 
 
 def render_eda_tab(dataset_name: str):
@@ -126,6 +128,8 @@ def render_eda_tab(dataset_name: str):
     # 3. PREPARE LAZY CONTEXT (No execution yet)
     try:
         lf_eda = None
+        current_recipe = []
+
 
         if use_sql and custom_sql.strip():
             # SQL PATH
@@ -173,6 +177,26 @@ def render_eda_tab(dataset_name: str):
         date_cols = [c for c, t in schema_final.items()
                      if t in (pl.Date, pl.Datetime)]
 
+        # Generate Cache Fingerprint
+        # Key components: Dataset, Applied Recipe, Limit, SQL (if used), Excluded Cols
+        import hashlib
+        import json
+        
+        # Helper to make recipe hashable
+        def serialize(obj):
+            if hasattr(obj, 'model_dump'):
+                return obj.model_dump()
+            if hasattr(obj, 'dict'):
+                return obj.dict()
+            return str(obj)
+
+        recipe_str = json.dumps(current_recipe if not use_sql else "SQL_MODE", default=serialize)
+        sql_str = custom_sql if use_sql else "NO_SQL"
+        excl_str = ",".join(excluded_cols) if excluded_cols else "None"
+        
+        raw_key = f"{dataset_name}|{limit}|{recipe_str}|{sql_str}|{excl_str}"
+        fingerprint = hashlib.md5(raw_key.encode()).hexdigest()
+
         # Build Context
         ctx = EDAContext(
             lf=lf_eda,
@@ -182,6 +206,7 @@ def render_eda_tab(dataset_name: str):
             num_cols=num_cols,
             cat_cols=cat_cols,
             date_cols=date_cols,
+            fingerprint=fingerprint,
             theme=selected_theme,
             show_labels=show_labels
         )
@@ -192,34 +217,50 @@ def render_eda_tab(dataset_name: str):
 
     # 4. RENDER TABS
     tabs = st.tabs([
-        "Overview", "Decision ML", "Simulation", "Target Analysis",
-        "Time Series", "Distributions", "Hierarchy", "Relationships"
+        "Overview", 
+        "Data Profiling", 
+        "Distributions", 
+        "Target Analysis", 
+        "Relationships", 
+        "Hierarchy",
+        "Comparative", 
+        "Time Series", 
+        "Model Simulator", 
+        "Decision ML"
     ])
 
-    (tab_overview, tab_ml, tab_sim, tab_target,
-     tab_time, tab_dist, tab_hier, tab_rel) = tabs
+    (tab_overview, tab_profile, tab_dist, tab_target, tab_rel, tab_hier,
+     tab_contrast, tab_time, tab_sim, tab_ml) = tabs
 
     # Each module now responsible for its own execution via button
     with tab_overview:
         render_overview(ctx)
-
-    with tab_ml:
-        render_ml(ctx)
-
-    with tab_sim:
-        render_simulation(ctx)
-
-    with tab_target:
-        render_target_analysis(ctx)
-
-    with tab_time:
-        render_time_series(ctx)
+        
+    with tab_profile:
+        render_profiling(ctx)
 
     with tab_dist:
         render_distributions(ctx)
 
-    with tab_hier:
-        render_hierarchy(ctx)
+    with tab_target:
+        render_target_analysis(ctx)
 
     with tab_rel:
         render_relationships(ctx)
+
+    with tab_contrast:
+        render_contrast(ctx)
+
+    with tab_time:
+        render_time_series(ctx)
+        
+    with tab_sim:
+        render_simulation(ctx)
+
+    with tab_ml:
+        render_ml(ctx)
+
+    with tab_hier:
+        render_hierarchy(ctx)
+
+
