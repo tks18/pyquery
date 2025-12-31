@@ -143,7 +143,8 @@ class StatsEngine:
             # Try Statsmodels
             try:
                 res = seasonal_decompose(
-                    df_ts[val_col], period=period, model='additive', extrapolate_trend='freq') # type: ignore
+                    # type: ignore
+                    df_ts[val_col], period=period, model='additive', extrapolate_trend='freq')
                 return {
                     "dates": df_ts.index,
                     "trend": res.trend,
@@ -536,7 +537,8 @@ class StatsEngine:
                 # Future Dates
                 last_date = ts.index[-1]
                 future_dates = pd.date_range(
-                    start=last_date + pd.Timedelta(1, unit=freq), periods=periods, freq=freq) # type: ignore
+                    # type: ignore
+                    start=last_date + pd.Timedelta(1, unit=freq), periods=periods, freq=freq)
                 X_future = pd.DataFrame(
                     {'ordinal': future_dates.map(pd.Timestamp.toordinal)})
 
