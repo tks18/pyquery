@@ -568,3 +568,495 @@ class StatsEngine:
 
         except Exception as e:
             return {"error": str(e)}
+
+    @staticmethod
+    def get_kde_curve(series: pd.Series, x_range: np.ndarray, bandwidth: str = 'scott') -> Dict[str, Any]:
+        """
+        Calculate KDE (Kernel Density Estimation) curve for distribution overlay.
+
+        Args:
+            series: Data series to estimate density
+            x_range: X-axis values to evaluate KDE at
+            bandwidth: Bandwidth selection method ('scott', 'silverman', or float)
+
+        Returns:
+            Dictionary with x_values, y_values, and bandwidth used
+        """
+        try:
+            # Drop NaN values
+            clean_series = series.dropna()
+            if len(clean_series) < 2:
+                return {"error": "Need at least 2 data points for KDE"}
+
+            # Calculate KDE using scipy
+            kernel = sp_stats.gaussian_kde(clean_series, bw_method=bandwidth)
+            y_values = kernel(x_range)
+
+            return {
+                "x_values": x_range.tolist() if isinstance(x_range, np.ndarray) else x_range,
+                "y_values": y_values.tolist() if isinstance(y_values, np.ndarray) else y_values,
+                # type: ignore
+                "bandwidth": float(kernel.factor) if hasattr(kernel, 'factor') else bandwidth
+            }
+        except ImportError:
+            return {"error": "Scipy required for KDE calculation"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @staticmethod
+    def get_normal_fit(series: pd.Series, x_range: np.ndarray) -> Dict[str, Any]:
+        """
+        Fit a normal distribution to data and generate curve points.
+
+        Args:
+            series: Data series to fit
+            x_range: X-axis values to evaluate fit at
+
+        Returns:
+            Dictionary with x_values, y_values, mu (mean), and sigma (std dev)
+        """
+        try:
+            # Drop NaN values
+            clean_series = series.dropna()
+            if len(clean_series) < 2:
+                return {"error": "Need at least 2 data points for normal fit"}
+
+            # Fit normal distribution
+            mu, sigma = sp_stats.norm.fit(clean_series)
+
+            # Calculate PDF values
+            y_values = sp_stats.norm.pdf(x_range, mu, sigma)
+
+            return {
+                "x_values": x_range.tolist() if isinstance(x_range, np.ndarray) else x_range,
+                "y_values": y_values.tolist() if isinstance(y_values, np.ndarray) else y_values,
+                "mu": float(mu),
+                "sigma": float(sigma)
+            }
+        except ImportError:
+            return {"error": "Scipy required for normal fit"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @staticmethod
+    def get_qq_plot_data(series: pd.Series, distribution: str = 'norm') -> Dict[str, Any]:
+        """
+        Generate QQ plot data (theoretical quantiles vs observed quantiles).
+
+        Args:
+            series: Data series to analyze
+            distribution: Distribution to compare against (default: 'norm')
+
+        Returns:
+            Dictionary with theoretical quantiles, observed values, and correlation
+        """
+        try:
+            # Drop NaN values
+            clean_series = series.dropna()
+            if len(clean_series) < 3:
+                return {"error": "Need at least 3 data points for QQ plot"}
+
+            # Generate QQ plot data
+            # probplot returns ((theoretical_quantiles, ordered_values), (slope, intercept, r))
+            (osm, osr), (slope, intercept, r) = sp_stats.probplot(
+                clean_series, dist=distribution, fit=True)
+
+            return {
+                "theoretical": osm.tolist() if isinstance(osm, np.ndarray) else osm,
+                "observed": osr.tolist() if isinstance(osr, np.ndarray) else osr,
+                "slope": float(slope),  # type: ignore
+                "intercept": float(intercept),  # type: ignore
+                "correlation": float(r)  # type: ignore
+            }
+        except ImportError:
+            return {"error": "Scipy required for QQ plot"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @staticmethod
+    def get_rolling_stats(df: pd.DataFrame, date_col: str, value_col: str,
+                          window: int, stat_type: str = 'mean', center: bool = True) -> pd.Series:
+        """
+        Calculate rolling window statistics for time series smoothing.
+
+        Args:
+            df: DataFrame with time series data
+            date_col: Name of date/time column
+            value_col: Name of value column
+            window: Rolling window size
+            stat_type: Type of statistic ('mean', 'median', 'std', 'min', 'max')
+            center: Whether to center the window
+
+        Returns:
+            Pandas Series with rolling statistic values
+        """
+        try:
+            # Ensure sorted by date
+            df_sorted = df.sort_values(date_col).copy()
+
+            # Get rolling window
+            rolling = df_sorted[value_col].rolling(
+                window=window, center=center, min_periods=1)
+
+            # Apply requested statistic
+            if stat_type == 'mean':
+                result = rolling.mean()
+            elif stat_type == 'median':
+                result = rolling.median()
+            elif stat_type == 'std':
+                result = rolling.std()
+            elif stat_type == 'min':
+                result = rolling.min()
+            elif stat_type == 'max':
+                result = rolling.max()
+            else:
+                # Default to mean
+                result = rolling.mean()
+
+            return result
+        except Exception as e:
+            # Return empty series on error
+            return pd.Series(dtype=float)
+
+    @staticmethod
+    def get_quantiles(series: pd.Series, quantile_list: List[float]) -> Dict[float, float]:
+        """
+        Calculate multiple quantiles at once.
+
+        Args:
+            series: Data series
+            quantile_list: List of quantiles to calculate (e.g., [0.25, 0.5, 0.75])
+
+        Returns:
+            Dictionary mapping quantile to value
+        """
+        try:
+            # Drop NaN values
+            clean_series = series.dropna()
+            if clean_series.empty:
+                return {}
+
+            # Calculate all quantiles at once (more efficient)
+            quantiles = clean_series.quantile(quantile_list)
+
+            # Convert to dictionary
+            if isinstance(quantiles, pd.Series):
+                # type: ignore
+                return {float(q): float(v) for q, v in quantiles.items()}
+            else:
+                # Single quantile
+                return {float(quantile_list[0]): float(quantiles)}
+        except Exception as e:
+            return {}
+
+    @staticmethod
+    def get_group_contrast(df: pd.DataFrame, group_col: str, group_a: Any, group_b: Any,
+                           num_cols: List[str], cat_cols: List[str]) -> pd.DataFrame:
+        """
+        Calculate statistical difference (Effect Size) between two groups for all features.
+
+        Args:
+            df: DataFrame
+            group_col: Column to group by
+            group_a: Value for Group A
+            group_b: Value for Group B
+            num_cols: List of numeric columns
+            cat_cols: List of categorical columns
+
+        Returns:
+            DataFrame with 'Feature', 'Type', 'Effect_Size', 'P_Value', 'Metric_A', 'Metric_B'
+        """
+        try:
+            # Filter Data
+            df_a = df[df[group_col] == group_a]
+            df_b = df[df[group_col] == group_b]
+
+            if df_a.empty or df_b.empty:
+                return pd.DataFrame()
+
+            results = []
+
+            # 1. Numeric Analysis (Cohen's D)
+            for col in num_cols:
+                if col == group_col:
+                    continue
+
+                try:
+                    s_a = df_a[col].dropna()
+                    s_b = df_b[col].dropna()
+
+                    if len(s_a) < 2 or len(s_b) < 2:
+                        continue
+
+                    mean_a, mean_b = s_a.mean(), s_b.mean()
+                    std_a, std_b = s_a.std(), s_b.std()
+
+                    # Pooled Std Dev
+                    n_a, n_b = len(s_a), len(s_b)
+                    pooled_std = np.sqrt(
+                        ((n_a - 1) * std_a**2 + (n_b - 1) * std_b**2) / (n_a + n_b - 2))
+
+                    if pooled_std == 0:
+                        continue
+
+                    cohens_d = (mean_a - mean_b) / pooled_std
+
+                    # T-Test
+                    _, p_val = sp_stats.ttest_ind(s_a, s_b, equal_var=False)
+
+                    results.append({
+                        "Feature": col,
+                        "Type": "Numeric",
+                        "Effect_Size": abs(cohens_d),  # Magnitude
+                        # Sign indicates direction (A > B vs B > A)
+                        "Direction": cohens_d,
+                        "P_Value": p_val,
+                        "Metric_A": f"{mean_a:.2f}",
+                        "Metric_B": f"{mean_b:.2f}",
+                        "Desc": f"Diff: {(mean_a - mean_b):.2f}"
+                    })
+                except:
+                    continue
+
+            # 2. Categorical Analysis (Cramer's V or TVD)
+            # For simple contrast, Total Variation Distance (TVD) is intuitive: .5 * sum|prob_a - prob_b|
+            for col in cat_cols:
+                if col == group_col:
+                    continue
+
+                try:
+                    vc_a = df_a[col].value_counts(normalize=True)
+                    vc_b = df_b[col].value_counts(normalize=True)
+
+                    # Align indexes
+                    all_cats = set(vc_a.index) | set(vc_b.index)
+                    tvd = 0
+                    max_diff = 0
+                    top_diff_cat = ""
+
+                    for cat in all_cats:
+                        p_a = vc_a.get(cat, 0)
+                        p_b = vc_b.get(cat, 0)
+                        diff = abs(p_a - p_b)
+                        tvd += diff
+
+                        if diff > max_diff:
+                            max_diff = diff
+                            top_diff_cat = cat
+
+                    tvd = 0.5 * tvd
+
+                    if tvd > 0:
+                        results.append({
+                            "Feature": col,
+                            "Type": "Categorical",
+                            # Scale to comparable roughly with Cohen's d (0-1 range typically, d can be >1) -> Heuristic
+                            "Effect_Size": tvd * 2,
+                            "Direction": 0,  # N/A
+                            "P_Value": None,  # Chi2 could be done but complex for just row-subset
+                            "Metric_A": f"Top: {vc_a.idxmax() if not vc_a.empty else ''}",
+                            "Metric_B": f"Top: {vc_b.idxmax() if not vc_b.empty else ''}",
+                            "Desc": f"Biggest Shift: '{top_diff_cat}' (Δ {max_diff:.1%})"
+                        })
+                except:
+                    continue
+
+            return pd.DataFrame(results).sort_values("Effect_Size", ascending=False)
+
+        except Exception as e:
+            return pd.DataFrame()
+
+    @staticmethod
+    def get_advanced_profile(df: pd.DataFrame, col: str) -> Dict[str, Any]:
+        """
+        Deep profiling for any column type (Numeric or Categorical) with advanced metrics.
+        """
+        try:
+            series = df[col]
+            clean = series.dropna()
+
+            stats = {
+                "count": len(series),
+                "missing": series.isna().sum(),
+                "missing_p": series.isna().mean(),
+                "unique": series.nunique(),
+                "dtype": str(series.dtype)
+            }
+
+            if pd.api.types.is_numeric_dtype(series):
+                # Numeric Metrics
+                stats.update({
+                    "mean": clean.mean(),
+                    "median": clean.median(),
+                    "std": clean.std(),
+                    "min": clean.min(),
+                    "max": clean.max(),
+                    "skew": clean.skew(),
+                    "kurtosis": clean.kurtosis(),
+                    "zeros": (clean == 0).sum(),
+                    "negatives": (clean < 0).sum(),
+                    "type": "Numeric"
+                })
+
+                # Top Correlated Features (Correlation Scan)
+                try:
+                    # Select only numeric columns for correlation
+                    num_df = df.select_dtypes(include=[np.number])
+                    if num_df.shape[1] > 1:
+                        # Corr with target
+                        corrs = num_df.corrwith(
+                            clean).abs().sort_values(ascending=False)
+                        # Drop self
+                        corrs = corrs.drop(col, errors='ignore').head(3)
+                        stats["correlations"] = corrs.to_dict()
+                except:
+                    stats["correlations"] = {}
+
+            else:
+                # Categorical / Text Metrics
+                clean_str = clean.astype(str)
+                stats.update({
+                    "mode": clean_str.mode()[0] if not clean_str.empty else "N/A",
+                    "type": "Categorical"
+                })
+
+                # String Lengths
+                lens = clean_str.str.len()
+                stats.update({
+                    "len_min": int(lens.min()) if not lens.empty else 0,
+                    "len_max": int(lens.max()) if not lens.empty else 0,
+                    "len_avg": float(lens.mean()) if not lens.empty else 0,
+                })
+
+                # Semantic Detection (Heuristic)
+                patterns = {
+                    "Email": r"[^@]+@[^@]+\.[^@]+",
+                    "URL": r"http[s]?://",
+                    "Phone": r"\+?[\d\s-]{10,}",
+                    "Date": r"\d{4}-\d{2}-\d{2}",
+                    "IP": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+                }
+
+                # Sample for regex perf
+                sample = clean_str if len(
+                    clean_str) < 5000 else clean_str.sample(5000)
+                detected = {}
+                for name, pat in patterns.items():
+                    matches = sample.str.contains(pat, regex=True).sum()
+                    if matches > 0:
+                        detected[name] = int(matches)
+                stats["semantic_entities"] = detected
+
+                # Top/Rare
+                vc = clean_str.value_counts()
+                stats["top_counts"] = vc.head(10).to_dict()
+                stats["rare_count"] = (vc == 1).sum()
+
+            return stats
+
+        except Exception as e:
+            return {"error": str(e)}
+
+    @staticmethod
+    def get_comparative_stats(df: pd.DataFrame, group_col: str, group_a: Any, group_b: Any,
+                              nums: List[str], cats: List[str]) -> pd.DataFrame:
+        """
+        Comparison with rigorous hypothesis testing (Mann-Whitney, Chi2).
+        """
+        try:
+            df_a = df[df[group_col] == group_a]
+            df_b = df[df[group_col] == group_b]
+
+            if df_a.empty or df_b.empty:
+                return pd.DataFrame()
+
+            results = []
+
+            # 1. Numeric (Mann-Whitney U + T-Test + Effect Size)
+            for col in nums:
+                if col == group_col:
+                    continue
+                try:
+                    s_a = df_a[col].dropna()
+                    s_b = df_b[col].dropna()
+                    if len(s_a) < 5 or len(s_b) < 5:
+                        continue
+
+                    # Effect Size (Cohen's d)
+                    m_a, m_b = s_a.mean(), s_b.mean()
+                    sd_a, sd_b = s_a.std(), s_b.std()
+                    pooled_sd = np.sqrt(
+                        ((len(s_a)-1)*sd_a**2 + (len(s_b)-1)*sd_b**2) / (len(s_a)+len(s_b)-2))
+                    cohen_d = (m_a - m_b) / pooled_sd if pooled_sd > 0 else 0
+
+                    # Mann-Whitney U (Non-parametric test for difference in distribution)
+                    u_stat, p_mw = sp_stats.mannwhitneyu(
+                        s_a, s_b, alternative='two-sided')
+
+                    # T-Test (Parametric)
+                    t_stat, p_tt = sp_stats.ttest_ind(
+                        s_a, s_b, equal_var=False)
+
+                    results.append({
+                        "Feature": col,
+                        "Type": "Numeric",
+                        "Effect_Size": abs(cohen_d),
+                        "Direction": cohen_d,
+                        "P_Value_MW": p_mw,
+                        "P_Value_TT": p_tt,
+                        "Mean_A": m_a,
+                        "Mean_B": m_b,
+                        "Median_A": s_a.median(),
+                        "Median_B": s_b.median(),
+                        "Desc": f"Diff: {m_a - m_b:.2f}"
+                    })
+                except:
+                    continue
+
+            # 2. Categorical (Chi-Square)
+            for col in cats:
+                if col == group_col:
+                    continue
+                try:
+                    # Contingency Table
+                    # We need full df filtered to just these two groups
+                    sub = df[df[group_col].isin([group_a, group_b])]
+                    contingency = pd.crosstab(sub[col], sub[group_col])
+
+                    if contingency.empty:
+                        continue
+
+                    # Chi2 Test
+                    chi2, p_chi2, dof, ex = sp_stats.chi2_contingency(
+                        contingency)
+
+                    # Cramer's V (Effect Size)
+                    n = contingency.sum().sum()
+                    min_dim = min(contingency.shape) - 1
+                    cramers_v = np.sqrt(
+                        chi2 / (n * min_dim)) if min_dim > 0 and n > 0 else 0
+
+                    # Dominant category shift
+                    # Get prop difference max
+                    norm = pd.crosstab(
+                        sub[col], sub[group_col], normalize='columns')
+                    diffs = (norm[group_a] - norm[group_b]).abs()
+                    max_diff = diffs.max()
+                    top_cat = diffs.idxmax()
+
+                    results.append({
+                        "Feature": col,
+                        "Type": "Categorical",
+                        "Effect_Size": cramers_v,
+                        "Direction": 0,  # N/A
+                        "P_Value_MW": p_chi2,  # Map to same col for simpler processing
+                        "P_Value_TT": None,
+                        "Mean_A": 0, "Mean_B": 0,
+                        "Desc": f"Shift: {top_cat} (Δ {max_diff:.1%})"
+                    })
+                except:
+                    continue
+
+            return pd.DataFrame(results).sort_values("Effect_Size", ascending=False)
+        except:
+            return pd.DataFrame()
