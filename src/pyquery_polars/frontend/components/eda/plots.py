@@ -7,7 +7,6 @@ import numpy as np
 from .core import EDAContext
 
 from plotly.subplots import make_subplots
-from scipy import stats as sp_stats
 import calendar
 
 
@@ -53,33 +52,34 @@ def render_time_series(ctx: EDAContext):
         with st.spinner("Processing Time Series..."):
             try:
                 # 1. Prepare Aggregated LazyFrame
-                # Use Truncate for robust flexible buckets
-                ts_expr = pl.col(dt_col).dt.truncate(
-                    freq_code).alias("ts_date")
-                val_expr = pl.col(val_col)
+                # Use Truncate for robust flexible buckets - but for display consistency we often want pandas resampling
+                # We will use ctx.get_pandas() as requested for consistency
 
-                if agg_func == "Sum":
-                    agg = val_expr.sum()
-                elif agg_func == "Mean":
-                    agg = val_expr.mean()
-                elif agg_func == "Max":
-                    agg = val_expr.max()
-                elif agg_func == "Min":
-                    agg = val_expr.min()
-                else:
-                    agg = pl.len()
+                df_all = ctx.get_pandas()
+                if df_all is None:
+                    return
 
-                agg_lf = ctx.lf.group_by(ts_expr).agg(agg).sort("ts_date")
+                # Pandas Resample Logic
+                # Ensure date is datetime
+                df_ts = df_all.copy()
+                df_ts[dt_col] = pd.to_datetime(df_ts[dt_col])
 
-                # Collect for Visualization (size is small: T steps)
-                df_ts = agg_lf.collect().to_pandas()
+                # Pandas Freq Map
+                p_freq_map = {
+                    "Auto": "ME", "Daily (D)": "D", "Weekly (W)": "W",
+                    "Monthly (M)": "ME", "Quarterly (Q)": "QE", "Yearly (Y)": "YE"
+                }
+                p_freq = p_freq_map.get(str(freq), "D")
+
+                # Agg
+                df_ts = df_ts.set_index(dt_col).resample(
+                    p_freq)[val_col].agg(agg_func.lower())
+                df_ts = df_ts.reset_index().rename(
+                    columns={dt_col: 'ts_date', val_col: val_col})
 
                 if df_ts.empty:
                     st.warning("No data found for this selection.")
                     return
-
-                # Store date as datetime just in case
-                df_ts['ts_date'] = pd.to_datetime(df_ts['ts_date'])
 
                 # --- RENDER MODES ---
 
@@ -87,8 +87,11 @@ def render_time_series(ctx: EDAContext):
                     # Simple Line + Area
                     # Add Window Average option
                     roll_window = st.slider("Smoothing Window", 1, 30, 7)
-                    df_ts['Smoothed'] = df_ts[val_col].rolling(
-                        roll_window, center=True).mean()
+                    # Use backend for rolling calculation
+                    smoothed = engine.analysis.stats.get_rolling_stats(
+                        df_ts, 'ts_date', val_col, window=roll_window, stat_type='mean', center=True
+                    )
+                    df_ts['Smoothed'] = smoothed
 
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(x=df_ts['ts_date'], y=df_ts[val_col], mode='lines',
@@ -100,21 +103,21 @@ def render_time_series(ctx: EDAContext):
                         title=f"Trend Analysis: {val_col}", template=ctx.theme, hovermode="x unified")
                     st.plotly_chart(fig)
 
-                    # Add Growth Metric
-                    fst = df_ts[val_col].iloc[0]
-                    lst = df_ts[val_col].iloc[-1]
-                    growth = (lst - fst) / fst if fst != 0 else 0
-                    st.metric("Total Period Growth",
-                              f"{growth:+.1%}", f"From {fst:,.0f} to {lst:,.0f}")
+                    # Growth Metric
+                    if len(df_ts) > 1:
+                        fst = df_ts[val_col].iloc[0]
+                        lst = df_ts[val_col].iloc[-1]
+                        growth = (lst - fst) / fst if fst != 0 else 0
+                        st.metric("Total Period Growth",
+                                  f"{growth:+.1%}", f"From {fst:,.0f} to {lst:,.0f}")
 
                 elif mode == "🔍 Decomposition":
                     # Backend Decomp
-                    # Freq code to short string for stats engine
-                    f_shorts = {"1d": "D", "1w": "W",
-                                "1mo": "ME", "3mo": "Q", "1y": "Y"}
+                    f_shorts = {"D": "D", "W": "W",
+                                "ME": "ME", "QE": "Q", "YE": "Y"}
 
                     res = engine.analysis.stats.perform_ts_decomposition(
-                        df_ts, "ts_date", val_col, freq_str=f_shorts.get(freq_code, "D")
+                        df_ts, "ts_date", val_col, freq_str=f_shorts.get(p_freq, "D")
                     )
 
                     if res.get("error"):
@@ -141,8 +144,6 @@ def render_time_series(ctx: EDAContext):
 
                 elif mode == "🌡️ Heatmap View":
                     # X=Month/Week, Y=Year
-                    # Need to extract features
-                    # Polars or Pandas? Pandas is easier for pivot here
                     df_ts['Year'] = df_ts['ts_date'].dt.year
                     df_ts['Month'] = df_ts['ts_date'].dt.month_name()
                     df_ts['MonthNum'] = df_ts['ts_date'].dt.month
@@ -170,10 +171,10 @@ def render_time_series(ctx: EDAContext):
                     periods = st.slider("Forecast Horizon (Steps)", 7, 365, 30)
 
                     # Run Forecast
-                    f_shorts = {"1d": "D", "1w": "W",
-                                "1mo": "M", "3mo": "Q", "1y": "Y"}
+                    f_shorts = {"D": "D", "W": "W",
+                                "ME": "M", "QE": "Q", "YE": "Y"}
                     res = engine.analysis.stats.get_ts_forecast(
-                        df_ts, "ts_date", val_col, periods=periods, freq=f_shorts.get(freq_code, "D")
+                        df_ts, "ts_date", val_col, periods=periods, freq=f_shorts.get(p_freq, "D")
                     )
 
                     if res.get("error"):
@@ -197,12 +198,6 @@ def render_time_series(ctx: EDAContext):
                             x=f_dates, y=res['forecast_values'], name="Forecast", line=dict(color='#636EFA', width=3)))
 
                         # Confidence Intervals
-                        # Upper then Lower for fill 'toself' is standard, but here simpler manual fill or 'tonexty'
-                        # Let's use simple fill between traces approach if needed, or single trace with custom X.
-                        # Standard plotly fill:
-                        # Trace 1: Upper Bound (Line width 0)
-                        # Trace 2: Lower Bound (Line width 0, fill='tonexty')
-
                         fig.add_trace(go.Scatter(
                             x=f_dates, y=res['upper_bound'],
                             mode='lines', line=dict(width=0), showlegend=False, hoverinfo='skip'
@@ -299,23 +294,25 @@ def render_distributions(ctx: EDAContext):
         engine = ctx.engine
         with st.spinner("Analyzing Distribution..."):
             try:
-                # Prepare Data
+                # Prepare Data using CACHED DF
+                df_all = ctx.get_pandas()
+                if df_all is None:
+                    return
+
                 cols_needed = [col]
                 if cat != "None":
                     cols_needed.append(cat)
 
-                df_dist = ctx.lf.select(cols_needed).collect().to_pandas()
-                # Ensure numeric and clean
-                df_dist = df_dist.dropna(subset=[col])
+                df_dist = df_all[cols_needed].dropna(subset=[col])
 
                 if df_dist.empty:
+                    st.warning("No data.")
                     return
 
                 # --- 1. VISUALIZATION ---
                 color_arg = cat if cat != "None" else None
 
                 if mode == "Histogram":
-                    # Logic: If KDE or Fit Norm is on, we MUST use 'probability density' for histogram to match scales
                     use_density = params.get('kde') or params.get(
                         'fit_norm') or params.get('norm_hist')
                     histnorm = "probability density" if use_density else None
@@ -330,10 +327,7 @@ def render_distributions(ctx: EDAContext):
                                        title=f"Histogram of {col}",
                                        template=ctx.theme)
 
-                    # Add Overlays (Only if no hue split, or handle hue split complexities? Simpler: Only overlay if no hue or just total)
-                    # For simplicity: If 'Split By' is active, KDE per group is hard with just go.Scatter custom.
-                    # We will support KDE for 'All' (Global) or warn if Split is active.
-
+                    # Add Overlays via BACKEND Engine
                     if (params.get('kde') or params.get('fit_norm')):
                         if cat != "None":
                             st.caption(
@@ -346,22 +340,28 @@ def render_distributions(ctx: EDAContext):
                         x_axis = np.linspace(
                             x_min - 0.1*rng, x_max + 0.1*rng, 500)
 
-                        try:
-
-                            if params.get('kde'):
-                                kernel = sp_stats.gaussian_kde(series)
-                                y_kde = kernel(x_axis)
+                        if params.get('kde'):
+                            # Use Engine
+                            kde_res = engine.analysis.stats.get_kde_curve(
+                                series, x_axis)
+                            if kde_res and "error" not in kde_res:
                                 fig.add_trace(go.Scatter(
-                                    x=x_axis, y=y_kde, mode='lines', name='KDE', line=dict(color='magenta', width=2)))
+                                    x=kde_res['x_values'], y=kde_res['y_values'],
+                                    mode='lines', name='KDE', line=dict(color='magenta', width=2)))
+                            else:
+                                st.warning(
+                                    "Backend KDE failed or scipy missing.")
 
-                            if params.get('fit_norm'):
-                                mu, std = sp_stats.norm.fit(series)
-                                y_norm = sp_stats.norm.pdf(x_axis, mu, std)
+                        if params.get('fit_norm'):
+                            # Use Engine
+                            norm_res = engine.analysis.stats.get_normal_fit(
+                                series, x_axis)
+                            if norm_res and "error" not in norm_res:
+                                mu = norm_res['mu']
                                 fig.add_trace(go.Scatter(
-                                    x=x_axis, y=y_norm, mode='lines', name=f'Normal (μ={mu:.1f})', line=dict(color='red', dash='dash')))
-
-                        except ImportError:
-                            st.warning("Scipy needed for KDE/Fit.")
+                                    x=norm_res['x_values'], y=norm_res['y_values'],
+                                    mode='lines', name=f'Normal (μ={mu:.1f})',
+                                    line=dict(color='red', dash='dash')))
 
                     st.plotly_chart(fig)
 
@@ -383,19 +383,38 @@ def render_distributions(ctx: EDAContext):
                     st.plotly_chart(fig)
 
                 elif mode == "QQ Plot (Normality)":
-                    try:
-                        series = df_dist[col]
-                        osm, osr = sp_stats.probplot(
-                            series, dist="norm", fit=False)
-                        qq_df = pd.DataFrame(
-                            {"Theoretical Quantiles": osm, "Ordered Values": osr})
-                        fig = px.scatter(qq_df, x="Theoretical Quantiles", y="Ordered Values",
+                    series = df_dist[col]
+                    # Use Engine
+                    qq_res = engine.analysis.stats.get_qq_plot_data(series)
+
+                    if qq_res and "error" not in qq_res:
+                        qq_df = pd.DataFrame({
+                            "Theoretical": qq_res['theoretical'],
+                            "Observed": qq_res['observed']
+                        })
+                        fig = px.scatter(qq_df, x="Theoretical", y="Observed",
                                          height=600, title=f"QQ Plot: {col} vs Normal", template=ctx.theme)
-                        fig.add_shape(type="line", x0=np.min(osm), y0=np.min(osr), x1=np.max(osm), y1=np.max(osr),
-                                      line=dict(color="Red", dash="dash"))
+                        # Identity line
+                        min_v = min(qq_res['theoretical'].min(),
+                                    qq_res['observed'].min())
+                        max_v = max(qq_res['theoretical'].max(),
+                                    qq_res['observed'].max())
+
+                        # Best fit line from engine params
+                        slope = qq_res.get('slope', 1)
+                        intercept = qq_res.get('intercept', 0)
+
+                        # Add robust line based on regression
+                        # y = mx + c
+                        x_line = np.array([min_v, max_v])
+                        y_line = slope * x_line + intercept
+
+                        fig.add_trace(go.Scatter(x=x_line, y=y_line, mode='lines',
+                                                 line=dict(color='red', dash='dash'), name='Fit'))
+
                         st.plotly_chart(fig)
-                    except:
-                        st.warning("Requires Scipy.")
+                    else:
+                        st.warning("QQ Plot calculation failed in backend.")
 
                 # --- 2. STATISTICAL INSIGHTS ---
                 st.divider()
@@ -433,12 +452,15 @@ def render_distributions(ctx: EDAContext):
                 with c_quant:
                     st.caption("Quantiles")
                     qs = [0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99]
-                    q_vals = df_dist[col].quantile(qs)
-                    q_df = pd.DataFrame(
-                        {"Percentile": [f"{q:.0%}" for q in qs], "Value": q_vals.values})
-                    st.dataframe(q_df, hide_index=True)
+                    # Use backend
+                    q_res = engine.analysis.stats.get_quantiles(
+                        df_dist[col], qs)
+                    if q_res:
+                        q_df = pd.DataFrame(
+                            {"Percentile": [f"{q:.0%}" for q in qs], "Value": [q_res[q] for q in qs]})
+                        st.dataframe(q_df, hide_index=True)
 
-                # Outliers
+                # Outliers backend
                 outliers = engine.analysis.stats.get_outliers_iqr(df_dist, col)
                 if not outliers.empty:
                     with st.expander(f"⚠️ Extreme Outliers Detected ({len(outliers)})"):
@@ -474,31 +496,38 @@ def render_hierarchy(ctx: EDAContext):
         with st.spinner("Aggregating & Analyzing..."):
             try:
                 # 1. Visualization
-                agg_expr = pl.len().alias("count")
-                if val != "Count":
-                    agg_expr = pl.col(val).sum()
+                # Use CACHED pandas
+                df_all = ctx.get_pandas()
+                if df_all is None:
+                    return
 
-                # GroupBy
-                agg_lf = ctx.lf.group_by(path).agg(agg_expr)
-                df_hier = agg_lf.collect().to_pandas()
+                # Filter nulls in path
+                df_hier = df_all.dropna(subset=path).copy()
 
-                # Remove negatives if numeric
-                metric_col = "count" if val == "Count" else val
-                if val != "Count":
-                    df_hier = df_hier[df_hier[metric_col] > 0]
+                # Aggregate manually in pandas for display, or just pass raw data to plotly
+                # Plotly handles raw data well, but pre-aggregating is safer for rendering speed if data is large
+                # GroupBy in pandas
+                if val == "Count":
+                    df_agg = df_hier.groupby(
+                        path).size().reset_index(name='count')
+                    metric_col = 'count'
+                else:
+                    df_agg = df_hier.groupby(path)[val].sum().reset_index()
+                    metric_col = val
+                    df_agg = df_agg[df_agg[val] > 0]
 
-                if df_hier.empty:
+                if df_agg.empty:
                     st.warning("No data found.")
                     return
 
                 if chart_type == "Sunburst":
-                    fig = px.sunburst(df_hier, path=path, values=metric_col,
+                    fig = px.sunburst(df_agg, path=path, values=metric_col,
                                       title=f"Hierarchical View ({val})", template=ctx.theme)
                 elif chart_type == "Treemap":
-                    fig = px.treemap(df_hier, path=path, values=metric_col,
+                    fig = px.treemap(df_agg, path=path, values=metric_col,
                                      title=f"Treemap View ({val})", template=ctx.theme)
                 else:  # Icicle
-                    fig = px.icicle(df_hier, path=path, values=metric_col,
+                    fig = px.icicle(df_agg, path=path, values=metric_col,
                                     title=f"Icicle View ({val})", template=ctx.theme)
 
                 st.plotly_chart(fig)
@@ -512,10 +541,10 @@ def render_hierarchy(ctx: EDAContext):
                     "Analyze Concentration at Level:", path, index=0, key="hier_conc_lvl")
 
                 # Re-aggregate for this specific level (Summing up sub-levels)
-                df_level = df_hier.groupby(drill_col)[metric_col].sum(
+                df_level = df_agg.groupby(drill_col)[metric_col].sum(
                 ).reset_index().sort_values(metric_col, ascending=False)
 
-                # Compute Stats
+                # Compute Stats via Backend
                 conc_stats = engine.analysis.stats.get_concentration_metrics(
                     df_level, drill_col, metric_col)
 
@@ -564,7 +593,12 @@ def render_relationships(ctx: EDAContext):
         mode = st.radio("Visualization Mode", [
             "Scatter Plot (2D)", "Scatter Matrix (SPLOM)", "3D Scatter",
             "Heatmap (Density)", "Sankey Flow", "Parallel Coords"
-        ], horizontal=True, label_visibility="collapsed")
+        ], horizontal=True, label_visibility="collapsed", key="rel_viz_mode")
+
+    # Get cached DF
+    df_all = ctx.get_pandas()
+    if df_all is None:
+        return
 
     # --- 1. SCATTER PLOT 2D ---
     if mode == "Scatter Plot (2D)":
@@ -584,7 +618,7 @@ def render_relationships(ctx: EDAContext):
                 if cat != "None":
                     cols_needed.append(cat)
 
-                df_rel = ctx.lf.select(cols_needed).collect().to_pandas()
+                df_rel = df_all[cols_needed].dropna()
 
                 # Plot
                 color_arg = cat if cat != "None" else None
@@ -599,6 +633,7 @@ def render_relationships(ctx: EDAContext):
                 # Association Stats
                 st.divider()
                 st.write("###### 🔗 Association Metrics")
+                # Use Backend
                 assoc = ctx.engine.analysis.stats.get_pairwise_association(
                     df_rel, x, y)
                 if assoc and "error" not in assoc:
@@ -629,8 +664,11 @@ def render_relationships(ctx: EDAContext):
             if len(sel_cols) < 2:
                 st.warning("Select at least 2 columns.")
             else:
-                cols = sel_cols + ([c_col] if c_col != "None" else [])
-                df_splom = ctx.lf.select(cols).collect().to_pandas()
+                cols_needed = list(sel_cols)
+                if c_col != "None":
+                    cols_needed.append(c_col)
+
+                df_splom = df_all[cols_needed].dropna()
 
                 fig = px.scatter_matrix(df_splom, dimensions=sel_cols,
                                         color=c_col if c_col != "None" else None,
@@ -658,7 +696,8 @@ def render_relationships(ctx: EDAContext):
                 cols = [x3, y3, z3]
                 if c3d != "None":
                     cols.append(c3d)
-                df_3d = ctx.lf.select(cols).collect().to_pandas()
+
+                df_3d = df_all[cols].dropna()
 
                 fig = px.scatter_3d(df_3d, x=x3, y=y3, z=z3,
                                     color=c3d if c3d != "None" else None,
@@ -676,7 +715,7 @@ def render_relationships(ctx: EDAContext):
             st.session_state.eda_rel_hm_run = True
 
         if st.session_state.get("eda_rel_hm_run", False):
-            df_hm = ctx.lf.select([hx, hy]).collect().to_pandas()
+            df_hm = df_all[[hx, hy]].dropna()
             fig = px.density_heatmap(df_hm, x=hx, y=hy, marginal_x="histogram", marginal_y="histogram",
                                      title=f"Density Heatmap: {hx} vs {hy}",
                                      template=ctx.theme, text_auto=True)
@@ -700,11 +739,7 @@ def render_relationships(ctx: EDAContext):
                 else:
                     with st.spinner("Analyzing Flow..."):
                         # Use Parallel Categories
-                        cols_needed = [src, tgt]
-                        df_sank = ctx.lf.select(
-                            cols_needed).collect().to_pandas()
-                        # Limit to top N categories to prevent clutter?
-                        # For now, raw parallel cats is standard Sankey-like view
+                        df_sank = df_all[[src, tgt]].dropna()
                         st.plotly_chart(px.parallel_categories(
                             df_sank, dimensions=[src, tgt], template=ctx.theme))
 
@@ -720,12 +755,14 @@ def render_relationships(ctx: EDAContext):
         if st.session_state.get("eda_rel_par_run", False):
             if not dims:
                 return
+
             cols_needed = list(dims)
             if c:
                 cols_needed.append(c)
             # Dedup
             cols_needed = list(set(cols_needed))
 
-            df_par = ctx.lf.select(cols_needed).collect().to_pandas()
+            df_par = df_all[cols_needed].dropna()
+
             st.plotly_chart(px.parallel_coordinates(
                 df_par, dimensions=dims, color=c, template=ctx.theme))
