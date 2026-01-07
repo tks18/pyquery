@@ -8,6 +8,7 @@ class FileLoaderParams(BaseModel):
     path: str
     sheet: str = "Sheet1"
     alias: str
+    process_individual: bool = False  # Process files individually then concat
 
 
 class SqlLoaderParams(BaseModel):
