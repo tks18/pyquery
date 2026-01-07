@@ -108,7 +108,15 @@ def render_sql_tab():
                     project_recipes=st.session_state.get('all_recipes')
                 )
                 
-                st.warning("⚠️ **Preview Mode**: Results based on top 1,000 rows only. Export uses full dataset.")
+                # Check for folder mode
+                any_folder = any(engine.get_dataset_metadata(t).get("process_individual") for t in engine.get_dataset_names())
+                
+                warn_msg = "⚠️ **Preview Mode**: Results based on top 1,000 rows only."
+                if any_folder:
+                    warn_msg += " (Note: Folder datasets preview **First File Only**)."
+                warn_msg += " Export uses full dataset."
+                
+                st.warning(warn_msg)
                 
                 st.dataframe(preview_df, width="stretch")
                 st.caption(f"Shape: {preview_df.shape}")
@@ -136,21 +144,29 @@ def render_sql_tab():
                     if c2.button("Save to Pipeline", type="primary", disabled=not new_ds_name):
                         try:
                              with st.spinner("Materializing..."):
-                                # Execute Full Logic (Lazy) with Context
+                                # Execute SQL to get LazyFrame
                                 lf = engine.execute_sql(
                                     st.session_state.sql_query, 
                                     project_recipes=st.session_state.get('all_recipes')
                                 )
                                 
-                                # Use first dataset as reference path
-                                all_tables = engine.get_dataset_names()
-                                ref_name = all_tables[0] if all_tables else None
+                                # Add as temporary dataset
+                                temp_name = f"___temp_sql_{new_ds_name}"
+                                engine.add_dataset(temp_name, lf, metadata={
+                                    "input_type": "sql",
+                                    "source_path": None
+                                })
                                 
-                                if engine.materialize_dataset(new_ds_name, lf, reference_name=ref_name):
+                                # Materialize it (no recipe needed since SQL already transformed)
+                                if engine.materialize_dataset(temp_name, new_ds_name, recipe=[]):
+                                    # Remove temporary dataset
+                                    engine.remove_dataset(temp_name)
+                                    
                                     st.success(f"Saved '{new_ds_name}'! It is now available in the main tab.")
                                     time.sleep(1)
                                     st.rerun()
                                 else:
+                                    engine.remove_dataset(temp_name)
                                     st.error("Failed to save dataset.")
                         except Exception as e:
                             st.error(f"Error: {e}")
