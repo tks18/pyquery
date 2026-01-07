@@ -51,12 +51,27 @@ def render_eda_tab(dataset_name: str):
         )
         st.session_state.eda_sample_limit = limit
 
+        # Strategy Selector
+        strat_map = {
+            "⚡ Fast Preview (First File)": "preview",
+            "📚 Full Dataset (First N)": "full_head",
+            "🎲 Full Dataset (Random Sample)": "full_sample"
+        }
+        selected_strat_label = c2.selectbox(
+            "Data Strategy", 
+            list(strat_map.keys()), 
+            index=0,
+            key="eda_strategy_select",
+            help="Choose how to fetch data. 'Full' modes process all files (slower)."
+        )
+        selected_strategy = strat_map[selected_strat_label]
+
         theme_options = ["plotly", "plotly_dark",
                          "seaborn", "ggplot2", "simple_white"]
-        selected_theme = c2.selectbox(
+        selected_theme = c3.selectbox(
             "Theme", theme_options, index=0, key="eda_theme")
 
-        show_labels = c3.checkbox("Show Data Labels", value=st.session_state.get(
+        show_labels = st.checkbox("Show Data Labels", value=st.session_state.get(
             'eda_show_labels', False), key="eda_show_labels_chk")
         st.session_state['eda_show_labels'] = show_labels
         
@@ -171,35 +186,57 @@ def render_eda_tab(dataset_name: str):
 
 
         if use_sql and custom_sql.strip():
-            # SQL PATH
-            # We use engine.execute_sql which returns a LazyFrame
-            # We pass project_recipes so the SQL runs against transformed data
+            # SQL PATH - Integrate Strategy
             all_recipes = st.session_state.get('all_recipes', {})
             try:
+                # Determine Collection Limit for optimization
+                is_preview = (selected_strategy == "preview")
+                coll_limit = None
+                if selected_strategy == "full_head":
+                    coll_limit = limit
+                elif selected_strategy == "full_sample":
+                    coll_limit = 100000
+                
                 lf_sql = engine.execute_sql(
-                    custom_sql, project_recipes=all_recipes)
-                # Apply limit
-                lf_eda = lf_sql.limit(limit)
+                    custom_sql, 
+                    project_recipes=all_recipes,
+                    preview=is_preview,
+                    preview_limit=limit,
+                    collection_limit=coll_limit
+                )
+                
+                if lf_sql is None:
+                    lf_eda = None
+                elif selected_strategy == "full_sample":
+                    # Full data, random sample
+                    # Memory Optimization: Limit collection (Already happened at source via coll_limit)
+                    df = lf_sql.collect()
+                    if len(df) <= limit:
+                        lf_eda = df.lazy()
+                    else:
+                        lf_eda = df.sample(n=limit, seed=42).lazy()
+                else:
+                    # full_head or preview (limit already applied at source)
+                    lf_eda = lf_sql
+                    
             except Exception as e:
                 st.error(f"SQL Error: {e}")
                 return
         else:
             # DEFAULT RECIPE PATH
-            lf = engine.get_dataset(dataset_name)
-            if lf is None:
-                st.error("Dataset not found")
-                return
-
-            # Apply Recipe
             current_recipe = st.session_state.get(
                 'all_recipes', {}).get(dataset_name, [])
-            lf_transformed = engine.apply_recipe(
-                lf, current_recipe, st.session_state.get('all_recipes', {}))
-
-            # Limit & dropped cols
-            lf_eda = lf_transformed.limit(limit)
-
-            if excluded_cols:
+            
+            # Use new specialized EDA View getter
+            lf_eda = engine.get_eda_view(
+                dataset_name=dataset_name,
+                recipe=current_recipe,
+                project_recipes=st.session_state.get('all_recipes', {}),
+                strategy=selected_strategy,
+                limit=limit
+            )
+            
+            if lf_eda is not None and excluded_cols:
                 lf_eda = lf_eda.drop(excluded_cols)
 
         if lf_eda is None:
