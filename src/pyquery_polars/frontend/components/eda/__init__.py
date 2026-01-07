@@ -39,8 +39,17 @@ def render_eda_tab(dataset_name: str):
     # 2. SETTINGS
     with st.expander("⚙️ Analysis Configuration", expanded=True):
         c1, c2, c3 = st.columns(3)
-        limit = st.session_state.get('eda_sample_limit', 5000)
-        c1.metric("Row Limit", f"{limit:,}", help="Processing limit")
+        # Interactive Row Limit
+        limit = c1.number_input(
+            "Row Limit / Sample Size",
+            min_value=1000,
+            max_value=100000,
+            value=st.session_state.get('eda_sample_limit', 5000),
+            step=1000,
+            help="Max rows for EDA. Higher = slower.",
+            key="eda_limit_input"
+        )
+        st.session_state.eda_sample_limit = limit
 
         theme_options = ["plotly", "plotly_dark",
                          "seaborn", "ggplot2", "simple_white"]
