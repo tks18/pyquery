@@ -59,6 +59,36 @@ def render_eda_tab(dataset_name: str):
         show_labels = c3.checkbox("Show Data Labels", value=st.session_state.get(
             'eda_show_labels', False), key="eda_show_labels_chk")
         st.session_state['eda_show_labels'] = show_labels
+        
+        if selected_strategy != "preview":
+            st.warning("⚠️ Full Processing Enabled: Reading entire dataset before limiting. This may be slow for large files.")
+        
+        # Context Info based on Strategy & Metadata
+        metadata = engine.get_dataset_metadata(dataset_name)
+        process_individual = metadata.get("process_individual", False)
+        file_count = metadata.get("file_count", 1)
+
+        info_msgs = []
+        if process_individual:
+            if selected_strategy == "preview":
+                info_msgs.append(f"**Dataset Mode:** Folder ({file_count} files).")
+                info_msgs.append(f"**Generic Strategy:** Only the **First File** is analyzed (Limit: {limit}).")
+            elif selected_strategy == "full_head":
+                info_msgs.append(f"**Dataset Mode:** Folder ({file_count} files).") 
+                info_msgs.append(f"**Generic Strategy:** **ALL Files** are concatenated, then top {limit} rows are used.")
+            elif selected_strategy == "full_sample":
+                info_msgs.append(f"**Dataset Mode:** Folder ({file_count} files).")
+                info_msgs.append(f"**Generic Strategy:** **ALL Files** are concatenated (up to 100k rows), then {limit} samples drawn.")
+        else:
+            # Single File Mode
+            if selected_strategy == "preview":
+                info_msgs.append(f"**Strategy:** Analyzing top {limit} rows.")
+            elif selected_strategy == "full_head":
+                info_msgs.append(f"**Strategy:** Analyzing top {limit} rows.")
+            elif selected_strategy == "full_sample":
+                 info_msgs.append(f"**Strategy:** Random sample of {limit} rows (from max 100k source).")
+
+        st.info("\n\n".join(info_msgs))
 
         # New: Custom SQL
         st.divider()
