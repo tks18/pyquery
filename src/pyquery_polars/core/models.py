@@ -39,6 +39,25 @@ class PluginDef(BaseModel):
     params_model: Optional[Type[BaseModel]] = None
 
 
+class DatasetMetadata(BaseModel):
+    """Comprehensive metadata for a loaded dataset."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
+    # Core LazyFrame storage
+    base_lf: Optional[pl.LazyFrame] = None  # For single file or concatenated
+    base_lfs: Optional[List[pl.LazyFrame]] = None  # For individual processing
+    
+    # Source information
+    source_path: Optional[str] = None
+    input_type: str = "file"  # 'file', 'folder', 'sql', 'api'
+    input_format: Optional[str] = None  # File extension or source type
+    
+    # Processing mode
+    process_individual: bool = False
+    file_list: Optional[List[str]] = None
+    file_count: int = 1
+
+
 class JobInfo(BaseModel):
     """Status and metadata for an asynchronous job."""
     job_id: str
