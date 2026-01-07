@@ -119,6 +119,16 @@ def render_recipe_editor(dataset_name):
             st.session_state.view_at_step_id = None
 
     st.subheader(f"📊 Live Preview (Top 1k){title_suffix}")
+    
+    # Show indicator if processing individually
+    if dataset_name:
+        metadata = engine.get_dataset_metadata(dataset_name)
+        if metadata.get("process_individual", False):
+            file_count = metadata.get("file_count", 1)
+            st.info(
+                f"📁 **Folder Mode** ({file_count} files): Preview shows **first file only**. "
+                f"Export will process all files individually."
+            )
 
     try:
         preview_df = engine.get_preview(
@@ -131,7 +141,6 @@ def render_recipe_editor(dataset_name):
     except Exception as e:
         st.error(f"Pipeline Error: {e}")
 
-    st.divider()
     # Snapshot UI
     with st.expander("📸 Snapshot Pipeline", expanded=False):
          st.caption("Save the current transformed state as a new dataset.")
@@ -139,28 +148,21 @@ def render_recipe_editor(dataset_name):
          
          if st.button("Save Snapshot", width="stretch", disabled=not snap_name or not dataset_name):
                try:
-                   with st.spinner("Snapshoting..."):
-                        # Get current recipe logic
+                   with st.spinner("Snapshotting..."):
+                        # Get current recipe
                         current_recipe = st.session_state.all_recipes.get(dataset_name, [])
-                        
-                        # Get base LF
-                        lf = engine.get_dataset(dataset_name)
-                        if lf is not None:
-                             # Apply transformations
-                             transformed = engine.apply_recipe(
-                                 lf, 
-                                 current_recipe, 
-                                 project_recipes=st.session_state.all_recipes
-                             )
-                             
-                             # Materialize (ref = dataset_name)
-                             if engine.materialize_dataset(snap_name, transformed, reference_name=dataset_name):
-                                  st.success(f"Snapshot '{snap_name}' saved! It's now in your Datasets list.")
-                                  time.sleep(1)
-                                  st.rerun()
-                             else:
-                                  st.error("Snapshot failed.")
+                         
+                        # Materialize with recipe (backend handles everything)
+                        if engine.materialize_dataset(
+                            dataset_name, 
+                            snap_name, 
+                            recipe=current_recipe,
+                            project_recipes=st.session_state.all_recipes
+                        ):
+                            st.success(f"Snapshot '{snap_name}' saved! It's now in your Datasets list.")
+                            time.sleep(1)
+                            st.rerun()
                         else:
-                             st.error("Base dataset not found.")
+                            st.error("Snapshot failed.")
                except Exception as e:
                    st.error(f"Error: {e}")
