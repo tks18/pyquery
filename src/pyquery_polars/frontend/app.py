@@ -8,7 +8,7 @@ from pyquery_polars.frontend.components.eda import render_eda_tab
 from pyquery_polars.frontend.components.sql_tab import render_sql_tab
 from pyquery_polars.frontend.components.sidebar import render_sidebar
 from pyquery_polars.frontend.state_manager import init_session_state
-from pyquery_polars.backend.utils.io import cleanup_staging_files
+
 
 import streamlit as st
 import sys
@@ -42,7 +42,7 @@ init_session_state()
 
 # AUTO CLEANUP (Once per session)
 if "cleanup_done" not in st.session_state:
-    cleanup_staging_files(max_age_hours=24)
+    st.session_state.engine.cleanup_staging(24)
     st.session_state["cleanup_done"] = True
 
 # ==========================================

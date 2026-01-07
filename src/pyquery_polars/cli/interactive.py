@@ -134,18 +134,35 @@ def load_data_flow():
         default_alias = "dataset"
 
     alias = questionary.text("Dataset Alias:", default=default_alias).ask()
-    params = FileLoaderParams(path=path, alias=alias)
+    
+    # Check if it's a folder/glob pattern
+    process_individual = False
+    if "*" in path or os.path.isdir(path):
+        process_individual = questionary.confirm(
+            "Process files individually before concatenating?",
+            default=False
+        ).ask()
+        if process_individual:
+            console.print("[cyan]📁 Individual processing enabled: Each file will be processed separately[/cyan]")
+    
+    params = FileLoaderParams(path=path, alias=alias, process_individual=process_individual)
 
     with console.status(f"Loading {path}..."):
         try:
             result = engine.run_loader("File", params)
             if result is not None:
-                lf, _ = result
-                engine.add_dataset(alias, lf)
+                lf, metadata = result if isinstance(result, tuple) else (result, {})
+                engine.add_dataset(alias, lf, metadata=metadata)
                 active_dataset = alias
                 active_dataset_path = path
                 recipe = []
-                console.print(f"[green]Loaded {alias}![/green]")
+                
+                # Show file count if process_individual
+                if metadata.get("process_individual", False):
+                    file_count = metadata.get("file_count", 1)
+                    console.print(f"[green]Loaded {alias}! ({file_count} files, individual processing)[/green]")
+                else:
+                    console.print(f"[green]Loaded {alias}![/green]")
             else:
                 console.print("[red]Failed to load file.[/red]")
         except Exception as e:

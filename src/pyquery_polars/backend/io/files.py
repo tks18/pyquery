@@ -84,40 +84,81 @@ def get_excel_sheet_names(file_path: str) -> List[str]:
         return ["Sheet1"]
 
 
-def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1") -> Optional[pl.LazyFrame]:
+def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_individual: bool = False) -> Optional[tuple]:
+    """
+    Load files into LazyFrame(s).
+
+    Returns:
+        Tuple of (Union[LazyFrame, List[LazyFrame]], metadata_dict) or None
+
+    When process_individual=True and multiple files:
+        Returns (List[LazyFrame], metadata) for individual processing
+    Otherwise:
+        Returns (LazyFrame, metadata) as concatenated result
+    """
     if not files:
         return None
+
+    # Determine file format
+    exts = {os.path.splitext(f)[1].lower() for f in files}
+    ext = list(exts)[0] if len(exts) == 1 else ".mixed"
 
     # OPTIMIZATION: Try Bulk Scan for homogeneous files
     # Polars supports list of files for scan_csv, scan_parquet, scan_ipc, scan_ndjson
     # This is much faster than iterative concat.
-    exts = {os.path.splitext(f)[1].lower() for f in files}
-    if len(exts) == 1:
-        ext = list(exts)[0]
+    if len(exts) == 1 and not process_individual:
         try:
             if ext == ".csv":
-                return pl.scan_csv(files, infer_schema_length=0)
+                lf = pl.scan_csv(files, infer_schema_length=0)
+                metadata = {
+                    "input_type": "folder" if len(files) > 1 else "file",
+                    "input_format": ext,
+                    "file_list": files,
+                    "file_count": len(files)
+                }
+                return lf, metadata
             elif ext == ".parquet":
-                return pl.scan_parquet(files)
+                lf = pl.scan_parquet(files)
+                metadata = {
+                    "input_type": "folder" if len(files) > 1 else "file",
+                    "input_format": ext,
+                    "file_list": files,
+                    "file_count": len(files)
+                }
+                return lf, metadata
             elif ext in [".arrow", ".ipc", ".feather"]:
-                return pl.scan_ipc(files)
+                lf = pl.scan_ipc(files)
+                metadata = {
+                    "input_type": "folder" if len(files) > 1 else "file",
+                    "input_format": ext,
+                    "file_list": files,
+                    "file_count": len(files)
+                }
+                return lf, metadata
             elif ext == ".json":
-                return pl.scan_ndjson(files, infer_schema_length=0)
+                lf = pl.scan_ndjson(files, infer_schema_length=0)
+                metadata = {
+                    "input_type": "folder" if len(files) > 1 else "file",
+                    "input_format": ext,
+                    "file_list": files,
+                    "file_count": len(files)
+                }
+                return lf, metadata
         except Exception as e:
             print(f"Bulk scan error, falling back to iterative: {e}")
 
-    # Fallback: Iterative (Mixed types or Excel)
+    # Fallback: Iterative (Mixed types or Excel or process_individual)
     lfs = []
     for f in files:
-        ext = os.path.splitext(f)[1].lower()
+        file_ext = os.path.splitext(f)[1].lower()
         try:
-            if ext == ".csv":
+            if file_ext == ".csv":
                 lfs.append(pl.scan_csv(f, infer_schema_length=0))
-            elif ext == ".parquet":
+            elif file_ext == ".parquet":
                 lfs.append(pl.scan_parquet(f))
-            elif ext in [".arrow", ".ipc", ".feather"]:
+            elif file_ext in [".arrow", ".ipc", ".feather"]:
                 lfs.append(pl.scan_ipc(f))
-            elif ext in [".xlsx", ".xls"]:
+            elif file_ext in [".xlsx", ".xls"]:
                 # Dump to Parquet
                 # Excel is eager-only.
                 try:
@@ -139,7 +180,7 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1") -> Optional[pl
                 except Exception as ex:
                     print(f"Excel Load Error {f}: {ex}")
 
-            elif ext == ".json":
+            elif file_ext == ".json":
                 lfs.append(pl.scan_ndjson(f, infer_schema_length=0))
         except Exception as e:
             print(f"Error loading {f}: {e}")
@@ -147,15 +188,30 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1") -> Optional[pl
     if not lfs:
         return None
 
-    combined = lfs[0]
+    # Build metadata
+    metadata = {
+        "input_type": "folder" if len(files) > 1 else "file",
+        "input_format": ext,
+        "file_list": files,
+        "file_count": len(files),
+        "process_individual": process_individual
+    }
 
-    # DIAGONAL STRATEGY:
-    # Handles schema evolution (new columns in later files filled with nulls).
-    # Graceful handling of missing columns.
-    if len(lfs) > 1:
-        combined = pl.concat(lfs, how="diagonal")
+    # Decision: Return list or concatenated
+    if process_individual and len(lfs) > 1:
+        # Return list of LazyFrames for individual processing
+        return lfs, metadata
+    else:
+        # Return concatenated LazyFrame (existing behavior)
+        combined = lfs[0]
 
-    return combined
+        # DIAGONAL STRATEGY:
+        # Handles schema evolution (new columns in later files filled with nulls).
+        # Graceful handling of missing columns.
+        if len(lfs) > 1:
+            combined = pl.concat(lfs, how="diagonal")
+
+        return combined, metadata
 
 
 def load_from_sql(connection_string: str, query: str) -> Optional[pl.LazyFrame]:

@@ -8,7 +8,7 @@ from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
 from pyquery_polars.frontend.utils.io_schemas import get_loader_schema
 from pyquery_polars.frontend.utils.file_picker import pick_file, pick_folder
-from pyquery_polars.backend.utils.io import cleanup_staging_files
+
 
 
 def render_sidebar():
@@ -45,6 +45,7 @@ def render_sidebar():
 
                 # 1. Custom Path Resolver for Files
                 path_val = st.session_state.get(f"load_{loader.name}_path", "")
+                file_mode = None
 
                 if loader.name == "File":
                     st.write("###### File Selection")
@@ -117,6 +118,21 @@ def render_sidebar():
                             st.caption(f"**Effective Path:** `{path_val}`")
                         else:
                             path_val = ""
+                        
+                        # NEW: Process Individual Checkbox
+                        st.divider()
+                        process_individual = st.checkbox(
+                            "🔨 Process Files Individually",
+                            value=False,
+                            key=f"load_{loader.name}_process_individual",
+                            help="Apply transformation steps to each file separately before concatenating. "
+                                 "Essential for file-level operations like removing header rows in Excel files."
+                        )
+                        if process_individual:
+                            st.caption(
+                                "💡 **Preview Mode**: Shows first file only | "
+                                "**Export**: Processes all files individually"
+                            )
 
                 # 2. Check Extension (for Excel logic)
                 is_excel = path_val and (path_val.lower().endswith(
@@ -158,6 +174,13 @@ def render_sidebar():
                 # Injection
                 if loader.name == "File":
                     params["path"] = path_val
+                    # Add process_individual flag
+                    # Only enabled for folder mode
+                    if file_mode == "Folder (Glob)":
+                        params["process_individual"] = st.session_state.get(
+                            f"load_{loader.name}_process_individual", False)
+                    else:
+                        params["process_individual"] = False
                 alias_val = params.get('alias')
 
                 # Auto Infer Checkbox
@@ -180,19 +203,18 @@ def render_sidebar():
                         # Return is now (Optional[LazyFrame], Metadata)
                         result = engine.run_loader(loader.name, final_params)
 
-                        lf = None
+                        # Handle both LazyFrame and List[LazyFrame]
+                        lf_or_lfs = None
                         metadata = {}
 
                         if isinstance(result, tuple):
-                            lf, metadata = result
+                            lf_or_lfs, metadata = result
                         elif result is not None:
-                            lf = result  # Legacy fallback
+                            lf_or_lfs = result  # Legacy fallback
 
-                        if lf is not None:
-                            # Pass source_path if available
-                            src_path = metadata.get('source_path')
-                            engine.add_dataset(
-                                alias_val, lf, source_path=src_path)
+                        if lf_or_lfs is not None:
+                            # add_dataset handles both single LF and list
+                            engine.add_dataset(alias_val, lf_or_lfs, metadata=metadata)
 
                             if alias_val not in st.session_state.all_recipes:
                                 st.session_state.all_recipes[alias_val] = []
@@ -338,18 +360,30 @@ def render_sidebar():
 
         # --- 3. RECIPE ACTIONS ---
         with st.expander("🔪 Recipe Actions", expanded=False):
-            # Serialize for Generic RecipeStep (which has .model_dump())
-            serialized_recipe = [s.model_dump()
-                                 for s in st.session_state.recipe_steps]
-            recipe_json = json.dumps(serialized_recipe, indent=2)
+            active_ds = st.session_state.get('active_base_dataset')
+            
+            if not active_ds:
+                st.warning("⚠️ No active dataset. Load data first.")
+            else:
+                # Get recipe for the active dataset from all_recipes
+                dataset_recipe = st.session_state.all_recipes.get(active_ds, [])
+                
+                if not dataset_recipe:
+                    st.info(f"ℹ️ No recipe steps for '{active_ds}' yet. Add transformations to create a recipe.")
+                
+                # Serialize for Generic RecipeStep (which has .model_dump())
+                serialized_recipe = [s.model_dump() for s in dataset_recipe]
+                recipe_json = json.dumps(serialized_recipe, indent=2)
 
-            st.download_button("💾 Download JSON", recipe_json, "recipe.json",
-                               "application/json", width="stretch")
+                st.download_button("💾 Download JSON", recipe_json, f"recipe_{active_ds}.json",
+                                   "application/json", width="stretch", 
+                                   disabled=not dataset_recipe,
+                                   help=f"Download recipe for {active_ds} ({len(dataset_recipe)} steps)")
 
-            uploaded_recipe = st.file_uploader("Restore JSON", type=["json"])
-            if uploaded_recipe and st.button("Apply Restore", width="stretch"):
-                load_recipe_from_json(uploaded_recipe)
-                st.rerun()
+                uploaded_recipe = st.file_uploader("Restore JSON", type=["json"])
+                if uploaded_recipe and st.button("Apply Restore", width="stretch"):
+                    load_recipe_from_json(uploaded_recipe)
+                    st.rerun()
 
             if st.button("🗑️ Clear All Steps", type="secondary", width="stretch"):
                 active_ds = st.session_state.active_base_dataset
@@ -364,7 +398,7 @@ def render_sidebar():
         with st.expander("⚙️ Application Settings", expanded=False):
             if st.button("🧹 Clear Cache / Staging", help="Force delete all temporary files.", width="stretch"):
                 try:
-                    cleanup_staging_files(max_age_hours=0)  # Force clear
+                    engine.cleanup_staging(0)  # Force clear
                     st.toast("Cache cleared successfully!", icon="🧹")
                 except Exception as e:
                     st.error(f"Cleanup failed: {e}")

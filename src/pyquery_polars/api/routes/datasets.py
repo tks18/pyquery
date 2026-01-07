@@ -36,10 +36,11 @@ def load_dataset(req: LoadRequest, engine: PyQueryEngine = Depends(get_engine)):
         raise HTTPException(
             status_code=400, detail="Failed to load dataset. Check params.")
 
-    lf, _ = result
+    # Extract LazyFrame and metadata
+    lf, metadata = result if isinstance(result, tuple) else (result, {})
 
     # Register in engine
-    engine.add_dataset(req.alias, lf)
+    engine.add_dataset(req.alias, lf, metadata=metadata)
     return {"status": "loaded", "name": req.alias}
 
 

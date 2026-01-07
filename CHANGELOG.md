@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.3.0](https://github.com/tks18/pyquery/compare/v2.2.0...v2.3.0) (2026-01-07)
+
+
+### Features 🔥
+
+* **api:** fix api to use the new metadata format for adding the dataset to backend ([2b0dfec](https://github.com/tks18/pyquery/commit/2b0dfec250892d72f2f60e4d30626ca1980d3510))
+* **backend/analysis:** create a new type inference module under analysis ([ad78f13](https://github.com/tks18/pyquery/commit/ad78f139c55cf4ceceaf740496c15b5f44b880d0))
+* **backend/analysis:** create another module under analysis for joins ([b4fe44f](https://github.com/tks18/pyquery/commit/b4fe44fc74dc263775a3cbece4b5da45ccec9bed))
+* **backend/core:** completely refactor the backend core to only act as a facade for all ops ([a628fa1](https://github.com/tks18/pyquery/commit/a628fa176b19d3f6b7c2fe39aafa5d53a470741d))
+* **backend/core:** create a new materializer module to handle the storage helpers ([d02b564](https://github.com/tks18/pyquery/commit/d02b5642dd94b6be195511ba53126a4aa88a3692))
+* **backend/engine:** create a new execution module inside processing ([ae017c3](https://github.com/tks18/pyquery/commit/ae017c3d800eb3e0056a36f170aa338770fe96ce))
+* **cli/headless:** add support for exporting, importing all the available backend methods ([6bd0d4c](https://github.com/tks18/pyquery/commit/6bd0d4c9f0bf111bf9589f57a8ec83055098d270))
+* **cli/interactive:** now cli interactive also supports all the funcs from backend ([ae65d9b](https://github.com/tks18/pyquery/commit/ae65d9bec346c5fa55541bb45df1715ee0db02db))
+* **cli:** add support for all args in the main parser for cli ([fa71723](https://github.com/tks18/pyquery/commit/fa717234394450da3d24e8e010c798e65c237dab))
+* **core:** add param for io to add option to process individual files separately ([1cc12c2](https://github.com/tks18/pyquery/commit/1cc12c25930da65a4bbd1e0c3a26a90f29b2e5c6))
+* **core:** create a new model for holding metadata related to all the datasets ([60c01c3](https://github.com/tks18/pyquery/commit/60c01c353059ae7d6da4ba6d981c1b6829816d5a))
+* **frontend/components:** eda: add option for the user to select the row limit ([c7f4c3a](https://github.com/tks18/pyquery/commit/c7f4c3a82b97c968fdf29bebf49c56af7f73f5bf))
+* **frontend/components:** eda: add support for different methods of data strategy ([5abeaa2](https://github.com/tks18/pyquery/commit/5abeaa2737e5523073144ab61575525f7582c183))
+* **frontend/components:** eda: use the new eda view from the backend for accessing all the data ([1bc5803](https://github.com/tks18/pyquery/commit/1bc5803e9d81f8dfa8f692ceab20b8817d7c33e0))
+* **frontend/components:** recipe: refactor to use the new api, also add more info for user ([f8e4dd2](https://github.com/tks18/pyquery/commit/f8e4dd297af54f0d11c6fbf8853c9d6d1a0c598c))
+* **frontend/components:** sidebar: add option to process individual files, robust recipe downloads ([4679d56](https://github.com/tks18/pyquery/commit/4679d56df1b0dbf491008910bc3278bde0b7427c))
+
+
+### Code Refactoring 🖌
+
+* **backend/io:** refactor the io_plugin and util to a common io folder ([cc20b5a](https://github.com/tks18/pyquery/commit/cc20b5a628ec7b5fd6e1340cd4e7f9e1d3ea1cfc))
+* **backend/transforms:** refactor the transforms to processing folder ([96c5148](https://github.com/tks18/pyquery/commit/96c514838975a8dbca0911721ac7560a7bf7a3ef))
+* **backend/transforms:** update the registry to use the new module path ([1da3d29](https://github.com/tks18/pyquery/commit/1da3d29866fc1d7949ab5d13a1516faa683c11f1))
+* **frontend/app:** move the cleanup as part of the engine itself ([1633545](https://github.com/tks18/pyquery/commit/1633545f2572e3fb59d61dd7035d8b34692c0af5))
+* **frontend/components:** sql: use the new api, also add more info to the user ([88ba86b](https://github.com/tks18/pyquery/commit/88ba86b34fa387582832004d2b99d93ef921d22c))
+
+
+### Others 🔧
+
+* **pyversion:** update app to version 2.3.0 ([c544613](https://github.com/tks18/pyquery/commit/c544613d595304d6a81ccdde725fd34e9b205178))
+
 ## [2.2.0](https://github.com/tks18/pyquery/compare/v2.1.0...v2.2.0) (2025-12-31)
 
 

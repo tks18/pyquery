@@ -22,31 +22,31 @@ from pyquery_polars.core.params import (
 )
 
 # Import Transforms (Backend Logic)
-from pyquery_polars.backend.transforms.columns import (
+from pyquery_polars.backend.processing.transforms.columns import (
     select_cols_func, drop_cols_func, rename_col_func,
     keep_cols_func, add_col_func, clean_cast_func, promote_header_func,
     split_col_func, combine_cols_func, add_row_number_func,
     explode_func, coalesce_func, one_hot_encode_func
 )
-from pyquery_polars.backend.transforms.rows import (
+from pyquery_polars.backend.processing.transforms.rows import (
     filter_rows_func, sort_rows_func, deduplicate_func, sample_func, slice_rows_func,
     shift_func, drop_empty_rows_func, remove_outliers_func
 )
-from pyquery_polars.backend.transforms.combine import (
+from pyquery_polars.backend.processing.transforms.combine import (
     join_dataset_func, aggregate_func, window_func_func, reshape_func, concat_datasets_func
 )
-from pyquery_polars.backend.transforms.cleaning import (
+from pyquery_polars.backend.processing.transforms.cleaning import (
     fill_nulls_func, regex_extract_func, string_case_func, string_replace_func,
     drop_nulls_func, text_slice_func, text_length_func, string_pad_func,
     text_extract_delim_func, regex_tool_func,
     normalize_spaces_func, smart_extract_func,
     clean_text_func, mask_pii_func, auto_impute_func, check_bool_func
 )
-from pyquery_polars.backend.transforms.analytics import (
+from pyquery_polars.backend.processing.transforms.analytics import (
     time_bin_func, rolling_agg_func, numeric_bin_func, math_op_func, date_extract_func,
     cumulative_func, rank_func, diff_func, z_score_func, skew_kurt_func
 )
-from pyquery_polars.backend.transforms.scientific import (
+from pyquery_polars.backend.processing.transforms.scientific import (
     math_sci_func, clip_func, date_offset_func, date_diff_func
 )
 

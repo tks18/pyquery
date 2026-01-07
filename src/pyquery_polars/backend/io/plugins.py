@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, List, Optional, Union
 import polars as pl
 
-from pyquery_polars.backend.utils.io import get_files_from_path, load_lazy_frame, load_from_sql, load_from_api, export_worker
+from pyquery_polars.backend.io.files import get_files_from_path, load_lazy_frame, load_from_sql, load_from_api, export_worker
 from pyquery_polars.core.models import PluginDef
 from pyquery_polars.core.io_params import (
     FileLoaderParams, SqlLoaderParams, ApiLoaderParams,
@@ -19,13 +19,17 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
     if not files:
         return None
 
-    lf = load_lazy_frame(files, params.sheet)
-    if lf is None:
+    result = load_lazy_frame(files, params.sheet, params.process_individual)
+    if result is None:
         return None
 
-    # Metadata: Use directory of the first file
+    lf_or_lfs, metadata = result
+
+    # Enhance metadata with source_path
     source_path = os.path.dirname(os.path.abspath(files[0])) if files else None
-    return lf, {"source_path": source_path}
+    metadata["source_path"] = source_path
+
+    return lf_or_lfs, metadata
 
 
 LOADER_FILE = PluginDef(
