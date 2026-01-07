@@ -16,17 +16,34 @@ def main():
     run_parser = subparsers.add_parser(
         "run", help="Execute a recipe logic headless")
     run_parser.add_argument(
-        "--source", "-s", required=True, help="Input data file")
+        "--source", "-s", required=True, help="Input data file, connection string, or URL")
+    run_parser.add_argument(
+        "--type", default="file", choices=["file", "sql", "api"], help="Input type")
+    run_parser.add_argument(
+        "--sql-query", help="Query for SQL input")
+    run_parser.add_argument(
+        "--api-url", help="URL for API input (overrides source if provided)")
+    run_parser.add_argument(
+        "--sheet-name", "-S", default="Sheet1", help="Sheet name for Excel files")
     run_parser.add_argument(
         "--recipe", "-r", required=False, help="JSON recipe file")
     run_parser.add_argument(
         "--output", "-o", required=True, help="Output file path")
     run_parser.add_argument(
-        "--format", "-f", default="Parquet", help="Output format")
+        "--format", "-f", default="Parquet", help="Output format (Parquet, CSV, Excel, JSON, NDJSON, IPC, SQLite)")
+    run_parser.add_argument(
+        "--compression", help="Compression (snappy, zstd, gzip, lz4, uncompressed, brotli)")
+    run_parser.add_argument(
+        "--table", help="Table name for SQLite export")
+    run_parser.add_argument(
+        "--if-exists", default="replace", choices=["fail", "replace", "append"], help="Behavior if table exists (SQLite)")
     run_parser.add_argument(
         "--step", "-t", action="append", help="Inline transformation step (JSON string)")
     run_parser.add_argument(
         "--save-recipe", action="store_true", help="Save the executed recipe to JSON")
+    run_parser.add_argument(
+        "--process-individual", action="store_true", 
+        help="Process each file individually before concatenating (useful for folder inputs)")
 
     # 2. INTERACTIVE (TUI)
     subparsers.add_parser(
