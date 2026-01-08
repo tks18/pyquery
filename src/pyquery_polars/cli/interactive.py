@@ -118,43 +118,93 @@ def get_pydantic_input(model_cls: Type[BaseModel]) -> Dict[str, Any]:
 def load_data_flow():
     global active_dataset, active_dataset_path, recipe
     files = glob.glob("*.csv") + glob.glob("*.parquet") + glob.glob("*.xlsx")
-    if not files:
-        path = questionary.text("File Path:").ask()
+    
+    # Enhanced Selection Logic
+    choices = ["📂 Select Current Folder"] + files + ["Manual Path"]
+    sel = questionary.select(message="Select Source:", choices=choices).ask()
+    
+    final_path = ""
+    is_glob = False
+    
+    if sel == "📂 Select Current Folder":
+        pattern = questionary.text("Glob Pattern (e.g. *.csv):", default="*.csv").ask()
+        final_path = os.path.join(os.getcwd(), pattern)
+        is_glob = True
+    elif sel == "Manual Path":
+        p = questionary.text("File/Folder Path:").ask()
+        if os.path.isdir(p):
+            pattern = questionary.text("Glob Pattern (e.g. *.csv):", default="*.csv").ask()
+            final_path = os.path.join(p, pattern)
+            is_glob = True
+        else:
+            final_path = p
     else:
-        path = questionary.select(
-            message="Select File:", choices=files + ["Manual Path"]).ask()
-        if path == "Manual Path":
-            path = questionary.text("File Path:").ask()
+        # Selected a specific file
+        final_path = sel
 
-    if not path:
+    if not final_path:
         return
 
-    default_alias = os.path.basename(path).split('.')[0]
+    # Alias
+    default_alias = os.path.basename(final_path).split('.')[0]
+    if "*" in default_alias: # Fix for globs
+        default_alias = "dataset"
     if not default_alias:
         default_alias = "dataset"
 
     alias = questionary.text("Dataset Alias:", default=default_alias).ask()
     
-    # Check if it's a folder/glob pattern
+    # Process Individual
     process_individual = False
-    if "*" in path or os.path.isdir(path):
+    if "*" in final_path or is_glob:
         process_individual = questionary.confirm(
             "Process files individually before concatenating?",
             default=False
         ).ask()
         if process_individual:
-            console.print("[cyan]📁 Individual processing enabled: Each file will be processed separately[/cyan]")
+            console.print("[cyan]📁 Individual processing enabled[/cyan]")
     
-    params = FileLoaderParams(path=path, alias=alias, process_individual=process_individual)
+    # Excel Sheet Detection
+    sheet_name = "Sheet1"
+    lower_path = final_path.lower()
+    is_excel = ".xls" in lower_path
+    
+    if is_excel:
+        try:
+            sample_file = final_path
+            # If glob, resolve valid sample
+            if "*" in final_path:
+                matches = glob.glob(final_path)
+                if matches:
+                    sample_file = matches[0]
+                else:
+                    sample_file = None
+            
+            if sample_file and os.path.isfile(sample_file):
+                console.print(f"[dim]Scanning sheets in {os.path.basename(sample_file)}...[/dim]")
+                sheets = engine.get_file_sheet_names(sample_file)
+                if sheets and len(sheets) > 1:
+                    sheet_name = questionary.select("Select Sheet:", choices=sheets).ask()
+                elif sheets:
+                    sheet_name = sheets[0]
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not auto-detect sheets: {e}[/yellow]")
 
-    with console.status(f"Loading {path}..."):
+    params = FileLoaderParams(
+        path=final_path, 
+        alias=alias, 
+        process_individual=process_individual,
+        sheet=sheet_name
+    )
+
+    with console.status(f"Loading {final_path}..."):
         try:
             result = engine.run_loader("File", params)
             if result is not None:
                 lf, metadata = result if isinstance(result, tuple) else (result, {})
                 engine.add_dataset(alias, lf, metadata=metadata)
                 active_dataset = alias
-                active_dataset_path = path
+                active_dataset_path = final_path
                 recipe = []
                 
                 # Show file count if process_individual
@@ -238,7 +288,7 @@ def export_flow():
 
     fmt = questionary.select(
         "Format:", choices=["Parquet", "CSV", "Excel", "JSON", "Arrow"]).ask()
-    default_out = f"output.{fmt.lower().replace('arrow', 'ipc')}"
+    default_out = f"output.{fmt.lower().replace('arrow', 'ipc').replace('excel', 'xlsx')}"
     path = questionary.text("Output Path:", default=default_out).ask()
 
     params = {}

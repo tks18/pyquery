@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.3.1](https://github.com/tks18/pyquery/compare/v2.3.0...v2.3.1) (2026-01-08)
+
+
+### Features 🔥
+
+* **cli:** add a branding module to showcase the tool name, tagline ([64d40aa](https://github.com/tks18/pyquery/commit/64d40aa1935e37b8932e7b0b8e30cde133103ace))
+
+
+### Bug Fixes 🛠
+
+* **cli:** gracefully shutdown instead of giving error to the user, insert branding ([c7c17bd](https://github.com/tks18/pyquery/commit/c7c17bdc46c734bb753fa64525a4630d13fdf567))
+* **cli:** interactive: excel files not working previously due to no prompt for sheet names fixed ([5279307](https://github.com/tks18/pyquery/commit/527930753ed783230680dbb5fef8667caed97903))
+
+
+### Others 🔧
+
+* **pyversion:** update version to 2.3.1 ([1b76de6](https://github.com/tks18/pyquery/commit/1b76de65b722a72909439d3a8fc36a7cccf31e34))
+
 ## [2.3.0](https://github.com/tks18/pyquery/compare/v2.2.0...v2.3.0) (2026-01-07)
 
 
