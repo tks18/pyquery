@@ -5,9 +5,16 @@ import os
 
 from pyquery_polars.cli.headless import run_headless
 from pyquery_polars.cli.interactive import run_interactive
+from pyquery_polars.cli.branding import show_banner
 
 
 def main():
+    # Show Banner for all commands (Console Appeal)
+    try:
+        show_banner()
+    except Exception:
+        pass # Fallback if rich fails or unicode issues
+
     parser = argparse.ArgumentParser(description="Shan's PyQuery Platform CLI")
     subparsers = parser.add_subparsers(
         dest="command", help="Available subcommands")
@@ -80,7 +87,11 @@ def main():
         cmd = ["uvicorn", target, "--port", str(args.port)]
         if args.reload:
             cmd.append("--reload")
-        subprocess.run(cmd)
+        try:
+            subprocess.run(cmd)
+        except KeyboardInterrupt:
+            print("\n🛑 API Server stopped.")
+            sys.exit(0)
 
     elif args.command == "ui":
         print(f"🌊 Launching Streamlit on port {args.port}...")
@@ -94,7 +105,11 @@ def main():
             sys.exit(1)
 
         cmd = ["streamlit", "run", app_path, "--server.port", str(args.port)]
-        subprocess.run(cmd)
+        try:
+            subprocess.run(cmd)
+        except KeyboardInterrupt:
+            print("\n🛑 Streamlit Server stopped.")
+            sys.exit(0)
 
     else:
         parser.print_help()
