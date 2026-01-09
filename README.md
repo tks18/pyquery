@@ -84,14 +84,6 @@ Every time PyQuery boots, it behaves like a data OS coming online.
 - It doesn’t say “loading”…  
   It **declares intent**.
 
-### 🧠 Hardware Awareness
-
-- On boot, PyQuery scans and displays:
-  - CPU cores & threads
-  - OS & architecture
-- Not for flex. For **optimization**.
-- The engine adapts execution strategy based on what your machine can actually handle.
-
 Your terminal doesn’t just start PyQuery.  
 It **witnesses it**.
 
@@ -101,17 +93,16 @@ It **witnesses it**.
 
 We don't usually punch down, but you asked for it.
 
-| Feature                | ⚡ **PyQuery** (The Chad)                                      | 🐢 **Power Query** (The Virgin)                                             |
-| ---------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **Speed**              | **Rust-Powered.** Processes millions of rows before you blink. | **Single-Threaded.** Spends 20 mins saying "Loading Data..." just to crash. |
-| **Language**           | **Python/SQL/Polars.** The languages of gods.                  | **M-Code.** A language invented to punish humanity.                         |
-| **AI/ML**              | **Built-in.** Random Forests, Clustering, & Monte Carlo Sims.  | **Non-existent.** You need a generic "AI Plugin" that costs extra.          |
-| **Vibe**               | **Dark Mode CLI & Streamlit.** Cyberpunk aesthetic.            | **Corporate Grey.** It sucks the soul out of your body.                     |
-| **Price**              | **Free & Open Source.**                                        | **Requires an Office 365 License** (Subscription L).                        |
-| **Boot Experience**    | **Cinematic CLI with Themes & Logs**                           | **Static Spinner of Doom**                                                  |
-| **Broken CSVs**        | **Auto-healed at ingest**                                      | **Crashes silently**                                                        |
-| **One Bad File**       | **Isolated & corrected**                                       | **Pipeline dead**                                                           |
-| **Hardware Awareness** | **Adapts to your machine**                                     | **Pretends cores don’t exist**                                              |
+| Feature             | ⚡ **PyQuery** (The Chad)                                      | 🐢 **Power Query** (The Virgin)                                             |
+| ------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Speed**           | **Rust-Powered.** Processes millions of rows before you blink. | **Single-Threaded.** Spends 20 mins saying "Loading Data..." just to crash. |
+| **Language**        | **Python/SQL/Polars.** The languages of gods.                  | **M-Code.** A language invented to punish humanity.                         |
+| **AI/ML**           | **Built-in.** Random Forests, Clustering, & Monte Carlo Sims.  | **Non-existent.** You need a generic "AI Plugin" that costs extra.          |
+| **Vibe**            | **Dark Mode CLI & Streamlit.** Cyberpunk aesthetic.            | **Corporate Grey.** It sucks the soul out of your body.                     |
+| **Price**           | **Free & Open Source.**                                        | **Requires an Office 365 License** (Subscription L).                        |
+| **Boot Experience** | **Cinematic CLI with Themes & Logs**                           | **Static Spinner of Doom**                                                  |
+| **Broken CSVs**     | **Auto-healed at ingest**                                      | **Crashes silently**                                                        |
+| **One Bad File**    | **Isolated & corrected**                                       | **Pipeline dead**                                                           |
 
 ---
 
