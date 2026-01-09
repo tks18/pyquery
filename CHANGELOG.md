@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.3.2](https://github.com/tks18/pyquery/compare/v2.3.1...v2.3.2) (2026-01-09)
+
+
+### Build System 🏗
+
+* add chardet package for fixing csv encoding issues ([4180530](https://github.com/tks18/pyquery/commit/4180530b773871c6e4bb1a5ca799e0d33c8f965d))
+
+
+### Features 🔥
+
+* **backend/io:** now the backend supports multiple csv encoding formats ([84b3791](https://github.com/tks18/pyquery/commit/84b3791828641992c220780e5311597ef0287839))
+* **cli/branding:** update the branding to show a cool OS Like bootup sequence ([fa9cfed](https://github.com/tks18/pyquery/commit/fa9cfed55b995bd6eb93701593a6d1f74ca0736f))
+
+
+### Docs 📃
+
+* **readme:** update the vibes in the readme to reflect recent character changes ([f16ef11](https://github.com/tks18/pyquery/commit/f16ef11e5d676810589cddd0c10384b8ad11aa66))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.3.2 ([1a4f050](https://github.com/tks18/pyquery/commit/1a4f05009c68c75a16b05d382bb9d256025a0045))
+
 ### [2.3.1](https://github.com/tks18/pyquery/compare/v2.3.0...v2.3.1) (2026-01-08)
 
 
