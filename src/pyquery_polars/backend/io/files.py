@@ -5,6 +5,7 @@ import shutil
 import uuid
 import polars as pl
 import connectorx as cx
+import chardet
 import fastexcel
 import tempfile
 import time
@@ -84,6 +85,34 @@ def get_excel_sheet_names(file_path: str) -> List[str]:
         return ["Sheet1"]
 
 
+
+def detect_encoding(file_path: str, n_bytes: int = 10000) -> str:
+    """
+    Detect the encoding of a file using chardet.
+    Defaults to 'utf8' if detection fails or chardet is not installed.
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            rawdata = f.read(n_bytes)
+        result = chardet.detect(rawdata)
+        encoding = result['encoding']
+        confidence = result['confidence']
+        
+        # If confidence is low or None, stick to default
+        if not encoding or (confidence and confidence < 0.5):
+            return 'utf8'
+            
+        # Polars expects 'utf8' not 'utf-8' sometimes, but 'utf8' is safe alias
+        # Common fix: 'ascii' -> 'utf8'
+        if encoding.lower() == 'ascii':
+            return 'utf8'
+            
+        return encoding
+    except (ImportError, Exception) as e:
+        # Fallback to UTF-8 if chardet is missing or fails
+        return 'utf8'
+
+
 def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_individual: bool = False) -> Optional[tuple]:
     """
     Load files into LazyFrame(s).
@@ -105,11 +134,24 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
 
     # OPTIMIZATION: Try Bulk Scan for homogeneous files
     # Polars supports list of files for scan_csv, scan_parquet, scan_ipc, scan_ndjson
-    # This is much faster than iterative concat.
     if len(exts) == 1 and not process_individual:
         try:
             if ext == ".csv":
-                lf = pl.scan_csv(files, infer_schema_length=0)
+                # Detect encoding for ALL files to ensure homogeneity
+                # If encodings differ, we must fallback to iterative loading
+                detected_encodings = set()
+                for f in files:
+                    detected_encodings.add(detect_encoding(f))
+                
+                if len(detected_encodings) > 1:
+                    # Mixed encodings detected (e.g. {'utf8', 'windows-1252'})
+                    # Cannot use bulk scan_csv with single encoding.
+                    raise ValueError(f"Mixed encodings detected: {detected_encodings}")
+                
+                # Single encoding confirmed
+                common_encoding = detected_encodings.pop()
+                
+                lf = pl.scan_csv(files, infer_schema_length=0, encoding=common_encoding)
                 metadata = {
                     "input_type": "folder" if len(files) > 1 else "file",
                     "input_format": ext,
@@ -153,7 +195,8 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
         file_ext = os.path.splitext(f)[1].lower()
         try:
             if file_ext == ".csv":
-                lfs.append(pl.scan_csv(f, infer_schema_length=0))
+                encoding = detect_encoding(f)
+                lfs.append(pl.scan_csv(f, infer_schema_length=0, encoding=encoding))
             elif file_ext == ".parquet":
                 lfs.append(pl.scan_parquet(f))
             elif file_ext in [".arrow", ".ipc", ".feather"]:
