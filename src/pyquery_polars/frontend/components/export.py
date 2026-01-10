@@ -1,6 +1,7 @@
 from typing import cast
 import streamlit as st
 import copy
+import pandas as pd
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.io_schemas import get_exporter_schema
@@ -170,8 +171,22 @@ def render_export_section(dataset_name):  # Takes name
                             dur = elapsed
 
                         size = getattr(job_info, 'size_str', "Unknown")
+                        
+                        # SUCCESS MESSAGE
                         status_placeholder.success(
-                            f"✅ Export Complete! Time: {dur:.2f}s | Size: {size}")
+                            f"✅ Export Complete! Time: {dur:.2f}s | Total Size: {size}")
+                        
+                        # DETAILED FILE LIST
+                        details = getattr(job_info, 'file_details', None)
+                        if details:
+                            with st.expander("📄 Exported Files Details", expanded=True):
+                                # Convert to DataFrame for pretty display
+                                df_details = pd.DataFrame(details)
+                                if not df_details.empty:
+                                    # Select and Rename cols
+                                    df_display = df_details[['name', 'size', 'path']]
+                                    df_display.columns = ['Filename', 'Size', 'Full Path']
+                                    st.dataframe(df_display, width="stretch", hide_index=True)
                         break
                     elif status == "FAILED":
                         err_msg = getattr(
