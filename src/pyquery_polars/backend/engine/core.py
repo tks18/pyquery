@@ -323,16 +323,43 @@ class PyQueryEngine:
     def start_export_job(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
                          exporter_name: str, params: Union[Dict[str, Any], BaseModel],
                          project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> str:
-        # Pre-compute the LazyFrame with recipe applied (handles individual processing)
-        precomputed_lf = self.get_dataset_for_export(dataset_name, recipe, project_recipes)
+        
+        # Check for Individual Export Mode
+        export_individual = False
+        if isinstance(params, dict):
+            export_individual = params.get("export_individual", False)
+        else:
+            export_individual = getattr(params, "export_individual", False)
+
+        precomputed: Any = None
+
+        if export_individual:
+            # 1. Get Base LFs List
+            meta = self._datasets.get(dataset_name)
+            if meta and meta.base_lfs:
+                # 2. Apply Recipe to EACH
+                ctx = self._get_datasets_dict_for_execution()
+                lfs_list = []
+                for lf in meta.base_lfs:
+                    # Apply recipe to individual file LF
+                    # Note: We share the same context (joined datasets are full)
+                    processed = execution.apply_recipe(lf, recipe, ctx, project_recipes)
+                    lfs_list.append(processed)
+                precomputed = lfs_list
+            else:
+                # Fallback if no list available
+                precomputed = self.get_dataset_for_export(dataset_name, recipe, project_recipes)
+        else:
+            # Standard Single Export
+            precomputed = self.get_dataset_for_export(dataset_name, recipe, project_recipes)
         
         return self._job_manager.start_export_job(
             dataset_name, 
             [],  # Empty recipe since we've already applied it
             exporter_name, 
             params, 
-            project_recipes=None,  # Don't re-apply
-            precomputed_lf=precomputed_lf
+            project_recipes=None,
+            precomputed_lf=precomputed
         )
 
     def get_job_status(self, job_id: str) -> Optional[JobInfo]:
