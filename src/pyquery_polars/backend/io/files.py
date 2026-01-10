@@ -86,7 +86,6 @@ def get_excel_sheet_names(file_path: str) -> List[str]:
         return ["Sheet1"]
 
 
-
 def detect_encoding(file_path: str, n_bytes: int = 10000) -> str:
     """
     Detect the encoding of a file using chardet.
@@ -98,16 +97,16 @@ def detect_encoding(file_path: str, n_bytes: int = 10000) -> str:
         result = chardet.detect(rawdata)
         encoding = result['encoding']
         confidence = result['confidence']
-        
+
         # If confidence is low or None, stick to default
         if not encoding or (confidence and confidence < 0.5):
             return 'utf8'
-            
+
         # Polars expects 'utf8' not 'utf-8' sometimes, but 'utf8' is safe alias
         # Common fix: 'ascii' -> 'utf8'
         if encoding.lower() == 'ascii':
             return 'utf8'
-            
+
         return encoding
     except (ImportError, Exception) as e:
         # Fallback to UTF-8 if chardet is missing or fails
@@ -144,16 +143,18 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
                 detected_encodings = set()
                 for f in files:
                     detected_encodings.add(detect_encoding(f))
-                
+
                 if len(detected_encodings) > 1:
                     # Mixed encodings detected (e.g. {'utf8', 'windows-1252'})
                     # Cannot use bulk scan_csv with single encoding.
-                    raise ValueError(f"Mixed encodings detected: {detected_encodings}")
-                
+                    raise ValueError(
+                        f"Mixed encodings detected: {detected_encodings}")
+
                 # Single encoding confirmed
                 common_encoding = detected_encodings.pop()
-                
-                lf = pl.scan_csv(files, infer_schema_length=0, encoding=common_encoding)
+
+                lf = pl.scan_csv(files, infer_schema_length=0,
+                                 encoding=common_encoding)
                 metadata = {
                     "input_type": "folder" if len(files) > 1 else "file",
                     "input_format": ext,
@@ -199,7 +200,8 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
             current_lf = None
             if file_ext == ".csv":
                 encoding = detect_encoding(f)
-                current_lf = pl.scan_csv(f, infer_schema_length=0, encoding=encoding)
+                current_lf = pl.scan_csv(
+                    f, infer_schema_length=0, encoding=encoding)  # type: ignore
             elif file_ext == ".parquet":
                 current_lf = pl.scan_parquet(f)
             elif file_ext in [".arrow", ".ipc", ".feather"]:
@@ -228,22 +230,22 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
 
             elif file_ext == ".json":
                 current_lf = pl.scan_ndjson(f, infer_schema_length=0)
-            
+
             # --- SOURCE INFO INJECTION ---
             if current_lf is not None and include_source_info:
                 abs_path = os.path.abspath(f)
                 name = os.path.basename(f)
                 ext_val = os.path.splitext(f)[1]
-                
+
                 current_lf = current_lf.with_columns([
                     pl.lit(abs_path).alias("__pyquery_source_path__"),
                     pl.lit(name).alias("__pyquery_source_name__"),
                     pl.lit(ext_val).alias("__pyquery_source_ext__")
                 ])
-            
+
             if current_lf is not None:
                 lfs.append(current_lf)
-                
+
         except Exception as e:
             print(f"Error loading {f}: {e}")
 
@@ -330,17 +332,17 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
         if isinstance(lazy_frame, list):
             # Iterate and export each
             import copy
-            
+
             # Decompose path: "folder/data.csv" -> "folder/data" + ".csv"
             p_root, p_ext = os.path.splitext(base_path)
-            
+
             total_files = len(lazy_frame)
             all_file_details = []
-            
+
             for i, lf in enumerate(lazy_frame):
                 # Construct sub-path
                 sub_path = f"{p_root}_{i}{p_ext}"
-                
+
                 # Clone params to override path
                 if isinstance(params, dict):
                     sub_params = params.copy()
@@ -350,15 +352,16 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
                     sub_params = params.model_copy()
                     # Safe set (handling frozen?) usually Pydantic models aren't frozen unless specified
                     setattr(sub_params, 'path', sub_path)
-                
+
                 # Recursive call (safe because we pass single LF)
                 # We use a dummy container to catch potential errors per file
                 dummy_res = {}
                 export_worker(lf, sub_params, fmt, dummy_res)
-                
+
                 if str(dummy_res.get('status', '')).startswith("Error"):
-                    raise RuntimeError(f"File {i} failed: {dummy_res['status']}")
-                
+                    raise RuntimeError(
+                        f"File {i} failed: {dummy_res['status']}")
+
                 if 'file_details' in dummy_res and dummy_res['file_details']:
                     all_file_details.extend(dummy_res['file_details'])
 
@@ -366,7 +369,7 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
             result_container['size_str'] = f"{total_files} files"
             result_container['file_details'] = all_file_details
             return
-            
+
         # --- SINGLE FILE EXPORT ---
         # Re-assign for clarity
         path = base_path
@@ -431,7 +434,7 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
                 size_str = f"{size_bytes / 1024:.2f} KB"
             else:
                 size_str = f"{size_mb:.2f} MB"
-        
+
         result_container['status'] = "Done"
         result_container['file_details'] = [{
             "name": os.path.basename(path),
