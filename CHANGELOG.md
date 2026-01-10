@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.3.3](https://github.com/tks18/pyquery/compare/v2.3.2...v2.3.3) (2026-01-10)
+
+
+### Docs 📃
+
+* **readme:** update readme ([023b069](https://github.com/tks18/pyquery/commit/023b06976ed5b828a3fcf765f951c83a80a244e9))
+
+
+### Code Refactoring 🖌
+
+* **backend/io_plugin:** update function signature for load_lazy_frame ([48672a7](https://github.com/tks18/pyquery/commit/48672a748d24c3c91d9b4ca5433b185b9588d751))
+
+
+### Features 🔥
+
+* **backend/core:** in case of folders and process individually, add option for users to export sep ([642d719](https://github.com/tks18/pyquery/commit/642d7192d3a35246092c933edead72535d8d0835))
+* **backend/io:** add new functionality to add source metadata to the lazyframes if reqd ([0d7f527](https://github.com/tks18/pyquery/commit/0d7f52766067cccd6902f838a5380b69e543cdbf))
+* **backend/io:** add new functionality to export worker to support list of lazyframes ([1007f26](https://github.com/tks18/pyquery/commit/1007f265140d7f164452ec4ac0f9d2377f49970c))
+* **backend/io:** add source metadata to the metadata dict ([67a8491](https://github.com/tks18/pyquery/commit/67a8491f7ca918c7c3b467ea3823854d2d9134d8))
+* **backend/jobs:** add more information related to export (also support export indiv.) ([bca3557](https://github.com/tks18/pyquery/commit/bca3557806deb58069bc745a38f986b84bb729db))
+* **backend/transforms:** update add_row_number func to support different options ([a944b93](https://github.com/tks18/pyquery/commit/a944b93a118f1128345c4df478f43b7175760827))
+* **backend/transforms:** update the promote_header function to include / exclude few cols ([19e6ec8](https://github.com/tks18/pyquery/commit/19e6ec84f8d929ab9a55ce2b4736dd9fabf4c9a4))
+* **cli/branding:** update branding to be the global helper for all logging across all cli's ([a6bde21](https://github.com/tks18/pyquery/commit/a6bde214a3ecfcf2c71902c15f7f898290e3744a))
+* **cli/headless:** update to add new functionalities, use new brand logger ([f38fd1b](https://github.com/tks18/pyquery/commit/f38fd1b60d91a5a6a221b6f60a0fdd8338abba32))
+* **cli/interactive:** completely revamp the interactive cli to become more intelligent ([86dd42d](https://github.com/tks18/pyquery/commit/86dd42d9bfd7501613619def2b09db2900faee8d))
+* **cli/interactive:** update interactive to use new brand logger, also add support for new funcs ([e8f0e41](https://github.com/tks18/pyquery/commit/e8f0e418807fc5676264e6eed99b605b96a37666))
+* **cli/main:** use new brand logger, also add args for new functionalities ([fe849dc](https://github.com/tks18/pyquery/commit/fe849dc4c237f745e02e6b7ece7893bb43f69425))
+* **core/models:** add metadata param for export job ([1d25f89](https://github.com/tks18/pyquery/commit/1d25f89e29f03c2d63cb3111b949176207c8ecd7))
+* **frontend/components:** export: allow support for multi-export in case process_individual is on ([855ccf9](https://github.com/tks18/pyquery/commit/855ccf9c749fdd9e93fe47f0648b52a1b5226410))
+* **frontend/components:** now export shows more information about the exported file ([26c91ea](https://github.com/tks18/pyquery/commit/26c91ea701a8369beffb0038868d8d275c039d2e))
+* **frontend/components:** sidebar: add multiple functionalities ([c32bdf0](https://github.com/tks18/pyquery/commit/c32bdf00d634b4f2f1654b1c3eb172b9e9c0c121))
+* **frontend/steps:** update row_number function to support new options and functionalities ([19e20a2](https://github.com/tks18/pyquery/commit/19e20a2f27f66c24865b5af6ff92f303af8d56b6))
+* **frontend/steps:** update the promote header to include new options allowed ([3e2f0d0](https://github.com/tks18/pyquery/commit/3e2f0d040c1507b3fb4bf4771faf78ba9ced9caa))
+* **frontend/utils:** update dynamic_ui renderer to support excluding few field names when rendering ([042337b](https://github.com/tks18/pyquery/commit/042337be566835f388b61de97421fbd8ea3e25d6))
+* **models:** update add_row_number model to include different options ([1b5a93c](https://github.com/tks18/pyquery/commit/1b5a93c992a9442eb352da6b90874aaf8969873e))
+* **models:** update io_params to include source_info param for input and export_individual for exp ([15e4626](https://github.com/tks18/pyquery/commit/15e46263ceadecec0cd4c3b9c9fa43b54fe7ff23))
+* **models:** update promote_header model to include new options ([f4a9443](https://github.com/tks18/pyquery/commit/f4a94432e5d13b5158dedef69bd9f3cb0c605129))
+
+
+### Styling 🎨
+
+* **backend/io:** linter changes ([7520680](https://github.com/tks18/pyquery/commit/7520680d99b039bb0129f897e4060e0d455f37f7))
+* **cli:** linter fix ([fc5ed42](https://github.com/tks18/pyquery/commit/fc5ed42f04d1503aa995e8394d47b0b6abd8547a))
+* **frontend/steps:** linter formatting ([1839e26](https://github.com/tks18/pyquery/commit/1839e261329900d1497f67368051c6510fb7379a))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.3.3 ([3f47502](https://github.com/tks18/pyquery/commit/3f475026d17e9db31364785c3744b643bf336b1c))
+
 ### [2.3.2](https://github.com/tks18/pyquery/compare/v2.3.1...v2.3.2) (2026-01-09)
 
 

@@ -88,10 +88,10 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
 
     # --- AUTO DETECT SECTION ---
     res_key = f"ad_res_{step_id}"
-    
+
     # Auto-expand if we have results pending
     with st.expander("✨ Auto Detect Types", expanded=(res_key in st.session_state)):
-        
+
         # TYPE MAP
         TYPE_ACTION_MAP = {
             "Int64": "To Int",
@@ -104,15 +104,17 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
         if res_key not in st.session_state:
             # --- PHASE 1: SELECTION ---
             c_ad1, c_ad2 = st.columns([0.7, 0.3])
-            ad_cols = c_ad1.multiselect("Inspect Columns", current_cols, default=[], key=f"ad_c_{step_id}")
-            sample_sz = c_ad2.number_input("Sample Size", 100, 1000, 500, step=50, key=f"ad_sz_{step_id}")
-            
+            ad_cols = c_ad1.multiselect(
+                "Inspect Columns", current_cols, default=[], key=f"ad_c_{step_id}")
+            sample_sz = c_ad2.number_input(
+                "Sample Size", 100, 1000, 500, step=50, key=f"ad_sz_{step_id}")
+
             if st.button("🔍 Analyze", key=f"btn_ad_{step_id}", help="Infer types from sample data"):
                 from pyquery_polars.backend.engine import PyQueryEngine
                 engine = cast(PyQueryEngine, st.session_state.get('engine'))
                 active_ds = st.session_state.get("active_base_dataset")
                 steps = st.session_state.get("recipe_steps", [])
-                
+
                 # Slice recipe up to this step
                 partial_recipe = []
                 for s in steps:
@@ -123,25 +125,27 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
                 if engine and active_ds:
                     with st.spinner("Analyzing..."):
                         inferred = engine.infer_types(
-                            active_ds, 
-                            partial_recipe, 
-                            project_recipes=st.session_state.get("all_recipes"),
-                            columns=ad_cols, 
+                            active_ds,
+                            partial_recipe,
+                            project_recipes=st.session_state.get(
+                                "all_recipes"),
+                            columns=ad_cols,
                             sample_size=sample_sz
                         )
-                    
+
                     if inferred:
                         st.session_state[res_key] = inferred
                         st.rerun()
                     else:
                         st.warning("No new types detected.")
-                        
+
         else:
             # --- PHASE 2: PROPOSAL ---
             inferred = st.session_state[res_key]
-            
-            st.info(f"⚡ Detected **{len(inferred)}** potential changes. Review and edit before applying:")
-            
+
+            st.info(
+                f"⚡ Detected **{len(inferred)}** potential changes. Review and edit before applying:")
+
             # Full Action Options
             ALL_CAST_ACTIONS = [
                 "To String",
@@ -160,8 +164,9 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
             preview_data = []
             for col, dtype in inferred.items():
                 action = TYPE_ACTION_MAP.get(dtype, "Unknown")
-                preview_data.append({"Column": col, "Detected": dtype, "Proposed Action": action})
-            
+                preview_data.append(
+                    {"Column": col, "Detected": dtype, "Proposed Action": action})
+
             # Editable Dataframe
             edited_data = st.data_editor(
                 preview_data,
@@ -179,33 +184,35 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
                 hide_index=True,
                 key=f"ad_editor_{step_id}"
             )
-            
+
             c_yes, c_no = st.columns([1, 1])
-            
+
             if c_yes.button("✅ Confirm & Apply", type="primary", key=f"ad_y_{step_id}"):
                 new_changes = []
-                
+
                 # Parse Edited Data
                 # Fallback to handle List[Dict] or DataFrame
-                rows = edited_data if isinstance(edited_data, list) else edited_data.to_dict('records')
+                rows = edited_data if isinstance(
+                    edited_data, list) else edited_data.to_dict('records')
 
                 for row in rows:
                     col = row.get("Column")
                     action = row.get("Proposed Action")
-                    
+
                     if col and action and action != "Unknown":
                         new_changes.append(CastChange(col=col, action=action))
-                
+
                 # Merge logic
                 changing_cols = {c.col for c in new_changes}
-                kept_changes = [c for c in params.changes if c.col not in changing_cols]
+                kept_changes = [
+                    c for c in params.changes if c.col not in changing_cols]
                 params.changes = kept_changes + new_changes
-                
+
                 # Cleanup
                 del st.session_state[res_key]
                 st.success("Applied!")
                 # Rerun implicitly via return params
-                
+
             if c_no.button("❌ Discard", key=f"ad_n_{step_id}"):
                 del st.session_state[res_key]
                 st.rerun()
@@ -282,7 +289,28 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
 
 
 def render_promote_header(step_id: str, params: PromoteHeaderParams, schema: Optional[pl.Schema]) -> PromoteHeaderParams:
-    st.info("ℹ️ This step will take the **first row** of the dataset, use its values as column headers, and then remove that row.")
+    st.info("ℹ️ Uses the **first row** as headers and removes it. Use options below to limit which columns get renamed.")
+
+    current_cols = schema.names() if schema else []
+
+    c1, c2 = st.columns(2)
+
+    # 1. Include List
+    default_inc = [c for c in params.include_cols if c in current_cols]
+    inc = c1.multiselect("Include Cols (Only rename these)",
+                         current_cols, default=default_inc, key=f"ph_inc_{step_id}")
+
+    # 2. Exclude List
+    # Filter out already selected includes to avoid confusion (UI logic only)
+    avail_exc = [c for c in current_cols if c not in inc]
+    default_exc = [c for c in params.exclude_cols if c in avail_exc]
+
+    exc = c2.multiselect("Exclude Cols (Rename all except)",
+                         avail_exc, default=default_exc, key=f"ph_exc_{step_id}")
+
+    params.include_cols = inc
+    params.exclude_cols = exc
+
     return params
 
 
@@ -326,9 +354,52 @@ def render_combine_cols(step_id: str, params: CombineColsParams, schema: Optiona
 
 
 def render_add_row_number(step_id: str, params: AddRowNumberParams, schema: Optional[pl.Schema]) -> AddRowNumberParams:
-    name = st.text_input("Index Column Name",
-                         value=params.name, key=f"rn_n_{step_id}")
+    def _update_cb():
+        name = st.session_state.get(f"rn_n_{step_id}", "row_nr")
+        mode = st.session_state.get(f"rn_m_{step_id}", "Simple")
+
+        p = {
+            "name": name,
+            "mode": mode,
+            "start": 1,
+            "step": 1,
+            "options": ""
+        }
+
+        if mode == "Custom":
+            p["start"] = st.session_state.get(f"rn_s_{step_id}", 1)
+            p["step"] = st.session_state.get(f"rn_st_{step_id}", 1)
+        elif mode == "Alternating":
+            p["options"] = st.session_state.get(f"rn_o_{step_id}", "")
+
+        from pyquery_polars.frontend.state_manager import update_step_params
+        update_step_params(step_id, p)
+
+    c1, c2 = st.columns(2)
+    name = c1.text_input("Index Column Name",
+                         value=params.name, key=f"rn_n_{step_id}", on_change=_update_cb)
+
+    mode = c2.selectbox("Mode", ["Simple", "Custom", "Alternating"],
+                        index=["Simple", "Custom", "Alternating"].index(params.mode) if params.mode in [
+        "Simple", "Custom", "Alternating"] else 0,
+        key=f"rn_m_{step_id}", on_change=_update_cb)
+
+    if mode == "Custom":
+        c_i1, c_i2 = st.columns(2)
+        start = c_i1.number_input("Start", value=int(
+            params.start), key=f"rn_s_{step_id}", on_change=_update_cb)
+        step = c_i2.number_input("Step", value=int(
+            params.step), key=f"rn_st_{step_id}", on_change=_update_cb)
+        params.start = start
+        params.step = step
+
+    elif mode == "Alternating":
+        opts = st.text_input("Values (comma separated)", value=params.options,
+                             key=f"rn_o_{step_id}", on_change=_update_cb, placeholder="Option A, Option B")
+        params.options = opts
+
     params.name = name
+    params.mode = mode  # type: ignore
     return params
 
 

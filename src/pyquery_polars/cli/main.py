@@ -5,7 +5,7 @@ import os
 
 from pyquery_polars.cli.headless import run_headless
 from pyquery_polars.cli.interactive import run_interactive
-from pyquery_polars.cli.branding import show_banner
+from pyquery_polars.cli.branding import show_banner, log_step, log_error, log_success, init_logging
 
 
 def main():
@@ -51,6 +51,12 @@ def main():
     run_parser.add_argument(
         "--process-individual", action="store_true", 
         help="Process each file individually before concatenating (useful for folder inputs)")
+    run_parser.add_argument(
+        "--include-source-info", action="store_true",
+        help="Add source metadata columns (__pyquery_source_name__, etc.)")
+    run_parser.add_argument(
+        "--export-individual", action="store_true",
+        help="Export results as separate files (requires --process-individual)")
 
     # 2. INTERACTIVE (TUI)
     subparsers.add_parser(
@@ -81,7 +87,8 @@ def main():
         run_interactive()
 
     elif args.command == "api":
-        print(f"🚀 Launching API on port {args.port}...")
+        init_logging()
+        log_step(f"Launching API on port {args.port}...", module="UVICORN", icon="🚀")
 
         target = "pyquery_polars.api.main:app"
         cmd = ["uvicorn", target, "--port", str(args.port)]
@@ -90,25 +97,26 @@ def main():
         try:
             subprocess.run(cmd)
         except KeyboardInterrupt:
-            print("\n🛑 API Server stopped.")
+            log_step("API Server stopped.", module="Shutdown", icon="🛑")
             sys.exit(0)
 
     elif args.command == "ui":
-        print(f"🌊 Launching Streamlit on port {args.port}...")
+        init_logging()
+        log_step(f"Launching Streamlit on port {args.port}...", module="WEB-UI", icon="🌊")
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         app_path = os.path.join(os.path.dirname(
             current_dir), "frontend", "app.py")
 
         if not os.path.exists(app_path):
-            print(f"❌ Error: Could not find frontend app at {app_path}")
+            log_error("Frontend App Not Found", f"Path: {app_path}")
             sys.exit(1)
 
         cmd = ["streamlit", "run", app_path, "--server.port", str(args.port)]
         try:
             subprocess.run(cmd)
         except KeyboardInterrupt:
-            print("\n🛑 Streamlit Server stopped.")
+            log_step("Streamlit Server stopped.", module="Shutdown", icon="🛑")
             sys.exit(0)
 
     else:

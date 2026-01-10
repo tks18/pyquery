@@ -1,6 +1,6 @@
 [project]
 name = "pyquery-polars"
-version = "2.3.2"
+version = "2.3.3"
 description = "Enterprise-grade Headless ETL Engine with Interactive UI"
 authors = [
   { name="Shan", email="tksudharshan@gmail.com" },

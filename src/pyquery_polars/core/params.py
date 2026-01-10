@@ -229,7 +229,8 @@ class SliceRowsParams(BaseModel):
 
 
 class PromoteHeaderParams(BaseModel):
-    pass
+    include_cols: List[str] = Field(default_factory=list)
+    exclude_cols: List[str] = Field(default_factory=list)
 
 
 class SplitColParams(BaseModel):
@@ -246,6 +247,10 @@ class CombineColsParams(BaseModel):
 
 class AddRowNumberParams(BaseModel):
     name: str = "row_nr"
+    mode: Literal["Simple", "Custom", "Alternating"] = "Simple"
+    start: int = 1
+    step: int = 1
+    options: str = ""
 
 
 class ExplodeParams(BaseModel):

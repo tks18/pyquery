@@ -19,7 +19,7 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
     if not files:
         return None
 
-    result = load_lazy_frame(files, params.sheet, params.process_individual)
+    result = load_lazy_frame(files, params.sheet, params.process_individual, params.include_source_info)
     if result is None:
         return None
 
@@ -72,7 +72,7 @@ LOADER_API = PluginDef(
 # --- EXPORTERS ---
 
 
-def exporter_generic_func(lf: pl.LazyFrame, params: Any, fmt: str) -> Dict[str, Any]:
+def exporter_generic_func(lf: Union[pl.LazyFrame, List[pl.LazyFrame]], params: Any, fmt: str) -> Dict[str, Any]:
     # params is a Pydantic Model (ParquetExportParams, etc.)
     # All have .path
     path = getattr(params, 'path', '')

@@ -4,10 +4,11 @@ import random
 import platform
 import os
 import textwrap
-from typing import Tuple
+from typing import Optional, Tuple, List, Dict, Any
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+from rich.table import Table
 from importlib.metadata import version
 
 console = Console()
@@ -113,7 +114,7 @@ THEMED_SEQUENCES = [
 
     {
         "name": "CHILL MODE // EFFORTLESS FLEX",
-        "start_color": (135, 206, 235), # Sky Blue
+        "start_color": (135, 206, 235),  # Sky Blue
         "end_color": (255, 192, 203),   # Pink
         "border_style": "blue",
         "steps": [
@@ -200,6 +201,80 @@ THEMED_SEQUENCES = [
     }
 ]
 
+# --- UNIFIED LOGGING HELPERS ---
+START_TIME = time.time()
+ACTIVE_THEME = None
+
+
+def get_current_theme():
+    global ACTIVE_THEME
+    if ACTIVE_THEME is None:
+        ACTIVE_THEME = random.choice(THEMED_SEQUENCES)
+    return ACTIVE_THEME
+
+
+def init_logging():
+    """Initialize the logging timer and theme."""
+    global START_TIME, ACTIVE_THEME
+    START_TIME = time.time()
+    if ACTIVE_THEME is None:
+        ACTIVE_THEME = random.choice(THEMED_SEQUENCES)
+
+
+def log_step(message: str, module: str = "SYSTEM", icon: str = "•", style: Optional[str] = None):
+    """
+    Log a step with a timestamp and module tag.
+    Style defaults to the active theme's primary color if not specified.
+    """
+    theme = get_current_theme()
+    final_style = style if style is not None else theme["border_style"]
+
+    elapsed = time.time() - START_TIME
+    console.print(
+        f"[dim] [ {elapsed:.3f}s ][/dim] "
+        f"[bold {final_style}] [ {module.center(9)} ][/bold {final_style}] "
+        f"{icon}  {message}"
+    )
+
+
+def log_error(message: str, details: str = ""):
+    """Log an error message."""
+    console.print(f"[bold red]❌ {message}[/bold red]")
+    if details:
+        console.print(f"[dim red]   {details}[/dim red]")
+
+
+def log_success(message: str):
+    """Log a success message."""
+    elapsed = time.time() - START_TIME
+    console.print(
+        f"\n[bold green] ➤ {message} ({elapsed:.3f}s)[/bold green]\n")
+
+
+def log_table(items: List[Dict[str, Any]], title: str = "Details"):
+    """
+    Log a generic table of items. 
+    items: List of dicts, keys become columns.
+    """
+    if not items:
+        return
+
+    theme = get_current_theme()
+    header_style = f"bold {theme['border_style']}"
+
+    table = Table(show_header=True, header_style=header_style, title=title)
+
+    # Infer columns from first item
+    columns = list(items[0].keys())
+    for col in columns:
+        table.add_column(col.replace("_", " ").title(), style="cyan")
+
+    for item in items:
+        row = [str(item.get(col, "")) for col in columns]
+        table.add_row(*row)
+
+    console.print(table)
+
 
 def gradient_text(text: str, start_color: Tuple[int, int, int], end_color: Tuple[int, int, int]) -> Text:
     """Generate a text object with a linear gradient."""
@@ -207,7 +282,7 @@ def gradient_text(text: str, start_color: Tuple[int, int, int], end_color: Tuple
     result = Text()
     lines = text.split("\n")
     steps = len(lines)
-    
+
     for i, line in enumerate(lines):
         t = i / max(steps - 1, 1)
         r = int(start_color[0] + (end_color[0] - start_color[0]) * t)
@@ -216,6 +291,7 @@ def gradient_text(text: str, start_color: Tuple[int, int, int], end_color: Tuple
         color = f"rgb({r},{g},{b})"
         result.append(line + "\n", style=color)
     return result
+
 
 def get_hardware_nfo():
     """Get catchy hardware info."""
@@ -226,16 +302,17 @@ def get_hardware_nfo():
     except:
         return "Quantum System / Infinite Cores"
 
+
 def show_banner():
     # 1. Clear screen
     console.clear()
-    
+
     # Get Version
     try:
         v = version("pyquery-polars")
     except:
         v = "dev"
-    
+
     # 2. Cool ASCII Art (Block Style with Manual Tail Fix on Q)
     # I added a little tail on the last line of Q
     ascii_art = """
@@ -248,23 +325,28 @@ def show_banner():
     """
     # Remove python indentation padding
     ascii_art = textwrap.dedent(ascii_art).strip()
-    
+
     # 3. Randomize Experience (Theme Based)
     tagline = random.choice(TAGLINES)
+    # Set Global Theme
+    global ACTIVE_THEME
     theme = random.choice(THEMED_SEQUENCES)
+    ACTIVE_THEME = theme
+
     steps = theme["steps"]
-    
+
     # 4. Display Banner FIRST
     # Use Theme Colors for Gradient
-    title_text = gradient_text(ascii_art, theme["start_color"], theme["end_color"])
+    title_text = gradient_text(
+        ascii_art, theme["start_color"], theme["end_color"])
     subtitle = Text(tagline, style="italic white")
-    
+
     content = Text.assemble(
         title_text,
         "\n",
         subtitle
     )
-    
+
     panel = Panel(
         content,
         border_style=theme["border_style"],
@@ -272,7 +354,7 @@ def show_banner():
         subtitle=f"[dim]v{v}[/dim] [bold {theme['border_style']}] // {theme['name']} Mode[/]",
         padding=(1, 2)
     )
-    
+
     console.print(panel)
     console.print("\n")
 
@@ -280,49 +362,61 @@ def show_banner():
     t0 = time.time()
     for i, step in enumerate(steps):
         time.sleep(random.uniform(0.05, 0.15))
-        
+
         # Fake "Module" based on content keywords or random
         module = "SYSTEM"
-        color = theme["border_style"] # Use theme color for modules
+        color = theme["border_style"]  # Use theme color for modules
         icon = "✓"
-        
+
         lower_step = step.lower()
-        if "quantum" in lower_step or "core" in lower_step: 
-            module = "KERNEL"; icon = "⚡"
-        elif "data" in lower_step or "memory" in lower_step: 
-            module = "MEMORY"; icon = "💾"
-        elif "optimizi" in lower_step: 
-            module = "OPTIMIZER"; icon = "🚀"
-        elif "mount" in lower_step: 
-            module = "I/O"; icon = "�"
+        if "quantum" in lower_step or "core" in lower_step:
+            module = "KERNEL"
+            icon = "⚡"
+        elif "data" in lower_step or "memory" in lower_step:
+            module = "MEMORY"
+            icon = "💾"
+        elif "optimizi" in lower_step:
+            module = "OPTIMIZER"
+            icon = "🚀"
+        elif "mount" in lower_step:
+            module = "I/O"
+            icon = "�"
         elif "rust" in lower_step:
-            module = "SAFE_MODE"; icon = "🦀"
+            module = "SAFE_MODE"
+            icon = "🦀"
         elif "excel" in lower_step or "shred" in lower_step:
-            module = "PURGE"; icon = "�"
+            module = "PURGE"
+            icon = "�"
         elif "hack" in lower_step or "bypass" in lower_step:
-            module = "EXPLOIT"; icon = "💀"
+            module = "EXPLOIT"
+            icon = "💀"
         elif "summ" in lower_step or "banis" in lower_step:
-            module = "ARCANE"; icon = "🔮"
+            module = "ARCANE"
+            icon = "🔮"
         elif "vibing" in lower_step:
-             module = "MOOD"; icon = "🎵"
-        
+            module = "MOOD"
+            icon = "🎵"
+
         elapsed = time.time() - t0
-        
+
         # Format: [ 0.120s ] [ KERNEL ] ⚡ Message...
         console.print(
             f"[dim] [ {elapsed:.3f}s ][/dim] "
             f"[bold {color}] [ {module.center(9)} ][/bold {color}] "
             f"{icon}  {step}"
         )
-    
+
     # 6. Hardware Stats Highlight
     hw_info = get_hardware_nfo()
     time.sleep(0.1)
-    console.print(f"[dim] [ {time.time()-t0:.3f}s ][/dim] [bold white] [ DETECTED  ] [/bold white] 💻  {hw_info}")
+    console.print(
+        f"[dim] [ {time.time()-t0:.3f}s ][/dim] [bold white] [ DETECTED  ] [/bold white] 💻  {hw_info}")
 
     time.sleep(0.2)
-    console.print(f"\n[bold green] ➤ SYSTEM ONLINE ({time.time() - t0:.3f}s)[/bold green]\n")
+    console.print(
+        f"\n[bold green] ➤ SYSTEM ONLINE ({time.time() - t0:.3f}s)[/bold green]\n")
     time.sleep(0.3)
+
 
 if __name__ == "__main__":
     show_banner()
