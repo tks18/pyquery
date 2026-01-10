@@ -354,9 +354,52 @@ def render_combine_cols(step_id: str, params: CombineColsParams, schema: Optiona
 
 
 def render_add_row_number(step_id: str, params: AddRowNumberParams, schema: Optional[pl.Schema]) -> AddRowNumberParams:
-    name = st.text_input("Index Column Name",
-                         value=params.name, key=f"rn_n_{step_id}")
+    def _update_cb():
+        name = st.session_state.get(f"rn_n_{step_id}", "row_nr")
+        mode = st.session_state.get(f"rn_m_{step_id}", "Simple")
+
+        p = {
+            "name": name,
+            "mode": mode,
+            "start": 1,
+            "step": 1,
+            "options": ""
+        }
+
+        if mode == "Custom":
+            p["start"] = st.session_state.get(f"rn_s_{step_id}", 1)
+            p["step"] = st.session_state.get(f"rn_st_{step_id}", 1)
+        elif mode == "Alternating":
+            p["options"] = st.session_state.get(f"rn_o_{step_id}", "")
+
+        from pyquery_polars.frontend.state_manager import update_step_params
+        update_step_params(step_id, p)
+
+    c1, c2 = st.columns(2)
+    name = c1.text_input("Index Column Name",
+                         value=params.name, key=f"rn_n_{step_id}", on_change=_update_cb)
+
+    mode = c2.selectbox("Mode", ["Simple", "Custom", "Alternating"],
+                        index=["Simple", "Custom", "Alternating"].index(params.mode) if params.mode in [
+        "Simple", "Custom", "Alternating"] else 0,
+        key=f"rn_m_{step_id}", on_change=_update_cb)
+
+    if mode == "Custom":
+        c_i1, c_i2 = st.columns(2)
+        start = c_i1.number_input("Start", value=int(
+            params.start), key=f"rn_s_{step_id}", on_change=_update_cb)
+        step = c_i2.number_input("Step", value=int(
+            params.step), key=f"rn_st_{step_id}", on_change=_update_cb)
+        params.start = start
+        params.step = step
+
+    elif mode == "Alternating":
+        opts = st.text_input("Values (comma separated)", value=params.options,
+                             key=f"rn_o_{step_id}", on_change=_update_cb, placeholder="Option A, Option B")
+        params.options = opts
+
     params.name = name
+    params.mode = mode  # type: ignore
     return params
 
 
