@@ -4,7 +4,7 @@ import glob
 import uuid
 import time
 import json
-from typing import Dict, Any, Type, List, get_args, get_origin, Optional
+from typing import Dict, Any, Type, List, get_args, get_origin, Optional, cast, Union
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
@@ -400,7 +400,6 @@ def add_transform_flow():
     console.print(f"[bold]Configure {step_label}[/bold]")
 
     # FETCH COLUMNS FOR INTELLIGENT INPUT
-    from typing import cast, Union
     recipe_for_engine = cast(List[Union[Dict[str, Any], RecipeStep]], recipe)
 
     available_columns = None
@@ -433,7 +432,6 @@ def preview_flow():
     if not active_dataset:
         console.print("[yellow]Load a dataset first![/yellow]")
         return
-    from typing import cast, Union
     recipe_for_engine = cast(List[Union[Dict[str, Any], RecipeStep]], recipe)
 
     with console.status("Running Preview..."):
@@ -504,7 +502,6 @@ def export_flow():
         params = IpcExportParams(
             path=path, export_individual=export_individual)
 
-    from typing import cast, Union
     recipe_for_engine = cast(List[Union[Dict[str, Any], RecipeStep]], recipe)
 
     log_step(f"Starting Export to {path}...", module="EXPORT", icon="🚀")
@@ -609,7 +606,6 @@ def save_recipe_flow():
         return
 
     try:
-        from typing import cast, Union
         recipe_for_engine = cast(
             List[Union[Dict[str, Any], RecipeStep]], recipe)
 
