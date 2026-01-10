@@ -66,6 +66,7 @@ class JobInfo(BaseModel):
     size_str: str = "Unknown"
     error: Optional[str] = None
     file: str
+    file_details: Optional[List[Dict[str, Any]]] = None
 
 
 class TransformContext(BaseModel):
