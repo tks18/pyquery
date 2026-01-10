@@ -6,18 +6,26 @@ from pyquery_polars.core.models import IOSchemaField
 def render_schema_fields(schema: List[IOSchemaField], key_prefix: str, columns: int = 1,
                          override_options: Optional[Dict[str,
                                                          List[Any]]] = None,
-                         on_change_handlers: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                         on_change_handlers: Optional[Dict[str, Any]] = None,
+                         exclude: Optional[List[str]] = None) -> Dict[str, Any]:
     """
     Renders Streamlit widgets based on a UI Schema list.
     Returns a dictionary of parameter values.
     override_options: Dict mapping field names to list of options (forces selectbox)
     on_change_handlers: Dict mapping field names to callables (or None for simple st.rerun if implied)
+    exclude: List of field names to skip rendering
     """
     params = {}
 
     cols = st.columns(columns) if columns > 1 else None
 
     for i, field in enumerate(schema):
+        fname = field.name
+        
+        # EXCLUDE CHECK
+        if exclude and fname in exclude:
+            continue
+
         if cols:
             col = cols[i % columns]
         else:
@@ -25,7 +33,6 @@ def render_schema_fields(schema: List[IOSchemaField], key_prefix: str, columns: 
 
         ftype = field.type
         flabel = field.label
-        fname = field.name
         fdef = field.default
         fplace = field.placeholder
 
