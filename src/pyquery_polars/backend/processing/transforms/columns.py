@@ -127,8 +127,20 @@ def promote_header_func(lf: pl.LazyFrame, params: "PromoteHeaderParams", context
 
         # 2. Get new column names from the first row values
         new_cols = []
+        name_counts = {}
+
         for val in first_row_df.row(0):
-            new_cols.append(str(val) if val is not None else "col_null")
+            raw_name = str(val) if val is not None else "col_null"
+
+            # Deduplicate
+            if raw_name in name_counts:
+                name_counts[raw_name] += 1
+                final_name = f"{raw_name}_{name_counts[raw_name]}"
+            else:
+                name_counts[raw_name] = 0
+                final_name = raw_name
+
+            new_cols.append(final_name)
 
         # 3. Rename columns
         old_cols = lf.collect_schema().names()
@@ -136,9 +148,23 @@ def promote_header_func(lf: pl.LazyFrame, params: "PromoteHeaderParams", context
         # Mapping
         rename_map = {}
         for old, new in zip(old_cols, new_cols):
-            rename_map[old] = new
+            # Check Filtering
+            should_rename = True
+
+            # If include list exists, must be in it
+            if params.include_cols and old not in params.include_cols:
+                should_rename = False
+
+            # If exclude list exists, must NOT be in it
+            if params.exclude_cols and old in params.exclude_cols:
+                should_rename = False
+
+            if should_rename:
+                # Polars rename: {old_name: new_name}
+                rename_map[old] = new
 
         # 4. Apply rename and Remove first row
+        # Note: We slice(1) regardless, as the row is consumed as header source
         return lf.rename(rename_map).slice(1)
 
     except Exception:
