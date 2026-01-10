@@ -9,9 +9,8 @@ from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
 import questionary
-from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
@@ -20,9 +19,9 @@ from pyquery_polars.core.io_params import (
     FileLoaderParams, ParquetExportParams, CsvExportParams,
     ExcelExportParams, JsonExportParams, IpcExportParams
 )
+from pyquery_polars.cli.branding import init_logging, log_step, log_error, log_success, log_table, console
 
 # Initialize
-console = Console()
 engine = PyQueryEngine()
 
 # State
@@ -74,9 +73,6 @@ def get_pydantic_input(model_cls: Type[BaseModel], available_columns: Optional[L
 
         args = get_args(outer_type)
         origin = get_origin(outer_type)
-
-        # Debugging
-        # console.print(f"[dim]Field: {field_name}, Type: {outer_type}, Origin: {origin}[/dim]")
 
         # INTELLIGENT COLUMN SELECTION
         is_col_field = field_name in COLUMN_FIELDS
@@ -260,9 +256,16 @@ def load_data_flow():
             is_glob = True
         else:
             final_path = p
+            # Infer pattern from manual input
+            base = os.path.basename(p)
+            if "*" in base:
+                pattern = base
+            else:
+                pattern = base  # Specific file
     else:
         # Selected a specific file
         final_path = sel
+        pattern = os.path.basename(sel)
 
     if not final_path:
         return
@@ -293,7 +296,8 @@ def load_data_flow():
             default=False
         ).ask()
         if process_individual:
-            console.print("[cyan]📁 Individual processing enabled[/cyan]")
+            log_step("Individual processing enabled",
+                     module="CONFIG", icon="📁")
 
     # Source Metadata
     include_source_info = questionary.confirm(
@@ -359,14 +363,14 @@ def load_data_flow():
                 # Show file count if process_individual
                 if metadata.get("process_individual", False):
                     file_count = metadata.get("file_count", 1)
-                    console.print(
-                        f"[green]Loaded {alias}! ({file_count} files, individual processing)[/green]")
+                    log_success(
+                        f"Loaded {alias}! ({file_count} files, individual processing)")
                 else:
-                    console.print(f"[green]Loaded {alias}![/green]")
+                    log_success(f"Loaded {alias}!")
             else:
-                console.print("[red]Failed to load file.[/red]")
+                log_error("Failed to load file.")
         except Exception as e:
-            console.print(f"[red]Error loading file: {e}[/red]")
+            log_error("Error loading file", str(e))
 
 
 def add_transform_flow():
@@ -420,9 +424,9 @@ def add_transform_flow():
 
         recipe.append(RecipeStep(id=str(uuid.uuid4()), type=sid,
                       label=step_label, params=inputs))
-        console.print("[green]Step Added![/green]")
+        log_success("Step Added!")
     except Exception as e:
-        console.print(f"[red]Error configuring step: {e}[/red]")
+        log_error("Error configuring step", str(e))
 
 
 def preview_flow():
@@ -445,9 +449,9 @@ def preview_flow():
                     table.add_row(*[str(x) for x in row])
                 console.print(table)
             else:
-                console.print("[red]Preview Failed (None returned)[/red]")
+                log_error("Preview Failed (None returned)")
         except Exception as e:
-            console.print(f"[red]Preview Error: {e}[/red]")
+            log_error("Preview Error", str(e))
 
 
 def export_flow():
@@ -503,7 +507,7 @@ def export_flow():
     from typing import cast, Union
     recipe_for_engine = cast(List[Union[Dict[str, Any], RecipeStep]], recipe)
 
-    console.print(f"🚀 Starting Export to {path}...")
+    log_step(f"Starting Export to {path}...", module="EXPORT", icon="🚀")
     try:
         job_id = engine.start_export_job(
             active_dataset, recipe_for_engine, exporter_name, params)
@@ -516,17 +520,19 @@ def export_flow():
                     continue
 
                 if info.status == "COMPLETED":
-                    console.print(
-                        f"[green]✅ Export Complete! Size: {info.size_str}[/green]")
+                    log_success(f"Export Complete! Size: {info.size_str}")
+                    if info.file_details:
+                        log_table(info.file_details,
+                                  title="Exported Artifacts")
                     break
                 elif info.status == "FAILED":
-                    console.print(f"[red]❌ Export Failed: {info.error}[/red]")
+                    log_error("Export Failed", info.error or "Unknown Error")
                     break
                 else:
                     time.sleep(0.1)
 
     except Exception as e:
-        console.print(f"[red]Export Error: {e}[/red]")
+        log_error("Export Error", str(e))
 
 
 def manage_recipe_flow():
@@ -621,17 +627,19 @@ def save_recipe_flow():
         recipe_filename = f"{base_name}-shan-pyquery-{unique_id}.json"
         recipe_path = os.path.join(source_dir, recipe_filename)
 
-        console.print(f"💾 Saving recipe to {recipe_path}...")
+        log_step(f"Saving recipe to {recipe_path}...",
+                 module="ARTIFACT", icon="💾")
         with open(recipe_path, 'w') as f:
             json.dump(recipe_data, f, indent=2)
 
-        console.print(f"[green]✅ Recipe Saved![/green]")
+        log_success("Recipe Saved!")
 
     except Exception as e:
-        console.print(f"[red]Failed to save recipe: {e}[/red]")
+        log_error("Failed to save recipe", str(e))
 
 
 def run_interactive():
+    init_logging()
     print_header()
     while True:
         status = f"Active: {active_dataset} ({len(recipe)} steps)" if active_dataset else "No Data Loaded"
