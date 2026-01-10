@@ -289,7 +289,28 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
 
 
 def render_promote_header(step_id: str, params: PromoteHeaderParams, schema: Optional[pl.Schema]) -> PromoteHeaderParams:
-    st.info("ℹ️ This step will take the **first row** of the dataset, use its values as column headers, and then remove that row.")
+    st.info("ℹ️ Uses the **first row** as headers and removes it. Use options below to limit which columns get renamed.")
+
+    current_cols = schema.names() if schema else []
+
+    c1, c2 = st.columns(2)
+
+    # 1. Include List
+    default_inc = [c for c in params.include_cols if c in current_cols]
+    inc = c1.multiselect("Include Cols (Only rename these)",
+                         current_cols, default=default_inc, key=f"ph_inc_{step_id}")
+
+    # 2. Exclude List
+    # Filter out already selected includes to avoid confusion (UI logic only)
+    avail_exc = [c for c in current_cols if c not in inc]
+    default_exc = [c for c in params.exclude_cols if c in avail_exc]
+
+    exc = c2.multiselect("Exclude Cols (Rename all except)",
+                         avail_exc, default=default_exc, key=f"ph_exc_{step_id}")
+
+    params.include_cols = inc
+    params.exclude_cols = exc
+
     return params
 
 
