@@ -256,7 +256,8 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
         "input_format": ext,
         "file_list": files,
         "file_count": len(files),
-        "process_individual": process_individual
+        "process_individual": process_individual,
+        "source_info_included": include_source_info
     }
 
     # Decision: Return list or concatenated
