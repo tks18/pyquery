@@ -22,7 +22,7 @@ class JobManager:
     def start_export_job(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
                          exporter_name: str, params: Union[Dict[str, Any], BaseModel],
                          project_recipes: Optional[Dict[str, List[RecipeStep]]] = None,
-                         precomputed_lf: Optional[pl.LazyFrame] = None) -> str:
+                         precomputed_lf: Optional[Union[pl.LazyFrame, List[pl.LazyFrame]]] = None) -> str:
         job_id = str(uuid.uuid4())
         exporter = self._exporters.get(exporter_name)
         if not exporter:
@@ -73,26 +73,46 @@ class JobManager:
                     base_lf, recipe, project_recipes)
 
             exporter = self._exporters.get(exporter_name)
+            export_result = {}
             if exporter and exporter.func:
-                exporter.func(final_lf, params)
+                # Exporter returns Dict with status/size_str
+                res = exporter.func(final_lf, params)
+                if isinstance(res, dict):
+                    export_result = res
 
             end_time = time.time()
             duration = end_time - start_time
 
             info = self._jobs[job_id]
             info.duration = duration
-            info.status = "COMPLETED"
+            
+            # Status handling
+            if export_result.get('status') == 'Done':
+                info.status = "COMPLETED"
+            elif str(export_result.get('status', '')).startswith('Error'):
+                info.status = "FAILED"
+                info.error = export_result.get('status')
+            else:
+                info.status = "COMPLETED"
 
             # Size check
-            path = None
-            if hasattr(params, 'path'):
-                path = getattr(params, 'path')
-            elif isinstance(params, dict):
-                path = params.get('path')
+            if export_result.get('size_str'):
+                info.size_str = export_result.get('size_str')
+            else:
+                # Fallback to single file check
+                path = None
+                if hasattr(params, 'path'):
+                    path = getattr(params, 'path')
+                elif isinstance(params, dict):
+                    path = params.get('path')
 
-            if path and os.path.exists(path):
-                size_bytes = os.path.getsize(path)
-                info.size_str = f"{size_bytes / 1024 / 1024:.2f} MB"
+                if path and os.path.exists(path):
+                    size_bytes = os.path.getsize(path)
+                    info.size_str = f"{size_bytes / 1024 / 1024:.2f} MB"
+
+            # File Details
+            if export_result.get('file_details'):
+                info.file_details = export_result.get('file_details')
 
         except Exception as e:
             if job_id in self._jobs:
