@@ -246,6 +246,10 @@ class CombineColsParams(BaseModel):
 
 class AddRowNumberParams(BaseModel):
     name: str = "row_nr"
+    mode: Literal["Simple", "Custom", "Alternating"] = "Simple"
+    start: int = 1
+    step: int = 1
+    options: str = ""
 
 
 class ExplodeParams(BaseModel):
