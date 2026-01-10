@@ -1,3 +1,4 @@
+from typing import Union
 import os
 import glob
 import requests
@@ -113,7 +114,7 @@ def detect_encoding(file_path: str, n_bytes: int = 10000) -> str:
         return 'utf8'
 
 
-def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_individual: bool = False) -> Optional[tuple]:
+def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_individual: bool = False, include_source_info: bool = False) -> Optional[tuple]:
     """
     Load files into LazyFrame(s).
 
@@ -134,7 +135,8 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
 
     # OPTIMIZATION: Try Bulk Scan for homogeneous files
     # Polars supports list of files for scan_csv, scan_parquet, scan_ipc, scan_ndjson
-    if len(exts) == 1 and not process_individual:
+    # BUT: If include_source_info is True, we force Iterative to reliably add columns per file
+    if len(exts) == 1 and not process_individual and not include_source_info:
         try:
             if ext == ".csv":
                 # Detect encoding for ALL files to ensure homogeneity
@@ -189,18 +191,19 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
         except Exception as e:
             print(f"Bulk scan error, falling back to iterative: {e}")
 
-    # Fallback: Iterative (Mixed types or Excel or process_individual)
+    # Fallback: Iterative (Mixed types or Excel or process_individual OR include_source_info)
     lfs = []
     for f in files:
         file_ext = os.path.splitext(f)[1].lower()
         try:
+            current_lf = None
             if file_ext == ".csv":
                 encoding = detect_encoding(f)
-                lfs.append(pl.scan_csv(f, infer_schema_length=0, encoding=encoding))
+                current_lf = pl.scan_csv(f, infer_schema_length=0, encoding=encoding)
             elif file_ext == ".parquet":
-                lfs.append(pl.scan_parquet(f))
+                current_lf = pl.scan_parquet(f)
             elif file_ext in [".arrow", ".ipc", ".feather"]:
-                lfs.append(pl.scan_ipc(f))
+                current_lf = pl.scan_ipc(f)
             elif file_ext in [".xlsx", ".xls"]:
                 # Dump to Parquet
                 # Excel is eager-only.
@@ -218,13 +221,29 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
                     df.write_parquet(stage_path)
                     del df
 
-                    lfs.append(pl.scan_parquet(stage_path))
+                    current_lf = pl.scan_parquet(stage_path)
 
                 except Exception as ex:
                     print(f"Excel Load Error {f}: {ex}")
 
             elif file_ext == ".json":
-                lfs.append(pl.scan_ndjson(f, infer_schema_length=0))
+                current_lf = pl.scan_ndjson(f, infer_schema_length=0)
+            
+            # --- SOURCE INFO INJECTION ---
+            if current_lf is not None and include_source_info:
+                abs_path = os.path.abspath(f)
+                name = os.path.basename(f)
+                ext_val = os.path.splitext(f)[1]
+                
+                current_lf = current_lf.with_columns([
+                    pl.lit(abs_path).alias("__pyquery_source_path__"),
+                    pl.lit(name).alias("__pyquery_source_name__"),
+                    pl.lit(ext_val).alias("__pyquery_source_ext__")
+                ])
+            
+            if current_lf is not None:
+                lfs.append(current_lf)
+                
         except Exception as e:
             print(f"Error loading {f}: {e}")
 
