@@ -75,8 +75,22 @@ def render_export_section(dataset_name):  # Takes name
         c2.button("📂", key=f"btn_browse_{selected_exporter_name}", 
                  on_click=on_pick_folder, args=(folder_key,), help="Pick Folder", width="stretch")
         
+        # CHECKBOX: Export Individual (Prominent Placement)
+        exp_ind = False
+        meta = engine.get_dataset_metadata(dataset_name)
+        if meta and meta.get("process_individual") and meta.get("input_type") == "folder":
+             exp_ind = st.checkbox(
+                 "📂 Export as Separate Files", 
+                 value=False,
+                 help="Apply recipe to each source file individually.",
+                 key=f"exp_{selected_exporter_name}_individual"
+             )
+             if exp_ind:
+                 st.info("Each source file will be exported with the prefix defined below.")
+        
         # Filename Input
-        filename_val = st.text_input("Filename", key=filename_key)
+        fname_label = "Filename Prefix" if exp_ind else "Filename"
+        filename_val = st.text_input(fname_label, key=filename_key)
 
         # Format Extension Logic
         ext = ".parquet" if selected_exporter_name == "Parquet" else f".{selected_exporter_name.lower()}"
@@ -84,8 +98,15 @@ def render_export_section(dataset_name):  # Takes name
         if selected_exporter_name == "Excel": ext = ".xlsx"
         
         # Preview
-        full_path = os.path.join(folder_path, f"{filename_val}{ext}")
-        st.caption(f"📝 **Target:** `{full_path}`")
+        if exp_ind:
+             full_path = os.path.join(folder_path, f"{filename_val}_*{ext}")
+             st.caption(f"📝 **Target Pattern:** `{full_path}`")
+             # Real path for backend (backend handles splitting)
+             full_path_backend = os.path.join(folder_path, f"{filename_val}{ext}")
+        else:
+             full_path = os.path.join(folder_path, f"{filename_val}{ext}")
+             full_path_backend = full_path
+             st.caption(f"📝 **Target:** `{full_path}`")
         
         st.divider()
 
@@ -97,7 +118,9 @@ def render_export_section(dataset_name):  # Takes name
         )
         
         # Injection
-        params["path"] = full_path
+        params["path"] = full_path_backend
+        if exp_ind:
+            params["export_individual"] = True
 
         if st.button("Export Start", type="primary", key=f"btn_start_exp_{selected_exporter_name}"):
             final_params = params
