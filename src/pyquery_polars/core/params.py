@@ -229,7 +229,8 @@ class SliceRowsParams(BaseModel):
 
 
 class PromoteHeaderParams(BaseModel):
-    pass
+    include_cols: List[str] = Field(default_factory=list)
+    exclude_cols: List[str] = Field(default_factory=list)
 
 
 class SplitColParams(BaseModel):
