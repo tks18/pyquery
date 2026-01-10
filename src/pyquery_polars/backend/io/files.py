@@ -315,13 +315,61 @@ def load_from_api(url: str) -> Optional[pl.LazyFrame]:
         return None
 
 
-def export_worker(lazy_frame: pl.LazyFrame, params: Any, fmt: str, result_container: Dict[str, Any]):
+def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: Any, fmt: str, result_container: Dict[str, Any]):
     try:
         # Extract path safely from params (Dict or Pydantic)
-        path = params.get('path') if isinstance(
+        base_path = params.get('path') if isinstance(
             params, dict) else getattr(params, 'path', None)
-        if not path:
+        if not base_path:
             raise ValueError("Output path not specified")
+
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(base_path), exist_ok=True)
+
+        # --- RECURSIVE HANDLE LIST (Individual Files) ---
+        if isinstance(lazy_frame, list):
+            # Iterate and export each
+            import copy
+            
+            # Decompose path: "folder/data.csv" -> "folder/data" + ".csv"
+            p_root, p_ext = os.path.splitext(base_path)
+            
+            total_files = len(lazy_frame)
+            all_file_details = []
+            
+            for i, lf in enumerate(lazy_frame):
+                # Construct sub-path
+                sub_path = f"{p_root}_{i}{p_ext}"
+                
+                # Clone params to override path
+                if isinstance(params, dict):
+                    sub_params = params.copy()
+                    sub_params['path'] = sub_path
+                else:
+                    # Pydantic copy
+                    sub_params = params.model_copy()
+                    # Safe set (handling frozen?) usually Pydantic models aren't frozen unless specified
+                    setattr(sub_params, 'path', sub_path)
+                
+                # Recursive call (safe because we pass single LF)
+                # We use a dummy container to catch potential errors per file
+                dummy_res = {}
+                export_worker(lf, sub_params, fmt, dummy_res)
+                
+                if str(dummy_res.get('status', '')).startswith("Error"):
+                    raise RuntimeError(f"File {i} failed: {dummy_res['status']}")
+                
+                if 'file_details' in dummy_res and dummy_res['file_details']:
+                    all_file_details.extend(dummy_res['file_details'])
+
+            result_container['status'] = "Done"
+            result_container['size_str'] = f"{total_files} files"
+            result_container['file_details'] = all_file_details
+            return
+            
+        # --- SINGLE FILE EXPORT ---
+        # Re-assign for clarity
+        path = base_path
 
         # OPTIMIZATION: Use Streaming Sinks where possible
         if fmt == "CSV":
@@ -374,6 +422,21 @@ def export_worker(lazy_frame: pl.LazyFrame, params: Any, fmt: str, result_contai
             df.write_database(table_name=table, connection=uri,
                               if_table_exists=valid_if_exists, engine="sqlalchemy")
 
+        # --- FINAL METADATA ---
+        size_str = "Unknown"
+        if os.path.exists(path):
+            size_bytes = os.path.getsize(path)
+            size_mb = size_bytes / 1024 / 1024
+            if size_mb < 1:
+                size_str = f"{size_bytes / 1024:.2f} KB"
+            else:
+                size_str = f"{size_mb:.2f} MB"
+        
         result_container['status'] = "Done"
+        result_container['file_details'] = [{
+            "name": os.path.basename(path),
+            "path": path,
+            "size": size_str
+        }]
     except Exception as e:
         result_container['status'] = f"Error: {e}"
