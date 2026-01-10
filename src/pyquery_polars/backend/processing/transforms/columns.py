@@ -173,7 +173,47 @@ def combine_cols_func(lf: pl.LazyFrame, params: "CombineColsParams", context: Op
 def add_row_number_func(lf: pl.LazyFrame, params: "AddRowNumberParams", context: Optional[TransformContext] = None) -> pl.LazyFrame:
     if not params.name:
         return lf
-    return lf.with_row_index(params.name)
+
+    try:
+        if params.mode == "Simple":
+            # Just standard row index, usually 0-based
+            return lf.with_row_index(params.name)
+
+        elif params.mode == "Custom":
+            # Start and Step
+            # Use raw row index (0..N) then transform: val = index * step + start
+            # temp col needed to avoid collision if name already exists (though alias overwrites)
+            tmp_idx = f"__tmp_idx_{params.name}"
+            return lf.with_row_index(tmp_idx).with_columns(
+                (pl.col(tmp_idx) * params.step +
+                 params.start).cast(pl.Int64).alias(params.name)
+            ).drop(tmp_idx)
+
+        elif params.mode == "Alternating":
+            opts = [x.strip() for x in params.options.split(",") if x.strip()]
+            if not opts:
+                return lf.with_row_index(params.name)
+
+            n_opts = len(opts)
+            tmp_idx = f"__tmp_idx_alt_{params.name}"
+
+            # Generate 0..N index
+            return lf.with_row_index(tmp_idx).with_columns(
+                # Modolo to get 0..k-1
+                (pl.col(tmp_idx) % n_opts).alias(tmp_idx)
+            ).with_columns(
+                # Map integers to strings
+                pl.col(tmp_idx).replace(
+                    {i: opt for i, opt in enumerate(opts)},
+                    default=None
+                ).alias(params.name)
+            ).drop(tmp_idx)
+
+    except Exception:
+        # Fallback to simple if something breaks
+        return lf.with_row_index(params.name)
+
+    return lf
 
 
 def explode_func(lf: pl.LazyFrame, params: ExplodeParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
