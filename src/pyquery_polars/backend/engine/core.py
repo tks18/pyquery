@@ -60,12 +60,12 @@ class PyQueryEngine:
     # ==========================
     # DATASET MANAGEMENT
     # ==========================
-    def add_dataset(self, name: str, lf_or_lfs: Union[pl.LazyFrame, List[pl.LazyFrame]], 
+    def add_dataset(self, name: str, lf_or_lfs: Union[pl.LazyFrame, List[pl.LazyFrame]],
                     metadata: Optional[Dict[str, Any]] = None):
         """Add a dataset with comprehensive metadata."""
         if metadata is None:
             metadata = {}
-        
+
         # Create DatasetMetadata object
         ds_meta = DatasetMetadata(
             source_path=metadata.get("source_path"),
@@ -75,7 +75,7 @@ class PyQueryEngine:
             file_list=metadata.get("file_list"),
             file_count=metadata.get("file_count", 1)
         )
-        
+
         # Handle LazyFrame vs List[LazyFrame]
         if isinstance(lf_or_lfs, list):
             ds_meta.base_lfs = lf_or_lfs
@@ -86,9 +86,9 @@ class PyQueryEngine:
             ds_meta.base_lf = lf_or_lfs
             ds_meta.base_lfs = None
             concat_lf = lf_or_lfs
-        
+
         self._datasets[name] = ds_meta
-        
+
         # Register with SQL context
         try:
             self._sql_context.register(name, concat_lf)
@@ -108,14 +108,14 @@ class PyQueryEngine:
         meta = self._datasets.get(name)
         if meta is None:
             return None
-        
+
         # Return appropriate LazyFrame
         if meta.base_lf is not None:
             return meta.base_lf
         elif meta.base_lfs is not None and len(meta.base_lfs) > 0:
             # For preview with process_individual, return first file only
             return meta.base_lfs[0]
-        
+
         return None
 
     def get_dataset_metadata(self, name: str) -> Dict[str, Any]:
@@ -123,7 +123,7 @@ class PyQueryEngine:
         meta = self._datasets.get(name)
         if meta is None:
             return {}
-        
+
         # Convert to dict, excluding LazyFrames
         return {
             "source_path": meta.source_path,
@@ -133,7 +133,7 @@ class PyQueryEngine:
             "file_list": meta.file_list,
             "file_count": meta.file_count
         }
-    
+
     def _get_datasets_dict_for_execution(self) -> Dict[str, pl.LazyFrame]:
         """Get dict of dataset names to LazyFrames for execution context."""
         result = {}
@@ -144,7 +144,7 @@ class PyQueryEngine:
                 # Use concatenated view
                 result[name] = pl.concat(meta.base_lfs, how="diagonal")
         return result
-    
+
     def get_dataset_for_export(self, name: str, recipe: Sequence[Union[dict, RecipeStep]],
                                project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> Optional[pl.LazyFrame]:
         """
@@ -154,17 +154,18 @@ class PyQueryEngine:
         meta = self._datasets.get(name)
         if meta is None:
             return None
-        
+
         ctx = self._get_datasets_dict_for_execution()
-        
+
         # Use unified preparation logic in FULL mode
         return execution.prepare_view(
             meta, recipe, ctx, project_recipes, mode="full"
         )
 
-    def materialize_dataset(self, dataset_name: str, new_name: str, 
-                           recipe: Optional[Sequence[Union[dict, RecipeStep]]] = None,
-                           project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> bool:
+    def materialize_dataset(self, dataset_name: str, new_name: str,
+                            recipe: Optional[Sequence[Union[dict,
+                                                            RecipeStep]]] = None,
+                            project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> bool:
         """
         Materialize a dataset with optional recipe to a new dataset.
         Delegates to StorageManager.
@@ -189,6 +190,13 @@ class PyQueryEngine:
     def resolve_files(self, path: str, filters: Optional[List[FileFilter]] = None, limit: Optional[int] = None) -> List[str]:
         """Resolve a file path with filters."""
         return resolve_file_paths(path, filters, limit)
+
+    def get_eda_view(self,
+                     dataset_name: str,
+                     recipe: Sequence[Union[dict, RecipeStep]],
+                     project_recipes: Optional[Dict[str,
+                                                    List[RecipeStep]]] = None,
+                     strategy: str = "preview",
                      limit: int = 5000) -> Optional[pl.LazyFrame]:
         """
         Get a view for EDA with specific strategy.
@@ -203,33 +211,33 @@ class PyQueryEngine:
         meta = self._datasets.get(dataset_name)
         if meta is None:
             return None
-            
+
         datasets_dict = self._get_datasets_dict_for_execution()
-        
+
         if strategy == "preview":
             return execution.prepare_view(
-                meta, recipe, datasets_dict, project_recipes, 
+                meta, recipe, datasets_dict, project_recipes,
                 mode="preview", preview_limit=limit)
-        
+
         elif strategy == "full_head":
             # Get full processed view with collection limit
             return execution.prepare_view(
-                meta, recipe, datasets_dict, project_recipes, 
+                meta, recipe, datasets_dict, project_recipes,
                 mode="full", collection_limit=limit)
-                
+
         elif strategy == "full_sample":
             # Get view limited to HARD_LIMIT at source
             HARD_LIMIT = 100000
             lf = execution.prepare_view(
-                meta, recipe, datasets_dict, project_recipes, 
+                meta, recipe, datasets_dict, project_recipes,
                 mode="full", collection_limit=HARD_LIMIT)
-                
+
             if lf is not None:
                 df = lf.collect()
                 if len(df) <= limit:
                     return df.lazy()
                 return df.sample(n=limit, seed=42).lazy()
-        
+
         return None
 
     def get_dataset_names(self) -> List[str]:
@@ -242,7 +250,7 @@ class PyQueryEngine:
         """
         base_lf = self.get_dataset(dataset_name)
         datasets_dict = self._get_datasets_dict_for_execution()
-        
+
         return TypeInferenceEngine.infer_types(
             base_lf=base_lf,
             recipe=recipe,
@@ -322,7 +330,7 @@ class PyQueryEngine:
     def start_export_job(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
                          exporter_name: str, params: Union[Dict[str, Any], BaseModel],
                          project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> str:
-        
+
         # Check for Individual Export Mode
         export_individual = False
         if isinstance(params, dict):
@@ -342,21 +350,24 @@ class PyQueryEngine:
                 for lf in meta.base_lfs:
                     # Apply recipe to individual file LF
                     # Note: We share the same context (joined datasets are full)
-                    processed = execution.apply_recipe(lf, recipe, ctx, project_recipes)
+                    processed = execution.apply_recipe(
+                        lf, recipe, ctx, project_recipes)
                     lfs_list.append(processed)
                 precomputed = lfs_list
             else:
                 # Fallback if no list available
-                precomputed = self.get_dataset_for_export(dataset_name, recipe, project_recipes)
+                precomputed = self.get_dataset_for_export(
+                    dataset_name, recipe, project_recipes)
         else:
             # Standard Single Export
-            precomputed = self.get_dataset_for_export(dataset_name, recipe, project_recipes)
-        
+            precomputed = self.get_dataset_for_export(
+                dataset_name, recipe, project_recipes)
+
         return self._job_manager.start_export_job(
-            dataset_name, 
+            dataset_name,
             [],  # Empty recipe since we've already applied it
-            exporter_name, 
-            params, 
+            exporter_name,
+            params,
             project_recipes=None,
             precomputed_lf=precomputed
         )
@@ -367,9 +378,9 @@ class PyQueryEngine:
     # ==========================
     # SQL ENGINE
     # ==========================
-    def execute_sql(self, query: str, project_recipes: Optional[Dict[str, List[RecipeStep]]] = None, 
-                   preview: bool = False, preview_limit: int = 1000, 
-                   collection_limit: Optional[int] = None) -> pl.LazyFrame:
+    def execute_sql(self, query: str, project_recipes: Optional[Dict[str, List[RecipeStep]]] = None,
+                    preview: bool = False, preview_limit: int = 1000,
+                    collection_limit: Optional[int] = None) -> pl.LazyFrame:
         """
         Executes a SQL query against loaded datasets.
         Delegates to execution engine.
@@ -378,20 +389,20 @@ class PyQueryEngine:
         final_datasets = {}
         raw_context = self._get_datasets_dict_for_execution()
         mode = "preview" if preview else "full"
-        
+
         for name, meta in self._datasets.items():
             recipe = project_recipes.get(name, []) if project_recipes else []
-            
+
             # Use unified preparation logic
             view = execution.prepare_view(
-                meta, recipe, raw_context, project_recipes, 
+                meta, recipe, raw_context, project_recipes,
                 mode=mode, preview_limit=preview_limit,
                 collection_limit=collection_limit
             )
-            
+
             if view is not None:
                 final_datasets[name] = view
-       
+
         # 2. Execute SQL
         return execution.execute_sql(query, final_datasets, project_recipes=None)
 
@@ -402,7 +413,8 @@ class PyQueryEngine:
         Returns an eager DataFrame.
         """
         # Reuse execute_sql with preview=True (uses first file + input limit)
-        lf = self.execute_sql(query, project_recipes, preview=True, preview_limit=limit)
+        lf = self.execute_sql(query, project_recipes,
+                              preview=True, preview_limit=limit)
         return lf.limit(limit).collect()
 
     def start_sql_export_job(self, query: str, exporter_name: str,
@@ -443,18 +455,18 @@ class PyQueryEngine:
         meta = self._datasets.get(dataset_name)
         if meta is None:
             return None
-            
+
         ctx = self._get_datasets_dict_for_execution()
-        
+
         # Use unified preparation logic in PREVIEW mode
         lf = execution.prepare_view(
-            meta, recipe, ctx, project_recipes, 
+            meta, recipe, ctx, project_recipes,
             mode="preview", preview_limit=limit
         )
-        
+
         if lf is None:
             return None
-            
+
         return lf.collect()
 
     def get_profile(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]]) -> Optional[Dict[str, Any]]:
