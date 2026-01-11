@@ -113,7 +113,7 @@ def detect_encoding(file_path: str, n_bytes: int = 10000) -> str:
         return 'utf8'
 
 
-def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_individual: bool = False, include_source_info: bool = False) -> Optional[tuple]:
+def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet1", process_individual: bool = False, include_source_info: bool = False) -> Optional[tuple]:
     """
     Load files into LazyFrame(s).
 
@@ -210,20 +210,57 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
                 # Dump to Parquet
                 # Excel is eager-only.
                 try:
-                    df = pl.read_excel(f, sheet_name=sheet_name,
-                                       infer_schema_length=0)
-
-                    # STAGING: Centralized
-                    # Prevents cluttering the app directory
                     staging_dir = get_staging_dir()
 
-                    stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{uuid.uuid4().hex[:8]}.parquet"
-                    stage_path = os.path.join(staging_dir, stage_filename)
+                    target_sheets = []
 
-                    df.write_parquet(stage_path)
-                    del df
+                    if isinstance(sheet_name, list):
+                        target_sheets = sheet_name
+                    elif sheet_name == "__ALL_SHEETS__":
+                        # Resolving all sheets
+                        target_sheets = get_excel_sheet_names(f)
+                    else:
+                        target_sheets = [sheet_name]
 
-                    current_lf = pl.scan_parquet(stage_path)
+                    for s_name in target_sheets:
+                        try:
+                            df = pl.read_excel(
+                                f, sheet_name=s_name, infer_schema_length=0)
+
+                            stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{s_name}_{uuid.uuid4().hex[:8]}.parquet"
+                            stage_path = os.path.join(
+                                staging_dir, stage_filename)
+
+                            df.write_parquet(stage_path)
+                            del df
+
+                            current_lf = pl.scan_parquet(stage_path)
+
+                            # --- SOURCE INFO INJECTION (Excel specific) ---
+                            if include_source_info:
+                                abs_path = os.path.abspath(f)
+                                name = os.path.basename(f)
+                                ext_val = os.path.splitext(f)[1]
+
+                                # Include sheet name in source name
+                                display_name = f"{name} [{s_name}]"
+
+                                current_lf = current_lf.with_columns([
+                                    pl.lit(abs_path).alias(
+                                        "__pyquery_source_path__"),
+                                    pl.lit(display_name).alias(
+                                        "__pyquery_source_name__"),
+                                    pl.lit(ext_val).alias(
+                                        "__pyquery_source_ext__")
+                                ])
+
+                            lfs.append(current_lf)
+                        except Exception as inner_ex:
+                            print(
+                                f"Failed to load sheet {s_name} from {f}: {inner_ex}")
+
+                    # Already appended to lfs
+                    current_lf = None
 
                 except Exception as ex:
                     print(f"Excel Load Error {f}: {ex}")
@@ -232,7 +269,7 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
                 current_lf = pl.scan_ndjson(f, infer_schema_length=0)
 
             # --- SOURCE INFO INJECTION ---
-            if current_lf is not None and include_source_info:
+            if current_lf is not None and include_source_info and file_ext not in [".xlsx", ".xls"]:
                 abs_path = os.path.abspath(f)
                 name = os.path.basename(f)
                 ext_val = os.path.splitext(f)[1]
@@ -331,7 +368,6 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
         # --- RECURSIVE HANDLE LIST (Individual Files) ---
         if isinstance(lazy_frame, list):
             # Iterate and export each
-            import copy
 
             # Decompose path: "folder/data.csv" -> "folder/data" + ".csv"
             p_root, p_ext = os.path.splitext(base_path)
