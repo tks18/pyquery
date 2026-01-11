@@ -1,6 +1,5 @@
 from typing import cast
 import streamlit as st
-import copy
 import pandas as pd
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.backend.engine import PyQueryEngine
@@ -36,11 +35,11 @@ def render_export_section(dataset_name):  # Takes name
 
         # --- PATH BUILDER UI ---
         st.write("###### Output Destination")
-        
+
         # 1. Setup Keys & Defaults
         folder_key = f"exp_{selected_exporter_name}_folder"
         filename_key = f"exp_{selected_exporter_name}_filename"
-        
+
         # Default Folder
         dataset_meta = engine.get_dataset_metadata(dataset_name)
         source_path = dataset_meta.get("source_path")
@@ -50,11 +49,11 @@ def render_export_section(dataset_name):  # Takes name
                 default_folder = os.path.dirname(source_path)
             else:
                 default_folder = source_path
-        
+
         # Init Folder State
         if folder_key not in st.session_state:
             st.session_state[folder_key] = default_folder
-            
+
         # Default Filename
         default_filename = f"export_{dataset_name}"
         # Init Filename State
@@ -62,53 +61,58 @@ def render_export_section(dataset_name):  # Takes name
             st.session_state[filename_key] = default_filename
 
         # 2. Render UI
-        
+
         # Folder Picker
         c1, c2 = st.columns([0.85, 0.15])
         folder_path = c1.text_input("Destination Folder", key=folder_key)
-        
+
         def on_pick_folder(key):
             picked = pick_folder(title="Select Output Folder")
             if picked:
                 st.session_state[key] = picked
-        
-        c2.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True) # Spacer alignment
-        c2.button("📂", key=f"btn_browse_{selected_exporter_name}", 
-                 on_click=on_pick_folder, args=(folder_key,), help="Pick Folder", width="stretch")
-        
+
+        c2.markdown("<div style='height: 28px'></div>",
+                    unsafe_allow_html=True)  # Spacer alignment
+        c2.button("📂", key=f"btn_browse_{selected_exporter_name}",
+                  on_click=on_pick_folder, args=(folder_key,), help="Pick Folder", width="stretch")
+
         # CHECKBOX: Export Individual (Prominent Placement)
         exp_ind = False
         meta = engine.get_dataset_metadata(dataset_name)
         if meta and meta.get("process_individual") and meta.get("input_type") == "folder":
-             exp_ind = st.checkbox(
-                 "📂 Export as Separate Files", 
-                 value=False,
-                 help="Apply recipe to each source file individually.",
-                 key=f"exp_{selected_exporter_name}_individual"
-             )
-             if exp_ind:
-                 st.info("Each source file will be exported with the prefix defined below.")
-        
+            exp_ind = st.checkbox(
+                "📂 Export as Separate Files",
+                value=False,
+                help="Apply recipe to each source file individually.",
+                key=f"exp_{selected_exporter_name}_individual"
+            )
+            if exp_ind:
+                st.info(
+                    "Each source file will be exported with the prefix defined below.")
+
         # Filename Input
         fname_label = "Filename Prefix" if exp_ind else "Filename"
         filename_val = st.text_input(fname_label, key=filename_key)
 
         # Format Extension Logic
         ext = ".parquet" if selected_exporter_name == "Parquet" else f".{selected_exporter_name.lower()}"
-        if selected_exporter_name == "Arrow IPC": ext = ".arrow"
-        if selected_exporter_name == "Excel": ext = ".xlsx"
-        
+        if selected_exporter_name == "Arrow IPC":
+            ext = ".arrow"
+        if selected_exporter_name == "Excel":
+            ext = ".xlsx"
+
         # Preview
         if exp_ind:
-             full_path = os.path.join(folder_path, f"{filename_val}_*{ext}")
-             st.caption(f"📝 **Target Pattern:** `{full_path}`")
-             # Real path for backend (backend handles splitting)
-             full_path_backend = os.path.join(folder_path, f"{filename_val}{ext}")
+            full_path = os.path.join(folder_path, f"{filename_val}_*{ext}")
+            st.caption(f"📝 **Target Pattern:** `{full_path}`")
+            # Real path for backend (backend handles splitting)
+            full_path_backend = os.path.join(
+                folder_path, f"{filename_val}{ext}")
         else:
-             full_path = os.path.join(folder_path, f"{filename_val}{ext}")
-             full_path_backend = full_path
-             st.caption(f"📝 **Target:** `{full_path}`")
-        
+            full_path = os.path.join(folder_path, f"{filename_val}{ext}")
+            full_path_backend = full_path
+            st.caption(f"📝 **Target:** `{full_path}`")
+
         st.divider()
 
         # Use Shared UI Renderer for REST of params
@@ -117,7 +121,7 @@ def render_export_section(dataset_name):  # Takes name
             key_prefix=f"exp_{selected_exporter_name}",
             columns=2
         )
-        
+
         # Injection
         params["path"] = full_path_backend
         if exp_ind:
@@ -171,11 +175,11 @@ def render_export_section(dataset_name):  # Takes name
                             dur = elapsed
 
                         size = getattr(job_info, 'size_str', "Unknown")
-                        
+
                         # SUCCESS MESSAGE
                         status_placeholder.success(
                             f"✅ Export Complete! Time: {dur:.2f}s | Total Size: {size}")
-                        
+
                         # DETAILED FILE LIST
                         details = getattr(job_info, 'file_details', None)
                         if details:
@@ -184,9 +188,12 @@ def render_export_section(dataset_name):  # Takes name
                                 df_details = pd.DataFrame(details)
                                 if not df_details.empty:
                                     # Select and Rename cols
-                                    df_display = df_details[['name', 'size', 'path']]
-                                    df_display.columns = ['Filename', 'Size', 'Full Path']
-                                    st.dataframe(df_display, width="stretch", hide_index=True)
+                                    df_display = df_details[[
+                                        'name', 'size', 'path']]
+                                    df_display.columns = [
+                                        'Filename', 'Size', 'Full Path']
+                                    st.dataframe(
+                                        df_display, width="stretch", hide_index=True)
                         break
                     elif status == "FAILED":
                         err_msg = getattr(
