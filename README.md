@@ -87,6 +87,22 @@ Every time PyQuery boots, it behaves like a data OS coming online.
 Your terminal doesn’t just start PyQuery.  
 It **witnesses it**.
 
+### 🧩 Focused UI, Zero Distractions (Modal Upgrade)
+
+Sidebars are for tourists.  
+PyQuery now loads data through **dedicated modal dialogs** — because loading data is a moment, not a side quest.
+
+- **Dialog-Based Loading**: File, SQL, and API loaders now open in focused modals.
+- **Dynamic Layouts**: The UI adapts intelligently:
+  - No sheet selector unless it’s Excel.
+  - No base-folder input unless you’re using pattern mode.
+- **Preview Before Commit**:
+  - See **matched files** before loading.
+  - Preview **Excel sheets** before importing.
+
+You don’t guess anymore.  
+You **confirm with intent**.
+
 ---
 
 ## 🧾 PyQuery vs. Power Query: The Roast
@@ -186,6 +202,53 @@ For when the GUI is too easy and you want to flex your raw SQL skills. This isn'
   - Encodings are inconsistent
   - Headers are misaligned
 
+- **🔍 Advanced File Filtering (Precision Strikes)**: We didn’t stop at globbing. We built a **filtering engine**.
+
+  - **Multiple Filter Types**:
+    - `Glob`, `Regex`, `Contains`, `Not Contains`, `Exact`, `Is Not`
+  - **Scoped Filtering**:
+    - Apply rules to just the **filename** or the **full path**
+  - **Stackable Logic**:
+    - Example:
+      - Must contain `sales`
+      - Must NOT contain `backup`
+      - Must match regex `\d{4}`
+
+  This is surgical file selection.  
+  No more loading junk and cleaning later.
+
+- **📊 Excel Handling That Respects Your Sanity**: Excel is chaotic. PyQuery now meets it on its own terms.
+
+  - **Multi-Sheet Selection**:
+    - Load one sheet, many sheets, or only the ones that matter.
+  - **Template-Based Sheet Mapping**:
+    - When loading `*.xlsx` via glob:
+      - Pick a **base file**
+      - Preview its sheets
+      - Apply that selection across all matching files
+  - **Sheet Name Filtering**:
+    - Regex-powered selection like:
+      - `Sheet.*`
+      - `Q[1-4]_Data`
+
+  Excel stops being unpredictable.  
+  It becomes… tolerable.
+
+- **✨ Source Awareness & Cleanliness (The Receipts)**: When you merge files, PyQuery remembers where they came from.
+
+  - **Source Metadata Injection (Optional)**:
+    - Automatically add:
+      - `__source_path__`
+      - `__source_name__`
+    - Every row carries its origin story.
+  - **Auto Type Inference (Magic Wand Restored)**:
+    - Samples your data on load
+    - Infers correct dtypes
+    - Instantly appends a **Clean & Cast** step to your recipe
+
+  Lineage. Cleanliness. Control.  
+  No more “where did this row come from?”
+
 - **✨ Auto-Typecast (The Magic Button)**: One click scans rows and forcibly converts `Strings` to `Int`, `Float`, or `Date`. It uses regex heuristics to crush inconsistency.
 
 - **🎭 PII Incinerator**: Detects and obfuscates credit cards and social security numbers. Secrets remain secret.
@@ -268,7 +331,26 @@ This is how PyQuery survives **enterprise-grade mess**.
 Bulk scan when you can.  
 Precision strike when you must.
 
-### 3. 🛡️ Type Safety (Absolute Order)
+### 3. 🚀 Streaming I/O Architecture (Enterprise Mode)
+
+We rewired the backend for scale — real scale.
+
+- **True Streaming File Discovery**:
+  - File loading now uses generators and lazy iteration.
+  - You can point PyQuery at **hundreds of thousands of files** without a crash.
+- **Partial Globbing Optimization**:
+  - Simple text filters are automatically converted into filesystem-level globs.
+  - Python never even _sees_ irrelevant files.
+
+The result:
+
+- Faster discovery
+- Lower memory pressure
+- Enterprise-grade robustness
+
+This engine does not flinch.
+
+### 4. 🛡️ Type Safety (Absolute Order)
 
 Python is dynamic (chaotic). PyQuery imposes **Order**.
 
@@ -368,8 +450,8 @@ Packed with every tool needed to clear the map.
 | **Text**      | `Slice`, `Case`, `Replace`, `One-Hot`                | String manipulation on steroids. 💪     |
 | **I/O**       | `CSV`, `Parquet`, `Excel`, `JSON`, `IPC`             | Speaks every language. 🗣️               |
 
-> PyQuery doesn’t assume your data is clean.  
-> It assumes it’s hostile—and prepares accordingly.
+> PyQuery doesn’t just scale to enterprise data.  
+> It assumes enterprise chaos — and plans accordingly.
 
 ---
 

@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, List, Optional, Union
 import polars as pl
 
-from pyquery_polars.backend.io.files import get_files_from_path, load_lazy_frame, load_from_sql, load_from_api, export_worker
+from pyquery_polars.backend.io.files import resolve_file_paths, load_lazy_frame, load_from_sql, load_from_api, export_worker
 from pyquery_polars.core.models import PluginDef
 from pyquery_polars.core.io_params import (
     FileLoaderParams, SqlLoaderParams, ApiLoaderParams,
@@ -15,11 +15,16 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
     if not params.path:
         return None
 
-    files = get_files_from_path(params.path)
+    files = resolve_file_paths(params.path, params.filters)
     if not files:
         return None
 
-    result = load_lazy_frame(files, params.sheet, params.process_individual, params.include_source_info)
+    result = load_lazy_frame(
+        files,
+        params.sheet,
+        process_individual=params.process_individual,
+        include_source_info=params.include_source_info
+    )
     if result is None:
         return None
 

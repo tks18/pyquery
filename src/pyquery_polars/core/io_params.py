@@ -1,12 +1,29 @@
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
+from enum import Enum
 from pydantic import BaseModel, Field
 
 # --- LOADERS ---
 
 
+class FilterType(str, Enum):
+    GLOB = "glob"
+    REGEX = "regex"
+    CONTAINS = "contains"
+    NOT_CONTAINS = "not_contains"
+    EXACT = "exact"  # is
+    IS_NOT = "is_not"
+
+
+class FileFilter(BaseModel):
+    type: FilterType
+    value: str
+    target: Literal["filename", "path"] = "filename"
+
+
 class FileLoaderParams(BaseModel):
     path: str
-    sheet: str = "Sheet1"
+    filters: Optional[List[FileFilter]] = None
+    sheet: Union[str, List[str]] = "Sheet1"
     alias: str
     process_individual: bool = False  # Process files individually then concat
     include_source_info: bool = False  # Add source metadata columns

@@ -1,4 +1,4 @@
-from typing import Union
+import re
 import os
 import glob
 import requests
@@ -10,8 +10,13 @@ import chardet
 import fastexcel
 import tempfile
 import time
+import copy
+from itertools import islice
 from openpyxl import load_workbook
-from typing import List, Literal, Optional, Any, Dict, cast
+from typing import List, Literal, Optional, Any, Dict, cast, Iterator, Union
+import fnmatch
+
+from ...core.io_params import FileFilter, FilterType
 
 STAGING_DIR_NAME = "pyquery_staging"
 
@@ -40,17 +45,168 @@ def cleanup_staging_files(max_age_hours: int = 24):
                             os.remove(file_path)
                             # print(f"Cleaned up stale staging file: {filename}") # Reduce noise
                 except Exception as e:
-                    print(f"Failed to delete {filename}: {e}")
+                    pass
     except Exception as e:
-        print(f"Cleanup Error: {e}")
+        pass
+
+
+def resolve_file_paths(base_path: str, filters: Optional[List[FileFilter]] = None, limit: Optional[int] = None) -> List[str]:
+    """
+    Resolve a base path and optional filters into a list of file paths.
+
+    Uses a streaming approach to efficiently handle large directories.
+    Optimizes simple filters into glob patterns where possible (Partial Globbing).
+    Falls back to Python-side filtering for complex requirements.
+
+    Args:
+        base_path: Target path (file, directory, or glob pattern).
+        filters: Optional list of filters to apply.
+        limit: Optional maximum number of files to return (for previews).
+    """
+    if not base_path:
+        return []
+
+    # Scenario 1: No Filters
+    # If a specific path or valid glob is provided without extra filters,
+    # we return it directly to let the optimized Polars reader handle scanning.
+    if not filters:
+        if os.path.isfile(base_path):
+            return [base_path]
+        if "*" in base_path:
+            # standard behavior for 'resolve' implies returning the list.
+            if limit:
+                return list(islice(glob.iglob(base_path, recursive="**" in base_path), limit))
+            return glob.glob(base_path, recursive="**" in base_path)
+
+        if os.path.isdir(base_path):
+            # Return directory as-is for Polars to scan/hive-partition auto-detect
+            return [base_path]
+
+        return []
+
+    # Scenario 2: Filters Present
+    # We must scan and filter files manually (or partially optimized).
+
+    # Attempt to narrow the search space using the most restrictive filter (Partial Globbing)
+    optimized_glob = _optimize_filters_to_glob(base_path, filters)
+
+    candidates_iter: Iterator[str]
+
+    if optimized_glob:
+        # Use the optimized glob as the primary candidate source
+        candidates_iter = glob.iglob(
+            optimized_glob, recursive="**" in optimized_glob)
+    else:
+        # Fallback: Determine candidate source based on base_path type
+        if "*" in base_path:
+            candidates_iter = glob.iglob(
+                base_path, recursive="**" in base_path)
+        elif os.path.isdir(base_path):
+            # Generator for recursive directory scan
+            candidates_iter = _recursive_dir_walker(base_path)
+        elif os.path.isfile(base_path):
+            candidates_iter = iter([base_path])
+        else:
+            return []
+
+    # Apply remaining filters in a streaming fashion
+    return _apply_param_filters(candidates_iter, filters, limit)
+
+
+def _recursive_dir_walker(path: str) -> Iterator[str]:
+    """Yields all file paths recursively from a directory."""
+    for dp, dn, filenames in os.walk(path):
+        for f in filenames:
+            yield os.path.join(dp, f)
+
+
+def _optimize_filters_to_glob(base_path: str, filters: List[FileFilter]) -> Optional[str]:
+    """
+    Selects the best available filter to create a narrowing glob pattern.
+    Priority: EXACT > GLOB > CONTAINS (filename target only).
+    """
+    # Globbing is only applicable if we are starting from a directory
+    if not os.path.isdir(base_path):
+        return None
+
+    # Priority 1: Exact Filename Match
+    for f in filters:
+        if f.target == "filename" and f.type == FilterType.EXACT:
+            return os.path.join(base_path, f.value)
+
+    # Priority 2: User-provided Glob
+    for f in filters:
+        if f.target == "filename" and f.type == FilterType.GLOB:
+            return os.path.join(base_path, f.value)
+
+    # Priority 3: Contains (Substring)
+    for f in filters:
+        if f.target == "filename" and f.type == FilterType.CONTAINS:
+            return os.path.join(base_path, "**", f"*{f.value}*")
+
+    return None
+
+
+def _check_filter_match(path: str, f: FileFilter) -> bool:
+    """Evaluates if a file path satisfies a single filter."""
+    val = f.value
+
+    # Resolve target
+    if f.target == "path":
+        check_val = path
+    else:
+        check_val = os.path.basename(path)
+
+    # Standardize case for case-insensitive comparisons
+    # EXACT is the only strictly case-sensitive mode
+    check_lower = check_val.lower()
+    val_lower = val.lower()
+
+    if f.type == FilterType.EXACT:
+        return val == check_val
+
+    if f.type == FilterType.IS_NOT:
+        return val != check_val
+
+    if f.type == FilterType.CONTAINS:
+        return val_lower in check_lower
+
+    if f.type == FilterType.NOT_CONTAINS:
+        return val_lower not in check_lower
+
+    if f.type == FilterType.GLOB:
+        return fnmatch.fnmatch(check_lower, val_lower)
+
+    if f.type == FilterType.REGEX:
+        try:
+            return bool(re.search(val, check_val, re.IGNORECASE))
+        except re.error:
+            return False
+
+    return False
+
+
+def _apply_param_filters(files: Iterator[str], filters: List[FileFilter], limit: Optional[int] = None) -> List[str]:
+    """
+    Consumes the file iterator, applies filters, and returns a list up to the limit.
+    """
+    kept = []
+
+    for path in files:
+        # Check limit before processing
+        if limit is not None and len(kept) >= limit:
+            break
+
+        # Verify all filters match
+        if all(_check_filter_match(path, f) for f in filters):
+            kept.append(path)
+
+    return kept
 
 
 def get_files_from_path(path_str: str) -> List[str]:
-    if not path_str:
-        return []
-    if "*" in path_str:
-        return glob.glob(path_str)
-    return [path_str] if os.path.exists(path_str) else []
+    # Backward compatibility wrapper
+    return resolve_file_paths(path_str)
 
 
 def get_excel_sheet_names(file_path: str) -> List[str]:
@@ -82,11 +238,11 @@ def get_excel_sheet_names(file_path: str) -> List[str]:
                 return wb.sheetnames
             except:
                 return ["Sheet1"]
-    except Exception:
+    except Exception as e:
         return ["Sheet1"]
 
 
-def detect_encoding(file_path: str, n_bytes: int = 10000) -> str:
+def detect_encoding(file_path: str, n_bytes: int = 10_000) -> str:
     """
     Detect the encoding of a file using chardet.
     Defaults to 'utf8' if detection fails or chardet is not installed.
@@ -113,7 +269,7 @@ def detect_encoding(file_path: str, n_bytes: int = 10000) -> str:
         return 'utf8'
 
 
-def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_individual: bool = False, include_source_info: bool = False) -> Optional[tuple]:
+def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet1", process_individual: bool = False, include_source_info: bool = False) -> Optional[tuple]:
     """
     Load files into LazyFrame(s).
 
@@ -210,20 +366,57 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
                 # Dump to Parquet
                 # Excel is eager-only.
                 try:
-                    df = pl.read_excel(f, sheet_name=sheet_name,
-                                       infer_schema_length=0)
-
-                    # STAGING: Centralized
-                    # Prevents cluttering the app directory
                     staging_dir = get_staging_dir()
 
-                    stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{uuid.uuid4().hex[:8]}.parquet"
-                    stage_path = os.path.join(staging_dir, stage_filename)
+                    target_sheets = []
 
-                    df.write_parquet(stage_path)
-                    del df
+                    if isinstance(sheet_name, list):
+                        target_sheets = sheet_name
+                    elif sheet_name == "__ALL_SHEETS__":
+                        # Resolving all sheets
+                        target_sheets = get_excel_sheet_names(f)
+                    else:
+                        target_sheets = [sheet_name]
 
-                    current_lf = pl.scan_parquet(stage_path)
+                    for s_name in target_sheets:
+                        try:
+                            df = pl.read_excel(
+                                f, sheet_name=s_name, infer_schema_length=0)
+
+                            stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{s_name}_{uuid.uuid4().hex[:8]}.parquet"
+                            stage_path = os.path.join(
+                                staging_dir, stage_filename)
+
+                            df.write_parquet(stage_path)
+                            del df
+
+                            current_lf = pl.scan_parquet(stage_path)
+
+                            # --- SOURCE INFO INJECTION (Excel specific) ---
+                            if include_source_info:
+                                abs_path = os.path.abspath(f)
+                                name = os.path.basename(f)
+                                ext_val = os.path.splitext(f)[1]
+
+                                # Include sheet name in source name
+                                display_name = f"{name} [{s_name}]"
+
+                                current_lf = current_lf.with_columns([
+                                    pl.lit(abs_path).alias(
+                                        "__pyquery_source_path__"),
+                                    pl.lit(display_name).alias(
+                                        "__pyquery_source_name__"),
+                                    pl.lit(ext_val).alias(
+                                        "__pyquery_source_ext__")
+                                ])
+
+                            lfs.append(current_lf)
+                        except Exception as inner_ex:
+                            print(
+                                f"Failed to load sheet {s_name} from {f}: {inner_ex}")
+
+                    # Already appended to lfs
+                    current_lf = None
 
                 except Exception as ex:
                     print(f"Excel Load Error {f}: {ex}")
@@ -232,7 +425,7 @@ def load_lazy_frame(files: List[str], sheet_name: str = "Sheet1", process_indivi
                 current_lf = pl.scan_ndjson(f, infer_schema_length=0)
 
             # --- SOURCE INFO INJECTION ---
-            if current_lf is not None and include_source_info:
+            if current_lf is not None and include_source_info and file_ext not in [".xlsx", ".xls"]:
                 abs_path = os.path.abspath(f)
                 name = os.path.basename(f)
                 ext_val = os.path.splitext(f)[1]
@@ -331,7 +524,6 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
         # --- RECURSIVE HANDLE LIST (Individual Files) ---
         if isinstance(lazy_frame, list):
             # Iterate and export each
-            import copy
 
             # Decompose path: "folder/data.csv" -> "folder/data" + ".csv"
             p_root, p_ext = os.path.splitext(base_path)
