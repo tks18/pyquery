@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.3.4](https://github.com/tks18/pyquery/compare/v2.3.3...v2.3.4) (2026-01-11)
+
+
+### Code Refactoring 🖌
+
+* **backend/core:** linter fixes and import refactors ([5eb3289](https://github.com/tks18/pyquery/commit/5eb32894e30b6c7b1e4d75bb45e45c94d4473627))
+* **backend/io:** update io_plugins to use the new function signature ([ed4bf46](https://github.com/tks18/pyquery/commit/ed4bf46bca46a6b8fa8c6a555b6f983397f0941a))
+* **frontend/components:** export:  linter fixes and import refactors ([462fa52](https://github.com/tks18/pyquery/commit/462fa52974df19996270d08bbe3e0fa6c7a01c9a))
+* **frontend/components:** sql_tab: linter fixes and import refactors ([d900db1](https://github.com/tks18/pyquery/commit/d900db19610b9b8bdb5b4c223f44fdd24fa03575))
+
+
+### Features 🔥
+
+* **backend/core:** expose the api for advanced filtering of files ([aaa1485](https://github.com/tks18/pyquery/commit/aaa14850ce1ad45faec0e62c1c7d7c3658bf691f))
+* **backend/io:** implement new advanced filtering approach for loading files ([4a77a0b](https://github.com/tks18/pyquery/commit/4a77a0b5e29d8f484331939aa9f9f5fccfe8acfa))
+* **backend/io:** now backend supports loading multiple sheets of excel files at same time ([2e7fe99](https://github.com/tks18/pyquery/commit/2e7fe99dd3a5052c1e1408261e498994b00f1607))
+* **frontend/components:** loaders: new module - which will handle all the modals for file handling ([eca7366](https://github.com/tks18/pyquery/commit/eca73662793a83fe0514d94a3e8c491f95bf4df1))
+* **frontend/components:** sidebar: refactor completely to use the modal based loading dialogs ([def885b](https://github.com/tks18/pyquery/commit/def885beb66695ab6d0bd8af010f4a83515da37f))
+* **models:** add new model for file filters and advanced regex based input filters ([d2e46a8](https://github.com/tks18/pyquery/commit/d2e46a833bbfae17ee5c8991ef0eb6bb9aabd7af))
+* **models:** update io_params to include the type changes for excel sheet names ([c3bef48](https://github.com/tks18/pyquery/commit/c3bef486aa6d82f8e39dfdf256fa151abc705d4a))
+
+
+### Docs 📃
+
+* **readme:** update readme to reflect recent changes ([70cb3c0](https://github.com/tks18/pyquery/commit/70cb3c01199c7e04434f27c979c31fa862136068))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.3.4 ([e219551](https://github.com/tks18/pyquery/commit/e2195518bed44bff395895b99140dc328440a82a))
+
 ### [2.3.3](https://github.com/tks18/pyquery/compare/v2.3.2...v2.3.3) (2026-01-10)
 
 
