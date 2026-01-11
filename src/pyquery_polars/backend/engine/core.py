@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep, DatasetMetadata
 from pyquery_polars.core.registry import StepRegistry
-from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, cleanup_staging_files
+from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, cleanup_staging_files, resolve_file_paths
+from pyquery_polars.core.io_params import FileFilter
 
 # Modules
 from .registry import register_all_steps
@@ -185,11 +186,9 @@ class PyQueryEngine:
         """Get sheet names from an Excel file."""
         return get_excel_sheet_names(file_path)
 
-    def get_eda_view(self, 
-                     dataset_name: str, 
-                     recipe: Sequence[Union[dict, RecipeStep]], 
-                     project_recipes: Optional[Dict[str, List[RecipeStep]]] = None,
-                     strategy: str = "preview", 
+    def resolve_files(self, path: str, filters: Optional[List[FileFilter]] = None, limit: Optional[int] = None) -> List[str]:
+        """Resolve a file path with filters."""
+        return resolve_file_paths(path, filters, limit)
                      limit: int = 5000) -> Optional[pl.LazyFrame]:
         """
         Get a view for EDA with specific strategy.
