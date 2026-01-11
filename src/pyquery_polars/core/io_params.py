@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class FileLoaderParams(BaseModel):
     path: str
-    sheet: str = "Sheet1"
+    sheet: Union[str, List[str]] = "Sheet1"
     alias: str
     process_individual: bool = False  # Process files individually then concat
     include_source_info: bool = False  # Add source metadata columns
