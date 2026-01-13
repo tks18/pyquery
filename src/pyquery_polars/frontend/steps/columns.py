@@ -5,8 +5,19 @@ from pyquery_polars.core.params import (
     CastChange, SelectColsParams, DropColsParams, RenameColParams,
     KeepColsParams, AddColParams, CleanCastParams, PromoteHeaderParams,
     SplitColParams, CombineColsParams, AddRowNumberParams,
-    ExplodeParams, CoalesceParams, OneHotEncodeParams
+    ExplodeParams, CoalesceParams, OneHotEncodeParams, SanitizeColsParams
 )
+
+
+def render_sanitize_cols(step_id: str, params: SanitizeColsParams, schema: Optional[pl.Schema]) -> SanitizeColsParams:
+    current_cols = schema.names() if schema else []
+    default = [c for c in params.cols if c in current_cols]
+    
+    st.caption("Standardizes header names by trimming whitespace and replacing multiple spaces with single space.")
+    selected = st.multiselect(
+        "Select columns to sanitize:", current_cols, default=default, key=f"sntz_{step_id}")
+    params.cols = selected
+    return params
 
 
 def render_select_cols(step_id: str, params: SelectColsParams, schema: Optional[pl.Schema]) -> SelectColsParams:
