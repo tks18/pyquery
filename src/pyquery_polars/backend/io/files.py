@@ -242,10 +242,15 @@ def get_excel_sheet_names(file_path: str) -> List[str]:
         return ["Sheet1"]
 
 
+def clean_header_name(col: str) -> str:
+    """Normalize column name by replacing whitespace with single spaces and stripping."""
+    return " ".join(col.strip().split())
+
+
 def detect_encoding(file_path: str, n_bytes: int = 10_000) -> str:
     """
-    Detect the encoding of a file using chardet.
-    Defaults to 'utf8' if detection fails or chardet is not installed.
+    Detect the encoding of a file using chardet with confidence gating.
+    Defaults to 'utf-8' if detection fails or confidence is low.
     """
     try:
         with open(file_path, 'rb') as f:
@@ -254,32 +259,79 @@ def detect_encoding(file_path: str, n_bytes: int = 10_000) -> str:
         encoding = result['encoding']
         confidence = result['confidence']
 
-        # If confidence is low or None, stick to default
-        if not encoding or (confidence and confidence < 0.5):
-            return 'utf8'
+        if not encoding or (confidence and confidence < 0.6):
+            return 'utf-8'
 
-        # Polars expects 'utf8' not 'utf-8' sometimes, but 'utf8' is safe alias
-        # Common fix: 'ascii' -> 'utf8'
+        # Common fix: 'ascii' -> 'utf-8'
         if encoding.lower() == 'ascii':
-            return 'utf8'
+            return 'utf-8'
 
         return encoding
-    except (ImportError, Exception) as e:
-        # Fallback to UTF-8 if chardet is missing or fails
-        return 'utf8'
+    except (ImportError, Exception):
+        # Fallback to UTF-8
+        return 'utf-8'
 
 
-def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet1", process_individual: bool = False, include_source_info: bool = False) -> Optional[tuple]:
+def batch_detect_encodings(files: List[str]) -> Dict[str, str]:
+    """
+    Detect encodings for a list of files.
+    Returns a dictionary mapping file path to detected encoding.
+    Only returns entries where encoding is NOT utf8 (or ascii).
+    """
+    results = {}
+    for f in files:
+        # Skip if not a text file (simplified check)
+        ext = os.path.splitext(f)[1].lower()
+        if ext not in [".csv", ".txt", ".json", ".ndjson"]:
+            continue
+
+        enc = detect_encoding(f)
+        # Normalize: ascii is compatible with utf8
+        if enc.lower() not in ['utf8', 'utf-8', 'ascii']:
+            results[f] = enc
+    return results
+
+
+def convert_file_to_utf8(file_path: str, source_encoding: str) -> str:
+    """
+    Convert a file from source_encoding to UTF-8 using streaming processing.
+    Writes the converted file to the staging directory in chunks to minimize RAM usage.
+    Returns the path to the new UTF-8 file.
+    """
+    try:
+        staging_dir = get_staging_dir()
+        filename = os.path.basename(file_path)
+        # Append identifier to avoid collisions
+        new_filename = f"utf8_{uuid.uuid4().hex[:6]}_{filename}"
+        new_path = os.path.join(staging_dir, new_filename)
+
+        # Stream Read/Write (Block size 1MB)
+        # Using text mode ensures correct character handling across block boundaries
+        chunk_size = 1024 * 1024
+
+        with open(file_path, 'r', encoding=source_encoding, errors='replace') as source_f:
+            with open(new_path, 'w', encoding='utf-8') as target_f:
+                while True:
+                    chunk = source_f.read(chunk_size)
+                    if not chunk:
+                        break
+                    # Clean Null Bytes if any (common in some raw dumps)
+                    if "\x00" in chunk:
+                        chunk = chunk.replace("\x00", "")
+                    target_f.write(chunk)
+
+        return new_path
+    except Exception as e:
+        print(f"Failed to convert {file_path}: {e}")
+        raise e
+
+
+def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet1", process_individual: bool = False, include_source_info: bool = False, clean_headers: bool = False) -> Optional[tuple]:
     """
     Load files into LazyFrame(s).
 
     Returns:
         Tuple of (Union[LazyFrame, List[LazyFrame]], metadata_dict) or None
-
-    When process_individual=True and multiple files:
-        Returns (List[LazyFrame], metadata) for individual processing
-    Otherwise:
-        Returns (LazyFrame, metadata) as concatenated result
     """
     if not files:
         return None
@@ -289,28 +341,13 @@ def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet
     ext = list(exts)[0] if len(exts) == 1 else ".mixed"
 
     # OPTIMIZATION: Try Bulk Scan for homogeneous files
-    # Polars supports list of files for scan_csv, scan_parquet, scan_ipc, scan_ndjson
-    # BUT: If include_source_info is True, we force Iterative to reliably add columns per file
-    if len(exts) == 1 and not process_individual and not include_source_info:
+    # Only if NOT processing individual, NOT including source info, AND NOT cleaning headers
+    if len(exts) == 1 and not process_individual and not include_source_info and not clean_headers:
         try:
             if ext == ".csv":
-                # Detect encoding for ALL files to ensure homogeneity
-                # If encodings differ, we must fallback to iterative loading
-                detected_encodings = set()
-                for f in files:
-                    detected_encodings.add(detect_encoding(f))
-
-                if len(detected_encodings) > 1:
-                    # Mixed encodings detected (e.g. {'utf8', 'windows-1252'})
-                    # Cannot use bulk scan_csv with single encoding.
-                    raise ValueError(
-                        f"Mixed encodings detected: {detected_encodings}")
-
-                # Single encoding confirmed
-                common_encoding = detected_encodings.pop()
-
-                lf = pl.scan_csv(files, infer_schema_length=0,
-                                 encoding=common_encoding)
+                # Strict UTF-8: We assume files are UTF-8 validated by the frontend/pre-check.
+                # If they are not, this will likely fail, which satisfies the "reject" requirement.
+                lf = pl.scan_csv(files, infer_schema_length=0, encoding="utf8")
                 metadata = {
                     "input_type": "folder" if len(files) > 1 else "file",
                     "input_format": ext,
@@ -348,57 +385,59 @@ def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet
         except Exception as e:
             print(f"Bulk scan error, falling back to iterative: {e}")
 
-    # Fallback: Iterative (Mixed types or Excel or process_individual OR include_source_info)
+    # Fallback: Iterative
     lfs = []
     for f in files:
         file_ext = os.path.splitext(f)[1].lower()
         try:
             current_lf = None
             if file_ext == ".csv":
-                encoding = detect_encoding(f)
+                # Strict UTF-8
                 current_lf = pl.scan_csv(
-                    f, infer_schema_length=0, encoding=encoding)  # type: ignore
+                    f, infer_schema_length=0, encoding="utf8")
             elif file_ext == ".parquet":
                 current_lf = pl.scan_parquet(f)
             elif file_ext in [".arrow", ".ipc", ".feather"]:
                 current_lf = pl.scan_ipc(f)
             elif file_ext in [".xlsx", ".xls"]:
                 # Dump to Parquet
-                # Excel is eager-only.
                 try:
                     staging_dir = get_staging_dir()
-
                     target_sheets = []
-
                     if isinstance(sheet_name, list):
                         target_sheets = sheet_name
                     elif sheet_name == "__ALL_SHEETS__":
-                        # Resolving all sheets
                         target_sheets = get_excel_sheet_names(f)
                     else:
                         target_sheets = [sheet_name]
 
                     for s_name in target_sheets:
                         try:
+                            # Note: read_excel is eager. We can rename cols here easily if needed.
                             df = pl.read_excel(
                                 f, sheet_name=s_name, infer_schema_length=0)
+
+                            # Clean Headers Immediate for Excel
+                            if clean_headers:
+                                new_cols = {c: clean_header_name(
+                                    c) for c in df.columns}
+                                df = df.rename(new_cols)
 
                             stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{s_name}_{uuid.uuid4().hex[:8]}.parquet"
                             stage_path = os.path.join(
                                 staging_dir, stage_filename)
-
                             df.write_parquet(stage_path)
                             del df
 
                             current_lf = pl.scan_parquet(stage_path)
 
-                            # --- SOURCE INFO INJECTION (Excel specific) ---
+                            # Header cleaning already done for Excel above
+
+                            # Source Info
                             if include_source_info:
                                 abs_path = os.path.abspath(f)
                                 name = os.path.basename(f)
                                 ext_val = os.path.splitext(f)[1]
-
-                                # Include sheet name in source name
                                 display_name = f"{name} [{s_name}]"
 
                                 current_lf = current_lf.with_columns([
@@ -415,8 +454,7 @@ def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet
                             print(
                                 f"Failed to load sheet {s_name} from {f}: {inner_ex}")
 
-                    # Already appended to lfs
-                    current_lf = None
+                    current_lf = None  # Handled via loop append
 
                 except Exception as ex:
                     print(f"Excel Load Error {f}: {ex}")
@@ -424,19 +462,31 @@ def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet
             elif file_ext == ".json":
                 current_lf = pl.scan_ndjson(f, infer_schema_length=0)
 
-            # --- SOURCE INFO INJECTION ---
-            if current_lf is not None and include_source_info and file_ext not in [".xlsx", ".xls"]:
-                abs_path = os.path.abspath(f)
-                name = os.path.basename(f)
-                ext_val = os.path.splitext(f)[1]
-
-                current_lf = current_lf.with_columns([
-                    pl.lit(abs_path).alias("__pyquery_source_path__"),
-                    pl.lit(name).alias("__pyquery_source_name__"),
-                    pl.lit(ext_val).alias("__pyquery_source_ext__")
-                ])
-
+            # --- POST-SCAN PROCESSING (Common) ---
             if current_lf is not None:
+                # 1. Clean Headers (Lazy Rename)
+                if clean_headers and file_ext != ".xlsx" and file_ext != ".xls":
+                    # We need the schema to rename. collect_schema() is fast.
+                    try:
+                        base_cols = current_lf.collect_schema().names()
+                        rename_map = {c: clean_header_name(
+                            c) for c in base_cols}
+                        current_lf = current_lf.rename(rename_map)
+                    except Exception as e:
+                        print(f"Header cleaning failed for {f}: {e}")
+
+                # 2. Source Info
+                if include_source_info:
+                    abs_path = os.path.abspath(f)
+                    name = os.path.basename(f)
+                    ext_val = os.path.splitext(f)[1]
+
+                    current_lf = current_lf.with_columns([
+                        pl.lit(abs_path).alias("__pyquery_source_path__"),
+                        pl.lit(name).alias("__pyquery_source_name__"),
+                        pl.lit(ext_val).alias("__pyquery_source_ext__")
+                    ])
+
                 lfs.append(current_lf)
 
         except Exception as e:
@@ -452,23 +502,17 @@ def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet
         "file_list": files,
         "file_count": len(files),
         "process_individual": process_individual,
-        "source_info_included": include_source_info
+        "source_info_included": include_source_info,
+        "clean_headers": clean_headers
     }
 
     # Decision: Return list or concatenated
     if process_individual and len(lfs) > 1:
-        # Return list of LazyFrames for individual processing
         return lfs, metadata
     else:
-        # Return concatenated LazyFrame (existing behavior)
         combined = lfs[0]
-
-        # DIAGONAL STRATEGY:
-        # Handles schema evolution (new columns in later files filled with nulls).
-        # Graceful handling of missing columns.
         if len(lfs) > 1:
             combined = pl.concat(lfs, how="diagonal")
-
         return combined, metadata
 
 
