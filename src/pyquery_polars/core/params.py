@@ -24,6 +24,10 @@ class SelectColsParams(BaseModel):
     cols: List[str] = Field(default_factory=list)
 
 
+class SanitizeColsParams(BaseModel):
+    cols: List[str] = Field(default_factory=list)
+
+
 class DropColsParams(BaseModel):
     cols: List[str] = Field(default_factory=list)
 
