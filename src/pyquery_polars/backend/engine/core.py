@@ -125,13 +125,21 @@ class PyQueryEngine:
             return {}
 
         # Convert to dict, excluding LazyFrames
+        # Calculate LF count
+        lf_count = 0
+        if meta.base_lfs:
+            lf_count = len(meta.base_lfs)
+        elif meta.base_lf is not None:
+            lf_count = 1
+
         return {
             "source_path": meta.source_path,
             "input_type": meta.input_type,
             "input_format": meta.input_format,
             "process_individual": meta.process_individual,
             "file_list": meta.file_list,
-            "file_count": meta.file_count
+            "file_count": meta.file_count,
+            "lazyframe_count": lf_count
         }
 
     def _get_datasets_dict_for_execution(self) -> Dict[str, pl.LazyFrame]:
