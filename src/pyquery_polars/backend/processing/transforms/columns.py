@@ -3,13 +3,14 @@ from typing import Dict, Any, List, Optional
 from pyquery_polars.core.models import TransformContext
 from pyquery_polars.core.params import (
     SelectColsParams, DropColsParams, RenameColParams, KeepColsParams, AddColParams, CleanCastParams,
-    PromoteHeaderParams, SplitColParams, CombineColsParams, AddRowNumberParams, ExplodeParams, CoalesceParams, OneHotEncodeParams
+    PromoteHeaderParams, SplitColParams, CombineColsParams, AddRowNumberParams, ExplodeParams, CoalesceParams, OneHotEncodeParams, SanitizeColsParams
 )
 from pyquery_polars.backend.utils.parsing import (
     robust_numeric_cleaner, robust_date_parser, robust_datetime_parser,
     robust_time_parser, robust_excel_date_parser, robust_excel_datetime_parser,
     robust_excel_time_parser
 )
+from pyquery_polars.backend.io.files import clean_header_name
 
 
 def select_cols_func(lf: pl.LazyFrame, params: SelectColsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
@@ -42,6 +43,16 @@ def add_col_func(lf: pl.LazyFrame, params: AddColParams, context: Optional[Trans
         computed_expr = eval(params.expr)
         return lf.with_columns(computed_expr.alias(params.name))
     return lf
+
+
+def sanitize_cols_func(lf: pl.LazyFrame, params: SanitizeColsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
+    if not params.cols:
+        return lf
+
+    # Lazy rename requires schema access or a mapping
+    # Since clean_header_name is pure data-independent, we can just apply it to the selected cols
+    rename_map = {c: clean_header_name(c) for c in params.cols}
+    return lf.rename(rename_map)
 
 
 def clean_cast_func(lf: pl.LazyFrame, params: CleanCastParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
