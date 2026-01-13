@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 from typing import cast
+import hashlib
 from pyquery_polars.frontend.state_manager import add_step, load_recipe_from_json, undo, redo
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
@@ -31,19 +32,87 @@ def render_sidebar():
 
         from pyquery_polars.frontend.components.loaders import show_file_loader, show_sql_loader, show_api_loader
 
-        if col_imp1.button("📂 File", help="Import Local Files", use_container_width=True):
+        # --- STATE INITIALIZATION FOR LOADERS ---
+        if "show_loader_file" not in st.session_state:
+            st.session_state.show_loader_file = False
+        if "show_loader_sql" not in st.session_state:
+            st.session_state.show_loader_sql = False
+        if "show_loader_api" not in st.session_state:
+            st.session_state.show_loader_api = False
+
+        # --- BUTTON CALLBACKS ---
+        def open_file_loader():
+            st.session_state.show_loader_file = True
+            st.session_state.show_loader_sql = False
+            st.session_state.show_loader_api = False
+            st.session_state.dlg_just_opened = True
+
+        def open_sql_loader():
+            st.session_state.show_loader_file = False
+            st.session_state.show_loader_sql = True
+            st.session_state.show_loader_api = False
+            st.session_state.dlg_just_opened = True
+
+        def open_api_loader():
+            st.session_state.show_loader_file = False
+            st.session_state.show_loader_sql = False
+            st.session_state.show_loader_api = True
+            st.session_state.dlg_just_opened = True
+
+        if col_imp1.button("📂 File", help="Import Local Files", width="stretch", on_click=open_file_loader):
+            pass
+
+        if col_imp2.button("🛢️ SQL", help="Connect Database", width="stretch", on_click=open_sql_loader):
+            pass
+
+        if col_imp3.button("🌐 API", help="REST API Import", width="stretch", on_click=open_api_loader):
+            pass
+
+        # --- AUTO-CLOSE LOGIC (Detect 'X' Close or External Click) ---
+
+        # 2. Compute Current State Hash (Values of inputs)
+        # 2. Compute Current State Hash (Values of inputs)
+        current_dlg_values = {
+            k: v for k, v in st.session_state.items() if isinstance(k, str) and k.startswith("dlg_")}
+        # Exclude buttons from hash because they don't persist, but check them explicitly
+        input_values_str = str(sorted(
+            [(k, v) for k, v in current_dlg_values.items() if not k.startswith("dlg_btn")]))
+        current_hash = hashlib.md5(input_values_str.encode()).hexdigest()
+
+        # 3. Check for Active Interaction
+        # Interaction = (Any dlg_btn is True) OR (Hash changed from last run)
+        any_btn_clicked = any(st.session_state.get(k)
+                              for k in st.session_state if isinstance(k, str) and k.startswith("dlg_btn"))
+        last_hash = st.session_state.get("last_dlg_hash", "")
+
+        is_interaction = any_btn_clicked or (current_hash != last_hash)
+
+        # 4. Final Decision Logic
+        just_opened = st.session_state.get("dlg_just_opened", False)
+
+        if just_opened:
+            # Reset flag for next run so future non-interactions will close it
+            st.session_state.dlg_just_opened = False
+        elif not is_interaction:
+            # No internal interaction and not just opened -> External event or Close 'X'
+            # Safely close all dialogs
+            st.session_state.show_loader_file = False
+            st.session_state.show_loader_sql = False
+            st.session_state.show_loader_api = False
+
+        # --- RENDER DIALOGS IF ACTIVE ---
+        if st.session_state.show_loader_file:
             show_file_loader(engine)
-
-        if col_imp2.button("🛢️ SQL", help="Connect Database", use_container_width=True):
+        elif st.session_state.show_loader_sql:
             show_sql_loader(engine)
-
-        if col_imp3.button("🌐 API", help="REST API Import", use_container_width=True):
+        elif st.session_state.show_loader_api:
             show_api_loader(engine)
 
         # B. LIST EXISTING
         dataset_names = engine.get_dataset_names()
         if dataset_names:
             st.divider()
+
             st.caption("Available Projects")
             for name in dataset_names:
                 c1, c2 = st.columns([0.8, 0.2])
@@ -170,3 +239,13 @@ def render_sidebar():
                     st.toast("Cache cleared successfully!", icon="🧹")
                 except Exception as e:
                     st.error(f"Cleanup failed: {e}")
+
+        # --- FINAL: PERSIST STATE FOR NEXT RUN ---
+        # We compute hash at the END to capture any programmatic state changes made during this run.
+        end_dlg_values = {
+            k: v for k, v in st.session_state.items() if isinstance(k, str) and k.startswith("dlg_")}
+        # Filter buttons
+        end_values_str = str(sorted(
+            [(k, v) for k, v in end_dlg_values.items() if not k.startswith("dlg_btn")]))
+        st.session_state.last_dlg_hash = hashlib.md5(
+            end_values_str.encode()).hexdigest()
