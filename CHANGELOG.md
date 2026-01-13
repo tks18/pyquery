@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.4.0](https://github.com/tks18/pyquery/compare/v2.3.4...v2.4.0) (2026-01-13)
+
+
+### Features 🔥
+
+* **backend/core:** add additional metadata for LF length ([5cb61ed](https://github.com/tks18/pyquery/commit/5cb61edab34ee3100a4dcc2cff6805a0d4955f2f))
+* **backend/core:** expose the encoding detection & conversion api ([e776710](https://github.com/tks18/pyquery/commit/e7767106852201b3e6c213fba4c8acf188d137d4))
+* **backend/io:** allow backend api to perform csv encoding conversion to utf8 ([6882083](https://github.com/tks18/pyquery/commit/68820839f3b910a9388d8b7668af49ce0240ce15))
+* **backend/io:** allow new option to clean headers on load ([c392650](https://github.com/tks18/pyquery/commit/c392650b70a28c449aa46bd1069071dd75c5f8a1))
+* **backend/transforms:** add a new function to clean headers ([546857e](https://github.com/tks18/pyquery/commit/546857ed15af9a83aaf4708ce2eb69e4cb8fa7e5))
+* **backend/transforms:** register the new function: clean_headers ([7587e9b](https://github.com/tks18/pyquery/commit/7587e9bb1731ca748ef9a538fb8d1a4d46fcbc98))
+* **frontend/components:** api loader - refactor to separate module, also beautify it ([63fd90f](https://github.com/tks18/pyquery/commit/63fd90fefffcf1124d4928f7e203967b95551fdd))
+* **frontend/components:** file loader - completely revamped, add option to fix csv encode, fix head ([cfa86d3](https://github.com/tks18/pyquery/commit/cfa86d3db82942088dfa334db89573bdd260b23e))
+* **frontend/components:** loader: create utils for cache, also refactor the sql_loader ([b5857f4](https://github.com/tks18/pyquery/commit/b5857f42b7d899387bf27809dabd6294d2552d48))
+* **frontend/components:** loader: remove loader as it is refactor to sub modules ([46fb5ba](https://github.com/tks18/pyquery/commit/46fb5ba10586d0d0ff6608776bc5cc84b5407401))
+* **frontend/components:** sidebar: update to the new loader changes ([87cf30d](https://github.com/tks18/pyquery/commit/87cf30d77921a2d3bdc242690641f94f81e1474d))
+* **frontend/steps:** create a renderer for clean_headers ([66080d3](https://github.com/tks18/pyquery/commit/66080d378f0a8320d86eca4a5e5c071c2559f0cb))
+* **frontend/steps:** register the new function: clean_headers ([5006c96](https://github.com/tks18/pyquery/commit/5006c96e86d249e4d2220284342b0d2c86950897))
+* **frontend/utils:** add cache utils for frontend loaders for fast render ([8f0d2c1](https://github.com/tks18/pyquery/commit/8f0d2c17892dfb424ce66ca9af4c82a0b00c04db))
+* **models:** add model for clean_headers ([f7f2770](https://github.com/tks18/pyquery/commit/f7f2770379a0ad7e0028494a103655b3d617872c))
+
+
+### Styling 🎨
+
+* **frontend/components:** recipe-editor: add additional meta in the text ([004a232](https://github.com/tks18/pyquery/commit/004a232cea40c90547bc2547bea89d3848652b79))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.4.0 ([224d0f0](https://github.com/tks18/pyquery/commit/224d0f0fe755424677f43a1b7cbe2ce7fe5d7d0a))
+
 ### [2.3.4](https://github.com/tks18/pyquery/compare/v2.3.3...v2.3.4) (2026-01-11)
 
 
