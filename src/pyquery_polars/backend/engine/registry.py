@@ -18,7 +18,7 @@ from pyquery_polars.core.params import (
     ShiftParams, DropEmptyRowsParams,
     TextExtractDelimParams, RegexToolParams,
     RemoveOutliersParams, NormalizeSpacesParams, SmartExtractParams, OneHotEncodeParams,
-    CleanTextParams, MaskPIIParams, AutoImputeParams, CheckBoolParams
+    CleanTextParams, MaskPIIParams, AutoImputeParams, CheckBoolParams, SanitizeColsParams
 )
 
 # Import Transforms (Backend Logic)
@@ -26,7 +26,7 @@ from pyquery_polars.backend.processing.transforms.columns import (
     select_cols_func, drop_cols_func, rename_col_func,
     keep_cols_func, add_col_func, clean_cast_func, promote_header_func,
     split_col_func, combine_cols_func, add_row_number_func,
-    explode_func, coalesce_func, one_hot_encode_func
+    explode_func, coalesce_func, one_hot_encode_func, sanitize_cols_func
 )
 from pyquery_polars.backend.processing.transforms.rows import (
     filter_rows_func, sort_rows_func, deduplicate_func, sample_func, slice_rows_func,
@@ -72,20 +72,22 @@ def register_all_steps():
                group="Columns"), AddColParams, add_col_func)
     R.register("clean_cast", StepMetadata(label="Clean / Cast Types",
                group="Columns"), CleanCastParams, clean_cast_func)
-    R.register("promote_header", StepMetadata(label="First Row as Header", 
+    R.register("promote_header", StepMetadata(label="First Row as Header",
                group="Columns"), PromoteHeaderParams, promote_header_func)
-    R.register("split_col", StepMetadata(label="Split Column", 
+    R.register("split_col", StepMetadata(label="Split Column",
                group="Columns"), SplitColParams, split_col_func)
-    R.register("combine_cols", StepMetadata(label="Combine Columns", 
+    R.register("combine_cols", StepMetadata(label="Combine Columns",
                group="Columns"), CombineColsParams, combine_cols_func)
-    R.register("add_row_number", StepMetadata(label="Add Row Number", 
+    R.register("add_row_number", StepMetadata(label="Add Row Number",
                group="Columns"), AddRowNumberParams, add_row_number_func)
-    R.register("explode", StepMetadata(label="Explode (Flatten List)", 
+    R.register("explode", StepMetadata(label="Explode (Flatten List)",
                group="Columns"), ExplodeParams, explode_func)
-    R.register("coalesce", StepMetadata(label="Coalesce (Fill Nulls)", 
+    R.register("coalesce", StepMetadata(label="Coalesce (Fill Nulls)",
                group="Columns"), CoalesceParams, coalesce_func)
-    R.register("one_hot_encode", StepMetadata(label="One-Hot Encode", 
+    R.register("one_hot_encode", StepMetadata(label="One-Hot Encode",
                group="Columns"), OneHotEncodeParams, one_hot_encode_func)
+    R.register("sanitize_cols", StepMetadata(label="Sanitize Column Names",
+               group="Columns"), SanitizeColsParams, sanitize_cols_func)
 
     # Rows
     R.register("filter_rows", StepMetadata(label="Filter Rows", group="Rows"),
@@ -178,13 +180,13 @@ def register_all_steps():
                group="Analytics"), ZScoreParams, z_score_func)
     R.register("skew_kurt", StepMetadata(label="Skew / Kurtosis",
                group="Analytics"), SkewKurtParams, skew_kurt_func)
-               
+
     R.register("string_pad", StepMetadata(label="String Pad",
                group="Clean"), StringPadParams, string_pad_func)
-               
+
     R.register("concat_datasets", StepMetadata(label="Concat Dataset (Vertical)",
                group="Combine"), ConcatParams, concat_datasets_func)
-               
+
     R.register("shift", StepMetadata(label="Shift (Lead/Lag)",
                group="Rows"), ShiftParams, shift_func)
     R.register("drop_empty_rows", StepMetadata(label="Drop Empty Rows",

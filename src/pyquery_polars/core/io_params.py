@@ -27,6 +27,8 @@ class FileLoaderParams(BaseModel):
     alias: str
     process_individual: bool = False  # Process files individually then concat
     include_source_info: bool = False  # Add source metadata columns
+    files: Optional[List[str]] = None  # Explicit file list override
+    clean_headers: bool = False  # Sanitize column names
 
 
 class SqlLoaderParams(BaseModel):

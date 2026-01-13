@@ -125,8 +125,10 @@ def render_recipe_editor(dataset_name):
         metadata = engine.get_dataset_metadata(dataset_name)
         if metadata.get("process_individual", False):
             file_count = metadata.get("file_count", 1)
+            lf_count = metadata.get("lazyframe_count", 0)
+            
             st.info(
-                f"📁 **Folder Mode** ({file_count} files): Preview shows **first file only**. "
+                f"📁 **Folder Mode** ({file_count} files, {lf_count} lazyframes): Preview shows **first file only**. "
                 f"Export will process all files individually."
             )
 

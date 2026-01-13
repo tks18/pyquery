@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep, DatasetMetadata
 from pyquery_polars.core.registry import StepRegistry
-from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, cleanup_staging_files, resolve_file_paths
+from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
 from pyquery_polars.core.io_params import FileFilter
 
 # Modules
@@ -125,13 +125,21 @@ class PyQueryEngine:
             return {}
 
         # Convert to dict, excluding LazyFrames
+        # Calculate LF count
+        lf_count = 0
+        if meta.base_lfs:
+            lf_count = len(meta.base_lfs)
+        elif meta.base_lf is not None:
+            lf_count = 1
+
         return {
             "source_path": meta.source_path,
             "input_type": meta.input_type,
             "input_format": meta.input_format,
             "process_individual": meta.process_individual,
             "file_list": meta.file_list,
-            "file_count": meta.file_count
+            "file_count": meta.file_count,
+            "lazyframe_count": lf_count
         }
 
     def _get_datasets_dict_for_execution(self) -> Dict[str, pl.LazyFrame]:
@@ -186,6 +194,14 @@ class PyQueryEngine:
     def get_file_sheet_names(self, file_path: str) -> List[str]:
         """Get sheet names from an Excel file."""
         return get_excel_sheet_names(file_path)
+
+    def scan_encodings(self, files: List[str]) -> Dict[str, str]:
+        """Detect non-utf8 encodings in list of files."""
+        return batch_detect_encodings(files)
+
+    def convert_encoding(self, file_path: str, source_encoding: str) -> str:
+        """Convert a file to UTF-8."""
+        return convert_file_to_utf8(file_path, source_encoding)
 
     def resolve_files(self, path: str, filters: Optional[List[FileFilter]] = None, limit: Optional[int] = None) -> List[str]:
         """Resolve a file path with filters."""

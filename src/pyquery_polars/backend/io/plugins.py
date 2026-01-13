@@ -15,7 +15,11 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
     if not params.path:
         return None
 
-    files = resolve_file_paths(params.path, params.filters)
+    if params.files:
+        files = params.files
+    else:
+        files = resolve_file_paths(params.path, params.filters)
+    
     if not files:
         return None
 
@@ -23,7 +27,8 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
         files,
         params.sheet,
         process_individual=params.process_individual,
-        include_source_info=params.include_source_info
+        include_source_info=params.include_source_info,
+        clean_headers=getattr(params, 'clean_headers', False)
     )
     if result is None:
         return None
