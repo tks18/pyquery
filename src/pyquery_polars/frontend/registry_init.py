@@ -5,7 +5,7 @@ from pyquery_polars.frontend.steps.columns import (
     render_select_cols, render_drop_cols, render_rename_col,
     render_keep_cols, render_add_col, render_clean_cast, render_promote_header,
     render_split_col, render_combine_cols, render_add_row_number,
-    render_explode, render_coalesce, render_one_hot_encode
+    render_explode, render_coalesce, render_one_hot_encode, render_sanitize_cols
 )
 from pyquery_polars.frontend.steps.rows import (
     render_filter_rows, render_sort_rows, render_deduplicate, render_sample, render_slice_rows,
@@ -47,6 +47,7 @@ def register_frontend():
     R.register_renderer("explode", render_explode)
     R.register_renderer("coalesce", render_coalesce)
     R.register_renderer("one_hot_encode", render_one_hot_encode)
+    R.register_renderer("sanitize_cols", render_sanitize_cols)
 
     # Rows
     R.register_renderer("filter_rows", render_filter_rows)
