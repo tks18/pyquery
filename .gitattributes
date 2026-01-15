@@ -2,4 +2,4 @@
 /.yarn/releases/*    binary
 /.yarn/plugins/**/*  binary
 /.pnp.*              binary linguist-generated
-/src/pyquery_polars/frontend/custom-components/code-editor/assets/*.html linguist-vendored
+/src/pyquery_polars/frontend/custom_components/code_editor/assets/*.html linguist-vendored
