@@ -1,3 +1,7 @@
+import streamlit as st
+import sys
+import os
+import mimetypes
 from pyquery_polars.frontend.utils.styles import inject_custom_css
 from pyquery_polars.frontend.registry_init import register_frontend
 from pyquery_polars.backend.engine import PyQueryEngine
@@ -9,10 +13,10 @@ from pyquery_polars.frontend.components.sql_tab import render_sql_tab
 from pyquery_polars.frontend.components.sidebar import render_sidebar
 from pyquery_polars.frontend.state_manager import init_session_state
 
+# Fix MIME types on Windows to prevent 403/Content-Type errors with custom components
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
 
-import streamlit as st
-import sys
-import os
 
 # Ensure project root is in path
 current_dir = os.path.dirname(os.path.abspath(__file__))
