@@ -11,6 +11,8 @@ import fastexcel
 import tempfile
 import time
 import copy
+import io
+import codecs
 from itertools import islice
 from openpyxl import load_workbook
 from typing import List, Literal, Optional, Any, Dict, cast, Iterator, Union
@@ -247,28 +249,49 @@ def clean_header_name(col: str) -> str:
     return " ".join(col.strip().split())
 
 
-def detect_encoding(file_path: str, n_bytes: int = 10_000) -> str:
+def detect_encoding(file_path: str, limit_bytes: int = 200_000) -> str:
     """
-    Detect the encoding of a file using chardet with confidence gating.
-    Defaults to 'utf-8' if detection fails or confidence is low.
+    Robustly detect file encoding using streaming analysis (UniversalDetector).
+    Scans up to `limit_bytes` (default 200KB) or until high confidence is reached.
     """
     try:
+        from chardet.universaldetector import UniversalDetector
+        detector = UniversalDetector()
+
+        # Read in binary mode, 16KB chunks
+        chunk_size = 16 * 1024
+        processed_bytes = 0
+
         with open(file_path, 'rb') as f:
-            rawdata = f.read(n_bytes)
-        result = chardet.detect(rawdata)
+            while processed_bytes < limit_bytes:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+
+                detector.feed(chunk)
+                processed_bytes += len(chunk)
+
+                if detector.done:
+                    break
+
+        detector.close()
+        result = detector.result
+
         encoding = result['encoding']
         confidence = result['confidence']
 
+        # Confidence Threshold
         if not encoding or (confidence and confidence < 0.6):
             return 'utf-8'
 
-        # Common fix: 'ascii' -> 'utf-8'
-        if encoding.lower() == 'ascii':
+        # Normalize typical compatible encodings
+        if encoding.lower() in ['ascii', 'utf-8-sig']:
             return 'utf-8'
 
         return encoding
-    except (ImportError, Exception):
-        # Fallback to UTF-8
+
+    except Exception:
+        # Fallback to UTF-8 on any error
         return 'utf-8'
 
 
