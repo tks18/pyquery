@@ -43,7 +43,11 @@ class KeepColsParams(BaseModel):
 
 class AddColParams(BaseModel):
     name: str = ""
-    expr: str = "1"
+    expr: str = """# Write a Polars Expression
+# Example: pl.col("salary") * 0.1
+# Available: pl, np, math, datetime
+
+pl.lit(1)"""
 
 
 class CleanCastParams(BaseModel):
