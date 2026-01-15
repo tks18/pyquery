@@ -28,6 +28,7 @@ from pyquery_polars.frontend.steps.analytics import (
 from pyquery_polars.frontend.steps.scientific import (
     render_math_sci, render_clip, render_date_offset, render_date_diff
 )
+from pyquery_polars.frontend.steps.advanced import render_custom_script
 
 
 def register_frontend():
@@ -101,3 +102,6 @@ def register_frontend():
     R.register_renderer("date_extract", render_date_extract)
     R.register_renderer("date_offset", render_date_offset)
     R.register_renderer("date_diff", render_date_diff)
+
+    # Advanced
+    R.register_renderer("custom_script", render_custom_script)
