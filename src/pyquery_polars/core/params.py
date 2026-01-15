@@ -400,3 +400,15 @@ class RoundSmartParams(BaseModel):
     col: str = ""
     decimals: int = 2
     alias: str = ""
+
+
+class CustomScriptParams(BaseModel):
+    script: str = """# Do not modify the function name, signature & return type
+def pyquery_transform(lf: pl.LazyFrame) -> pl.LazyFrame:
+    # Write your transformation logic here
+    # Example:
+    # return lf.with_columns(
+    #     (pl.col("a") * 2).alias("a_doubled")
+    # )
+    return lf
+"""
