@@ -2,18 +2,13 @@
 
 # ⚡ PyQuery: The Main Character of Data Stacks 💫
 
-### _ETL. EDA. ML. World Domination._
-
-[![Status](https://img.shields.io/badge/Status-Goated_with_the_Sauce-%23FF0055?style=for-the-badge&logo=appveyor)](#)
-[![Performance](https://img.shields.io/badge/Performance-Infinite_Aura-%2300ffa3?style=for-the-badge&logo=nvidia)](https://pola.rs)
-[![Engine](https://img.shields.io/badge/Engine-Polars_Supremacy_🐻‍❄️-%23ffcc00?style=for-the-badge&logo=polars)](https://pola.rs)
-[![Backend](https://img.shields.io/badge/Backend-FastAPI_🚀-%23009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
+### _ETL. EDA. ML. SQL. IDE._
 
 [![Execution](https://img.shields.io/badge/Execution-Lazy_Execution_Enabled-6A0DAD?style=for-the-badge)](#)
-[![Mode](https://img.shields.io/badge/Mode-Villain_Arc_Ready-8B0000?style=for-the-badge)](#)
+[![Mode](https://img.shields.io/badge/Mode-Power_User_Ready-8B0000?style=for-the-badge)](#)
 [![Privacy](https://img.shields.io/badge/Privacy-Local_First_No_Cloud-2E8B57?style=for-the-badge)](#)
-[![Vibe](https://img.shields.io/badge/Vibe-Immaculate_✨-%238A2BE2?style=for-the-badge)](#)
-[![Patience](https://img.shields.io/badge/Patience-Not_Required-000000?style=for-the-badge)](#)
+[![Design](https://img.shields.io/badge/Design-Premium_UX-%238A2BE2?style=for-the-badge)](#)
+[![Stack](https://img.shields.io/badge/Stack-Full_IDE_Included_💻-007ACC?style=for-the-badge)](#)
 
 [![PyPI Version](https://img.shields.io/pypi/v/pyquery-polars.svg?color=4CAF50&logo=python&logoColor=white)](https://pypi.org/project/pyquery-polars/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/pyquery-polars.svg?color=blue)](https://pypi.org/project/pyquery-polars/)
@@ -21,9 +16,9 @@
 
 ![Rows of Data](https://i.giphy.com/sRFEa8lbeC7zbcIZZR.webp)
 
-**Stop letting Pandas hold you back. It's giving toxic ex.** 🚩
+**Stop letting Pandas hold you back. The single-threaded era is over.** 🚩
 
-**PyQuery** is a local-first data operating system built on lazy execution that processes **100GB+ files** while you doomscroll. No cap. 🧢
+**PyQuery** is a local-first data operating system that **auto-heals broken CSVs**, includes a **native Code Editor**, and processes **100GB+ files** without breaking a sweat. ⚡
 
 [Feature Request](https://github.com/tks18/pyquery/issues) · [Report Bug](https://github.com/tks18/pyquery/issues)
 
@@ -93,6 +88,10 @@ Sidebars are for tourists.
 PyQuery now loads data through **dedicated modal dialogs** — because loading data is a moment, not a side quest.
 
 - **Dialog-Based Loading**: File, SQL, and API loaders now open in focused modals.
+- **Blazing-Fast & Optimistic**:
+  - The dialog opens **instantly**. No waiting for file scans.
+  - **Lazy Preview**: We scan 100k+ files without freezing the UI. Preview only when you ask.
+  - **Recent Paths**: Caches your last successful loads. We remember so you don't have to.
 - **Dynamic Layouts**: The UI adapts intelligently:
   - No sheet selector unless it’s Excel.
   - No base-folder input unless you’re using pattern mode.
@@ -169,6 +168,21 @@ We scan your data's soul.
 - **Decomposition**: We split your data into Trend, Seasonality, and Noise.
 - **Cohort Comparison (Volcano Plots)**: Visualizing "Effect Size" vs "Significance." We bring the science.
 
+#### 6. 💻 The Integrated IDE (Code is Power)
+
+For those who speak the language of the gods (Python/SQL), we built a **React-based Code Editor** right inside the UI. _(Adapted from [streamlit-code-editor](https://github.com/bouzidanas/streamlit-code-editor))_
+
+- **Embedded Ace Editor**: Syntax highlighting, line numbers, and active line focus. It feels like VS Code, but it lives in your browser.
+- **Intelligent Auto-Completions**:
+  - **Context-Aware**: It knows your data. It suggests `pl`, `np`, `math`.
+  - **Polars Snippets**: Type `col` -> get `col("name")`. Type `when` -> get `when().then().otherwise()`.
+  - **SQL Knowledge**: It suggests keywords and functions while you type query logic.
+- **Sandboxed Custom Scripts**:
+  - **AST-Validated Security**: We parse your code *before* execution.
+  - **Blocked**: `import os`, private attributes, system calls.
+  - **Allowed**: `numpy`, `scipy`, `sklearn`. Pure math and logic only.
+  - **The Contract**: Define `pyquery_transform(lf)` and return a LazyFrame. We handle the rest.
+
 ---
 
 ### 🧪 SQL Lab: The Codex (God Mode)
@@ -186,10 +200,11 @@ For when the GUI is too easy and you want to flex your raw SQL skills. This isn'
 
 🧠 Backend I/O That Actually Understands Real-World Data, Real data is cursed. We planned for that.
 
-- **🧬 Auto-Encoding Detection**: PyQuery scans the first bytes of every CSV to automatically fix `UnicodeDecodeError`.
+- **🧬 Advanced Auto-Encoding Detection & Healer**: PyQuery scans the first bytes of every CSV to automatically fix `UnicodeDecodeError`.
 
-  - Supports UTF-8, CP1252, Latin-1, and other legacy horrors.
-  - No manual `encoding=` guessing. Ever.
+  - **Stream-Based Healing**: Processes multi-GB files in 4MB chunks. Memory usage stays flat.
+  - **Sanitization**: Automatically strips `Null Bytes` (`\x00`), normalizes newlines, and replaces garbage bytes.
+  - Supports UTF-8, CP1252, Latin-1, and limits the crash radius of bad vendor data.
 
 - **🧩 Mixed-Encoding Folder Handling**: If a folder contains files with _different encodings_, PyQuery detects it and switches strategy automatically.
 

@@ -7,6 +7,12 @@ from pyquery_polars.core.params import (
     SplitColParams, CombineColsParams, AddRowNumberParams,
     ExplodeParams, CoalesceParams, OneHotEncodeParams, SanitizeColsParams
 )
+from pyquery_polars.frontend.utils.completions import generate_module_completions
+from pyquery_polars.frontend.utils.completions import get_common_completions
+import numpy as np
+import math
+import datetime
+from pyquery_polars.frontend.components.editor import python_editor
 
 
 def render_sanitize_cols(step_id: str, params: SanitizeColsParams, schema: Optional[pl.Schema]) -> SanitizeColsParams:
@@ -86,11 +92,32 @@ def render_add_col(step_id: str, params: AddColParams, schema: Optional[pl.Schem
 
     new_col = c1.text_input(
         "New Col Name", value=params.name, key=f"fe_n_{step_id}", on_change=_update_cb)
-    expr_str = c2.text_input(
-        "Polars Expression", value=params.expr, key=f"fe_e_{step_id}", on_change=_update_cb)
+    @st.cache_data
+    def get_all_completions():
+        all_comps = get_common_completions()
+        all_comps.extend(generate_module_completions(pl, "pl"))
+
+    completions = get_all_completions()
+    # Use Python Editor for Expression
+    # height=[4, 15] for compact feel but expandable
+    expr_code = python_editor(
+        code=params.expr,
+        key=f"fe_e_{step_id}",
+        height=[10, 20],
+        completions=completions
+    )
+
+    # Sync editor changes
+    if expr_code is not None and expr_code != params.expr:
+        params.expr = expr_code
+        # Manually triggering update similar to callback since editor triggers execution
+        from pyquery_polars.frontend.state_manager import update_step_params
+        p_dict = {"name": new_col, "expr": expr_code}
+        update_step_params(step_id, p_dict)
+        st.rerun()
 
     params.name = new_col if new_col else ""
-    params.expr = expr_str if expr_str else "1"
+    # params.expr handled above or retains value
     return params
 
 

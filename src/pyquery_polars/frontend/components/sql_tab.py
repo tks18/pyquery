@@ -8,6 +8,7 @@ from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.frontend.utils.io_schemas import get_exporter_schema
 from pyquery_polars.frontend.utils.file_picker import pick_folder
+from pyquery_polars.frontend.components.editor import sql_editor
 
 
 def render_sql_tab():
@@ -79,19 +80,19 @@ def render_sql_tab():
 
     # Standard Text Area
     st.info("💡 Tip: You can write standard SQL queries here.")
-    st.text_area(
-        "SQL Query",
-        height=200,
-        key="sql_query",
-        help="Write your SQL query statement here.",
-        label_visibility="collapsed"
+
+    # Use SQL Editor
+    query_result = sql_editor(
+        code=st.session_state.sql_query,
+        key="sql_query_editor",
+        height=[15, 25]
     )
 
-    col_run, col_clear = st.columns([1, 6])
-    if col_run.button("▶ Run Query", type="primary"):
+    if query_result is not None:
+        st.session_state.sql_query = query_result
         st.session_state.sql_run_trigger = True
-        # Save History
-        q = st.session_state.sql_query
+        # Save History logic same as button
+        q = query_result
         if q and q.strip():
             hist = st.session_state.sql_history
             if q in hist:
@@ -99,6 +100,7 @@ def render_sql_tab():
             hist.insert(0, q)
             if len(hist) > 10:
                 hist.pop()
+        st.rerun()
 
     # 3. Preview & Results
     if st.session_state.get("sql_run_trigger"):

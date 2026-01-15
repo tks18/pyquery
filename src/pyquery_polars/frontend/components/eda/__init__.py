@@ -17,6 +17,7 @@ from .plots import (
 )
 from .contrast import render_contrast
 from .profiling import render_profiling
+from pyquery_polars.frontend.components.editor import sql_editor
 
 
 def render_eda_tab(dataset_name: str):
@@ -149,8 +150,23 @@ def render_eda_tab(dataset_name: str):
             st.caption(
                 f"Write a SQL query to select data. The active dataset is available as **`{dataset_name}`**.")
             default_query = f"SELECT * FROM {dataset_name}"
-            custom_sql = st.text_area(
-                "SQL Query", value=default_query, height=100, key="eda_sql_query")
+            
+            # Use SQL Editor
+            # Need to initialize state if not present to avoid reset on rerun
+            if "eda_sql_query" not in st.session_state:
+                st.session_state["eda_sql_query"] = default_query
+                
+            sql_res = sql_editor(
+                code=st.session_state.get("eda_sql_query", default_query),
+                key="eda_sql_editor",
+                height=[7, 15]
+            )
+            
+            if sql_res is not None:
+                st.session_state["eda_sql_query"] = sql_res
+                st.rerun()
+                
+            custom_sql = st.session_state.get("eda_sql_query", default_query)
 
         # Exclude Cols (Only show if NOT using SQL, or show generic?)
         # If using SQL, schema depends on query. We can't easily show columns before running it.

@@ -11,6 +11,43 @@ from pyquery_polars.backend.utils.parsing import (
     robust_excel_time_parser
 )
 from pyquery_polars.backend.io.files import clean_header_name
+import ast
+import math
+import datetime
+import re
+import numpy as np
+
+
+class SecurityViolation(Exception):
+    pass
+
+
+def validate_expression(expr: str):
+    """
+    Validates that the expression does not contain unsafe operations.
+    Blocks key imports and private attribute access.
+    """
+    try:
+        tree = ast.parse(expr, mode='eval')
+    except SyntaxError as e:
+        # Try parse as exec if eval fails (though for expr it should be eval)
+        # But user might type statements? No, eval expects expression.
+        raise SecurityViolation(f"Syntax Error in expression: {e}")
+
+    for node in ast.walk(tree):
+        # Block all imports
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            raise SecurityViolation(
+                "Imports are not allowed. Use metadata-provided modules.")
+
+        # Block accessing internal attributes like __dict__, __class__
+        if isinstance(node, ast.Attribute):
+            if node.attr.startswith("__"):
+                raise SecurityViolation(
+                    f"Accessing private attribute '{node.attr}' is not allowed.")
+
+        # We could also block `open`, `eval`, `exec` names if they weren't removed from builtins
+        # but removing them from builtins is safer.
 
 
 def select_cols_func(lf: pl.LazyFrame, params: SelectColsParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
@@ -39,8 +76,36 @@ def keep_cols_func(lf: pl.LazyFrame, params: KeepColsParams, context: Optional[T
 
 def add_col_func(lf: pl.LazyFrame, params: AddColParams, context: Optional[TransformContext] = None) -> pl.LazyFrame:
     if params.name and params.expr:
-        # Allow errors to propagate so UI shows them
-        computed_expr = eval(params.expr)
+        # 1. Security Check
+        validate_expression(params.expr)
+
+        # 2. Safe Env
+        safe_builtins = {
+            "abs": abs, "all": all, "any": any, "bool": bool, "float": float, "int": int,
+            "len": len, "max": max, "min": min, "round": round, "str": str, "sum": sum,
+            "list": list, "dict": dict, "set": set, "tuple": tuple, "zip": zip,
+            "map": map, "filter": filter
+        }
+
+        safe_globals = {
+            "__builtins__": safe_builtins,
+            "pl": pl,
+            "np": np,
+            "math": math,
+            "datetime": datetime,
+            "re": re,
+            "col": pl.col,
+            "lit": pl.lit,
+            "when": pl.when
+        }
+
+        # 3. Execute
+        # Eval allows expressions only
+        try:
+            computed_expr = eval(params.expr, safe_globals, {})
+        except Exception as e:
+            raise ValueError(f"Error evaluating expression: {e}")
+
         return lf.with_columns(computed_expr.alias(params.name))
     return lf
 

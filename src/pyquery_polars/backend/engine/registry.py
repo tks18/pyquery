@@ -18,7 +18,8 @@ from pyquery_polars.core.params import (
     ShiftParams, DropEmptyRowsParams,
     TextExtractDelimParams, RegexToolParams,
     RemoveOutliersParams, NormalizeSpacesParams, SmartExtractParams, OneHotEncodeParams,
-    CleanTextParams, MaskPIIParams, AutoImputeParams, CheckBoolParams, SanitizeColsParams
+    CleanTextParams, MaskPIIParams, AutoImputeParams, CheckBoolParams, SanitizeColsParams,
+    CustomScriptParams
 )
 
 # Import Transforms (Backend Logic)
@@ -49,6 +50,7 @@ from pyquery_polars.backend.processing.transforms.analytics import (
 from pyquery_polars.backend.processing.transforms.scientific import (
     math_sci_func, clip_func, date_offset_func, date_diff_func
 )
+from pyquery_polars.backend.processing.transforms.advanced import custom_script_func
 
 
 def register_all_steps():
@@ -191,3 +193,7 @@ def register_all_steps():
                group="Rows"), ShiftParams, shift_func)
     R.register("drop_empty_rows", StepMetadata(label="Drop Empty Rows",
                group="Rows"), DropEmptyRowsParams, drop_empty_rows_func)
+
+    # Advanced
+    R.register("custom_script", StepMetadata(label="Custom Python Script",
+               group="Advanced"), CustomScriptParams, custom_script_func)

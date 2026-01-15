@@ -1,7 +1,7 @@
 {
   "name": "pyquery",
   "description": "PyQuery is a low-code ETL app that actually slaps",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "repository": "https://github.com/tks18/pyquery",
   "author": "tks18 <tksudharshan@gmail.com>",
   "license": "GPL-3.0-only",

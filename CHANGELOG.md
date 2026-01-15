@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.5.0](https://github.com/tks18/pyquery/compare/v2.4.0...v2.5.0) (2026-01-15)
+
+
+### Bug Fixes 🛠
+
+* **frontend/app:** fix mimetypes for js, css since sometimes cause isssues with custom components ([595519a](https://github.com/tks18/pyquery/commit/595519a1053b71bb2d78e2dee472d186762419ed))
+
+
+### Features 🔥
+
+* **backend/core:** register the new function ([465b759](https://github.com/tks18/pyquery/commit/465b759f60c5e833d7ab1787fd85739bfc486909))
+* **backend/io:** robust conversion of encoding to utf8 in a streaming way ([aa15eb1](https://github.com/tks18/pyquery/commit/aa15eb1eb67f7dd22ca7fe4ab9c828070766c893))
+* **backend/io:** robust detection of encodings incase of csv ([e294d8e](https://github.com/tks18/pyquery/commit/e294d8e4a1154891347e114c1e2440f959221b81))
+* **backend/transforms:** columns: add_col - now use robust ast parsing for blocking unsafe eval ([8757b16](https://github.com/tks18/pyquery/commit/8757b166cb761df3589449bb4920fd31de167f1e))
+* **backend/transforms:** introduce new transform: advanced custom py script on the lazyframes ([bf6aab3](https://github.com/tks18/pyquery/commit/bf6aab337d9841a9b60967ee3170838f673d9917))
+* **core/models:** add a new param model custom py script ([abc43db](https://github.com/tks18/pyquery/commit/abc43dba05a7120fe782956e2b047ae3d1594807))
+* **core/models:** update the add col params to include a small default boilerplate code ([3fb3a19](https://github.com/tks18/pyquery/commit/3fb3a1949f67d363842abf906ad7e6481ccc2d28))
+* **frontend/components:** eda: use the new sql code editor with auto completions ([7a94605](https://github.com/tks18/pyquery/commit/7a9460533dc26c01ae2739f91215194ae4db41da))
+* **frontend/components:** editor: create 2 new editors based on custom editor - python & sql ([985392d](https://github.com/tks18/pyquery/commit/985392d803a445f8f0339483cd104c368e374b73))
+* **frontend/components:** file loader: warning - blazing fast ui update ([d1c7552](https://github.com/tks18/pyquery/commit/d1c75525ebca3f8a85c435d9014b6ad5dfc68913))
+* **frontend/components:** sql: use the new sql code editor ([f7e80e7](https://github.com/tks18/pyquery/commit/f7e80e75f42ccf2d151def07ebf656b2bc042535))
+* **frontend/custom:** create custom component: code editor based on react-ace and ace-builds ([a470591](https://github.com/tks18/pyquery/commit/a47059171affb172faa716ad8c326914a6d91b4c))
+* **frontend/steps:** create a new renderer for custom script ([f74415c](https://github.com/tks18/pyquery/commit/f74415c869faf587ccf60edac134d175dd97553c))
+* **frontend/steps:** register the new renderer ([bdb1c56](https://github.com/tks18/pyquery/commit/bdb1c560c368309aa4578cd7c8339b64d1c8e64c))
+* **frontend/steps:** use the new code editor for add_new_col function ([719ecba](https://github.com/tks18/pyquery/commit/719ecba6c295cf85be7c204662c71a765bbd6a68))
+* **frontend/utils:** create utils for completions for both python and sql ([cc19162](https://github.com/tks18/pyquery/commit/cc19162f9785f0931436cb8ef1ff9836eb8e1946))
+
+
+### Docs 📃
+
+* **readme:** update readme ([e68b6a7](https://github.com/tks18/pyquery/commit/e68b6a7a7a20d791aad7f9d636f65330c2edf3f6))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.5.0 ([e7f7945](https://github.com/tks18/pyquery/commit/e7f7945951425f86c05fdc0488ad50199298bd58))
+
 ## [2.4.0](https://github.com/tks18/pyquery/compare/v2.3.4...v2.4.0) (2026-01-13)
 
 
