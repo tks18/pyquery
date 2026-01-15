@@ -317,35 +317,63 @@ def batch_detect_encodings(files: List[str]) -> Dict[str, str]:
 
 def convert_file_to_utf8(file_path: str, source_encoding: str) -> str:
     """
-    Convert a file from source_encoding to UTF-8 using streaming processing.
-    Writes the converted file to the staging directory in chunks to minimize RAM usage.
-    Returns the path to the new UTF-8 file.
+    Convert a file from source_encoding to UTF-8 using robust streaming.
+    Features:
+    - Normalizes newlines to '\\n' (critical for Polars CSV parser robustness)
+    - Removes NULL bytes (\\x00)
+    - Uses 'replace' error handler for garbage characters
+    - Streams in 4MB chunks for low RAM usage
     """
+    # 1. Validate Encoding
+    try:
+        if not source_encoding:
+            source_encoding = "utf-8"
+        codecs.lookup(source_encoding)
+    except LookupError:
+        print(
+            f"Warning: Encoding '{source_encoding}' not found, falling back to 'utf-8'.")
+        source_encoding = "utf-8"
+
+    new_path = None
     try:
         staging_dir = get_staging_dir()
         filename = os.path.basename(file_path)
-        # Append identifier to avoid collisions
-        new_filename = f"utf8_{uuid.uuid4().hex[:6]}_{filename}"
+
+        # Sanitize filename to prevent issues
+        safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
+        new_filename = f"utf8_{uuid.uuid4().hex[:6]}_{safe_name}"
         new_path = os.path.join(staging_dir, new_filename)
 
-        # Stream Read/Write (Block size 1MB)
-        # Using text mode ensures correct character handling across block boundaries
-        chunk_size = 1024 * 1024
+        # 4MB Chunk Size for better IO throughput
+        chunk_size = 4 * 1024 * 1024
 
-        with open(file_path, 'r', encoding=source_encoding, errors='replace') as source_f:
-            with open(new_path, 'w', encoding='utf-8') as target_f:
+        # Open Source: newline=None enables Universal Newlines (normalizes \r\n to \n)
+        # Open Target: newline='\n' ensures we write clean Unix-style output
+        with io.open(file_path, 'r', encoding=source_encoding, errors='replace', newline=None) as source_f:
+            with io.open(new_path, 'w', encoding='utf-8', newline='\n') as target_f:
                 while True:
                     chunk = source_f.read(chunk_size)
                     if not chunk:
                         break
-                    # Clean Null Bytes if any (common in some raw dumps)
-                    if "\x00" in chunk:
-                        chunk = chunk.replace("\x00", "")
+
+                    # Robustness: Remove NULL bytes which confuse C-parsers
+                    if '\0' in chunk:
+                        chunk = chunk.replace('\0', '')
+
                     target_f.write(chunk)
 
         return new_path
+
     except Exception as e:
         print(f"Failed to convert {file_path}: {e}")
+        # Attempt cleanup of partial file
+        # Check if new_path was ever assigned (it is local to try block, but accessible in except if assigned)
+        # But to be safe against 'possibly unbound' (if exception happened before assignment), we check
+        if 'new_path' in locals() and new_path and os.path.exists(new_path):
+            try:
+                os.remove(new_path)
+            except:
+                pass
         raise e
 
 
