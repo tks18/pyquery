@@ -56,6 +56,10 @@ class DatasetMetadata(BaseModel):
     process_individual: bool = False
     file_list: Optional[List[str]] = None
     file_count: int = 1
+    
+    # Loader Configuration Persistence (for Edit/Settings feature)
+    loader_type: Optional[Literal["File", "SQL", "API"]] = None
+    loader_params: Optional[Dict[str, Any]] = None  # Full params dict from frontend
 
 
 class JobInfo(BaseModel):
