@@ -64,8 +64,9 @@ def custom_script_func(lf: pl.LazyFrame, params: CustomScriptParams, context: Op
         "print": print
     }
 
-    # Modules must be in global_env so functions defined in the script can access them
-    global_env = {
+    # Modules must be in context_env so functions defined in the script can access them
+    # We use a single dictionary for both globals and locals to ensure shared scope
+    context_env = {
         "__builtins__": safe_builtins,
         "pl": pl,
         "np": np,
@@ -82,17 +83,16 @@ def custom_script_func(lf: pl.LazyFrame, params: CustomScriptParams, context: Op
         "itertools": itertools
     }
 
-    local_env = {}
-
     try:
-        exec(script, global_env, local_env)
+        # Pass context_env as both globals and locals to allow functions to see each other
+        exec(script, context_env, context_env)
     except Exception as e:
         raise RuntimeError(f"Error executing custom script: {e}")
 
     # 3. Retrieve and Execute 'pyquery_transform' function
     # We look for a function named 'pyquery_transform'
-    if "pyquery_transform" in local_env and callable(local_env["pyquery_transform"]):
-        transform_func = local_env["pyquery_transform"]
+    if "pyquery_transform" in context_env and callable(context_env["pyquery_transform"]):
+        transform_func = context_env["pyquery_transform"]
         try:
             # We pass the lf to the function
             new_lf = transform_func(lf)
@@ -101,7 +101,7 @@ def custom_script_func(lf: pl.LazyFrame, params: CustomScriptParams, context: Op
                 f"Error while executing 'pyquery_transform' function: {e}")
     else:
         # Fallback: Check if 'lf' was modified in place (backward compatibility or alternative style)
-        new_lf = local_env.get("lf")
+        new_lf = context_env.get("lf")
         if new_lf is None:
             raise ValueError(
                 "Your script must define a function 'def pyquery_transform(lf): ... return lf'.")

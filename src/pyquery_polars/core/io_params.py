@@ -20,10 +20,19 @@ class FileFilter(BaseModel):
     target: Literal["filename", "path"] = "filename"
 
 
+class ItemFilter(BaseModel):
+    type: FilterType
+    value: str
+    target: Literal["sheet_name"] = "sheet_name"
+
+
 class FileLoaderParams(BaseModel):
     path: str
     filters: Optional[List[FileFilter]] = None
-    sheet: Union[str, List[str]] = "Sheet1"
+    sheet_filters: Optional[List[ItemFilter]] = None  # Dynamic Sheet Filtering
+    table_filters: Optional[List[ItemFilter]] = None  # Dynamic Table Filtering
+    sheet: Optional[Union[str, List[str]]] = "Sheet1"
+    table: Optional[Union[str, List[str]]] = None
     alias: str
     process_individual: bool = False  # Process files individually then concat
     include_source_info: bool = False  # Add source metadata columns

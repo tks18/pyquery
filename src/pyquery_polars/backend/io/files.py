@@ -13,12 +13,13 @@ import time
 import copy
 import io
 import codecs
+import gc
 from itertools import islice
 from openpyxl import load_workbook
 from typing import List, Literal, Optional, Any, Dict, cast, Iterator, Union
 import fnmatch
 
-from ...core.io_params import FileFilter, FilterType
+from ...core.io_params import FileFilter, ItemFilter, FilterType
 
 STAGING_DIR_NAME = "pyquery_staging"
 
@@ -49,6 +50,15 @@ def cleanup_staging_files(max_age_hours: int = 24):
                 except Exception as e:
                     pass
     except Exception as e:
+        pass
+
+
+def cleanup_staging_file(file_path: str):
+    """Remove a specific staging file immediately."""
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception:
         pass
 
 
@@ -188,6 +198,40 @@ def _check_filter_match(path: str, f: FileFilter) -> bool:
     return False
 
 
+def _check_item_match(name: str, f: ItemFilter) -> bool:
+    """Evaluates if a sheet name satisfies a filter."""
+    val = f.value
+    check_val = name
+
+    # Standardize case for case-insensitive comparisons
+    # EXACT is the only strictly case-sensitive mode
+    check_lower = check_val.lower()
+    val_lower = val.lower()
+
+    if f.type == FilterType.EXACT:
+        return val == check_val
+
+    if f.type == FilterType.IS_NOT:
+        return val != check_val
+
+    if f.type == FilterType.CONTAINS:
+        return val_lower in check_lower
+
+    if f.type == FilterType.NOT_CONTAINS:
+        return val_lower not in check_lower
+
+    if f.type == FilterType.GLOB:
+        return fnmatch.fnmatch(check_lower, val_lower)
+
+    if f.type == FilterType.REGEX:
+        try:
+            return bool(re.search(val, check_val, re.IGNORECASE))
+        except re.error:
+            return False
+
+    return False
+
+
 def _apply_param_filters(files: Iterator[str], filters: List[FileFilter], limit: Optional[int] = None) -> List[str]:
     """
     Consumes the file iterator, applies filters, and returns a list up to the limit.
@@ -211,37 +255,83 @@ def get_files_from_path(path_str: str) -> List[str]:
     return resolve_file_paths(path_str)
 
 
-def get_excel_sheet_names(file_path: str) -> List[str]:
+def _get_excel_metadata(file_path: str) -> Dict[str, Any]:
     """
-    Efficiently retrieve sheet names from an Excel file using fastexcel.
-    Fallback to 'Sheet1' if any error occurs.
-    Handles globs and directories by inspecting the first matching file.
+    Single-pass Excel metadata extraction.
+    Returns sheet names, table names, and basic file info.
+    Caches results to avoid multiple file reads.
+
+    Returns:
+        Dict with keys: 'sheets' (List[str]), 'tables' (List[str]), 'valid' (bool)
     """
+    metadata = {
+        'sheets': ["Sheet1"],
+        'tables': [],
+        'valid': False
+    }
+
     try:
         # Resolve path (handle globs, dirs)
         files = get_files_from_path(file_path)
         if not files:
-            return ["Sheet1"]
+            return metadata
 
         target_file = files[0]
-
         ext = os.path.splitext(target_file)[1].lower()
-        if ext not in [".xlsx", ".xls", ".xlsm"]:
-            return ["Sheet1"]
 
+        if ext not in [".xlsx", ".xls", ".xlsm", ".xlsb"]:
+            return metadata
+
+        # Single fastexcel reader instantiation
         try:
-            excel = fastexcel.read_excel(target_file)
-            return excel.sheet_names
-        except Exception:
-            # Fallback
+            reader = fastexcel.read_excel(target_file)
+            metadata['sheets'] = reader.sheet_names if reader.sheet_names else [
+                "Sheet1"]
+
+            # Get tables (only for formats that support it)
+            if ext in [".xlsx", ".xlsm", ".xlsb"]:
+                try:
+                    metadata['tables'] = sorted(reader.table_names())
+                except Exception:
+                    metadata['tables'] = []
+
+            metadata['valid'] = True
+            return metadata
+
+        except Exception as e:
+            # Fallback to openpyxl for sheets only
             try:
                 wb = load_workbook(
                     target_file, read_only=True, keep_links=False)
-                return wb.sheetnames
+                metadata['sheets'] = wb.sheetnames if wb.sheetnames else [
+                    "Sheet1"]
+                metadata['valid'] = True
+                wb.close()
+                return metadata
             except:
-                return ["Sheet1"]
-    except Exception as e:
-        return ["Sheet1"]
+                return metadata
+
+    except Exception:
+        return metadata
+
+
+def get_excel_sheet_names(file_path: str) -> List[str]:
+    """
+    Efficiently retrieve sheet names from an Excel file.
+    Uses cached metadata extraction to avoid redundant reads.
+    Fallback to 'Sheet1' if any error occurs.
+    """
+    metadata = _get_excel_metadata(file_path)
+    return metadata['sheets']
+
+
+def get_excel_table_names(file_path: str) -> List[str]:
+    """
+    Retrieve defined Table names from an Excel file.
+    Uses cached metadata extraction to avoid redundant reads.
+    """
+    metadata = _get_excel_metadata(file_path)
+    return metadata['tables']
 
 
 def clean_header_name(col: str) -> str:
@@ -377,7 +467,7 @@ def convert_file_to_utf8(file_path: str, source_encoding: str) -> str:
         raise e
 
 
-def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet1", process_individual: bool = False, include_source_info: bool = False, clean_headers: bool = False) -> Optional[tuple]:
+def load_lazy_frame(files: List[str], sheet_name: Optional[Union[str, List[str]]] = "Sheet1", sheet_filters: Optional[List[ItemFilter]] = None, table_name: Optional[Union[str, List[str]]] = None, table_filters: Optional[List[ItemFilter]] = None, process_individual: bool = False, include_source_info: bool = False, clean_headers: bool = False) -> Optional[tuple]:
     """
     Load files into LazyFrame(s).
 
@@ -450,65 +540,142 @@ def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet
                 current_lf = pl.scan_parquet(f)
             elif file_ext in [".arrow", ".ipc", ".feather"]:
                 current_lf = pl.scan_ipc(f)
-            elif file_ext in [".xlsx", ".xls"]:
-                # Dump to Parquet
+            elif file_ext in [".xlsx", ".xls", ".xlsm", ".xlsb"]:
                 try:
-                    staging_dir = get_staging_dir()
+                    staging_path = get_staging_dir()
+
+                    # OPTIMIZATION: Single metadata extraction per file
+                    excel_meta = _get_excel_metadata(f)
+
+                    # Determine what to load
+                    # Priority: Table Name(s) > Sheet Name(s) > Default Sheet1
+
+                    # Normalize inputs to lists
+                    target_tables = []
+
+                    if table_name == "__ALL_TABLES__" or table_name == ["__ALL_TABLES__"]:
+                        target_tables = excel_meta['tables']
+                    elif table_name:
+                        if isinstance(table_name, list):
+                            target_tables = table_name
+                        else:
+                            target_tables = [table_name]
+
                     target_sheets = []
-                    if isinstance(sheet_name, list):
-                        target_sheets = sheet_name
-                    elif sheet_name == "__ALL_SHEETS__":
-                        target_sheets = get_excel_sheet_names(f)
-                    else:
-                        target_sheets = [sheet_name]
 
-                    for s_name in target_sheets:
-                        try:
-                            # Note: read_excel is eager. We can rename cols here easily if needed.
-                            df = pl.read_excel(
-                                f, sheet_name=s_name, infer_schema_length=0)
+                    if not target_tables:
+                        if table_filters:
+                            # DYNAMIC TABLE SELECTION
+                            all_tables = excel_meta['tables']
+                            # Reuse _check_item_match (generic enough)
+                            target_tables = [t for t in all_tables if all(
+                                _check_item_match(t, tf) for tf in table_filters)]
 
-                            # Clean Headers Immediate for Excel
-                            if clean_headers:
-                                new_cols = {c: clean_header_name(
-                                    c) for c in df.columns}
-                                df = df.rename(new_cols)
+                        elif sheet_filters is not None:
+                            # DYNAMIC SHEET SELECTION
+                            all_sheets = excel_meta['sheets']
+                            # Apply filters
+                            target_sheets = [s for s in all_sheets if all(
+                                _check_item_match(s, sf) for sf in sheet_filters)]
 
-                            stage_filename = f"{os.path.splitext(os.path.basename(f))[0]}_{s_name}_{uuid.uuid4().hex[:8]}.parquet"
-                            stage_path = os.path.join(
-                                staging_dir, stage_filename)
-                            df.write_parquet(stage_path)
-                            del df
+                        elif sheet_name == "__ALL_SHEETS__" or sheet_name == ["__ALL_SHEETS__"]:
+                            target_sheets = excel_meta['sheets']
 
-                            current_lf = pl.scan_parquet(stage_path)
+                        elif isinstance(sheet_name, list):
+                            target_sheets = sheet_name
 
-                            # Header cleaning already done for Excel above
+                        else:
+                            # Single sheet string or None -> Default
+                            if sheet_name:
+                                target_sheets = [sheet_name]
+                            else:
+                                # Use first sheet from metadata
+                                if excel_meta['sheets']:
+                                    target_sheets = [excel_meta['sheets'][0]]
+                                else:
+                                    target_sheets = ["Sheet1"]
 
-                            # Source Info
-                            if include_source_info:
-                                abs_path = os.path.abspath(f)
-                                name = os.path.basename(f)
-                                ext_val = os.path.splitext(f)[1]
-                                display_name = f"{name} [{s_name}]"
+                    # 1. LOAD TABLES (via Polars read_excel -> Parquet)
+                    if target_tables:
+                        for t_name in target_tables:
+                            try:
+                                # Polars read_excel with table_name
+                                df = pl.read_excel(
+                                    f, table_name=t_name, engine="calamine", infer_schema_length=0)
 
-                                current_lf = current_lf.with_columns([
-                                    pl.lit(abs_path).alias(
-                                        "__pyquery_source_path__"),
-                                    pl.lit(display_name).alias(
-                                        "__pyquery_source_name__"),
-                                    pl.lit(ext_val).alias(
-                                        "__pyquery_source_ext__")
-                                ])
+                                if clean_headers:
+                                    new_cols = {c: clean_header_name(
+                                        c) for c in df.columns}
+                                    df = df.rename(new_cols)
 
-                            lfs.append(current_lf)
-                        except Exception as inner_ex:
-                            print(
-                                f"Failed to load sheet {s_name} from {f}: {inner_ex}")
+                                if include_source_info:
+                                    df = df.with_columns([
+                                        pl.lit(os.path.abspath(f)).alias(
+                                            "__pyquery_source_path__"),
+                                        pl.lit(f"{os.path.basename(f)}[table][{t_name}]").alias(
+                                            "__pyquery_source_name__"),
+                                        pl.lit(file_ext).alias(
+                                            "__pyquery_source_ext__")
+                                    ])
 
-                    current_lf = None  # Handled via loop append
+                                # Write to Staging
+                                out_name = f"staged_{uuid.uuid4().hex[:8]}_{t_name}.parquet"
+                                out_path = os.path.join(staging_path, out_name)
+                                df.write_parquet(out_path)
+
+                                # MEMORY CLEANUP: Explicit deletion
+                                del df
+
+                                # Append LazyFrame reference
+                                lfs.append(pl.scan_parquet(out_path))
+
+                            except Exception as e:
+                                print(f"Failed to load table {t_name}: {e}")
+
+                    # 2. LOAD SHEETS (via Polars read_excel -> Parquet)
+                    if target_sheets:
+                        for s_name in target_sheets:
+                            try:
+                                # pl.read_excel is eager
+                                df = pl.read_excel(
+                                    f, sheet_name=s_name, engine="calamine", infer_schema_length=0)
+
+                                if clean_headers:
+                                    new_cols = {c: clean_header_name(
+                                        c) for c in df.columns}
+                                    df = df.rename(new_cols)
+
+                                if include_source_info:
+                                    df = df.with_columns([
+                                        pl.lit(os.path.abspath(f)).alias(
+                                            "__pyquery_source_path__"),
+                                        pl.lit(f"{os.path.basename(f)}[sheet][{s_name}]").alias(
+                                            "__pyquery_source_name__"),
+                                        pl.lit(file_ext).alias(
+                                            "__pyquery_source_ext__")
+                                    ])
+
+                                # Write to Staging
+                                out_name = f"staged_{uuid.uuid4().hex[:8]}_{s_name}.parquet"
+                                out_path = os.path.join(staging_path, out_name)
+                                df.write_parquet(out_path)
+
+                                # MEMORY CLEANUP: Explicit deletion
+                                del df
+
+                                # Append LazyFrame reference
+                                lfs.append(pl.scan_parquet(out_path))
+
+                            except Exception as e:
+                                print(f"Failed to load sheet {s_name}: {e}")
+
+                    # Ensure common block is skipped
+                    current_lf = None
 
                 except Exception as ex:
                     print(f"Excel Load Error {f}: {ex}")
+                    # Ensure common block is skipped on error too
+                    current_lf = None
 
             elif file_ext == ".json":
                 current_lf = pl.scan_ndjson(f, infer_schema_length=0)
@@ -542,6 +709,10 @@ def load_lazy_frame(files: List[str], sheet_name: Union[str, List[str]] = "Sheet
 
         except Exception as e:
             print(f"Error loading {f}: {e}")
+
+    # MEMORY OPTIMIZATION: Suggest garbage collection after batch processing
+    if len(files) > 5:  # Only for batch operations
+        gc.collect()
 
     if not lfs:
         return None

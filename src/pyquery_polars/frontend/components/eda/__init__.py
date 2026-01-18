@@ -286,7 +286,11 @@ def render_eda_tab(dataset_name: str):
         sql_str = custom_sql if use_sql else "NO_SQL"
         excl_str = ",".join(excluded_cols) if excluded_cols else "None"
         
-        raw_key = f"{dataset_name}|{limit}|{recipe_str}|{sql_str}|{excl_str}"
+        # Include LazyFrame plan in fingerprint to detect reloaded data (different staging files)
+        # str(lf_eda) usually contains the query plan or at least the scan paths
+        plan_str = str(lf_eda)
+        
+        raw_key = f"{dataset_name}|{limit}|{recipe_str}|{sql_str}|{excl_str}|{plan_str}"
         fingerprint = hashlib.md5(raw_key.encode()).hexdigest()
 
         # Build Context

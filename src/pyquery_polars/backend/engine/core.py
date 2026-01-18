@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Optional, Union, Sequence, Tuple
 import polars as pl
 import os
 from pydantic import BaseModel
@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep, DatasetMetadata
 from pyquery_polars.core.registry import StepRegistry
-from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
+from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, get_excel_table_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
 from pyquery_polars.core.io_params import FileFilter
 
 # Modules
@@ -61,7 +61,9 @@ class PyQueryEngine:
     # DATASET MANAGEMENT
     # ==========================
     def add_dataset(self, name: str, lf_or_lfs: Union[pl.LazyFrame, List[pl.LazyFrame]],
-                    metadata: Optional[Dict[str, Any]] = None):
+                    metadata: Optional[Dict[str, Any]] = None,
+                    loader_type: Optional[Literal["File", "SQL", "API"]] = None,
+                    loader_params: Optional[Dict[str, Any]] = None):
         """Add a dataset with comprehensive metadata."""
         if metadata is None:
             metadata = {}
@@ -73,7 +75,9 @@ class PyQueryEngine:
             input_format=metadata.get("input_format"),
             process_individual=metadata.get("process_individual", False),
             file_list=metadata.get("file_list"),
-            file_count=metadata.get("file_count", 1)
+            file_count=metadata.get("file_count", 1),
+            loader_type=loader_type,
+            loader_params=loader_params
         )
 
         # Handle LazyFrame vs List[LazyFrame]
@@ -102,6 +106,33 @@ class PyQueryEngine:
                 self._sql_context.unregister(name)
             except:
                 pass
+
+    def rename_dataset(self, old_name: str, new_name: str) -> bool:
+        """Rename a dataset, updating all references."""
+        if old_name not in self._datasets or new_name in self._datasets:
+            return False
+        
+        # Move metadata to new key
+        self._datasets[new_name] = self._datasets.pop(old_name)
+        
+        # Update SQL context
+        try:
+            # Get the LazyFrame for re-registration
+            meta = self._datasets[new_name]
+            if meta.base_lf is not None:
+                lf = meta.base_lf
+            elif meta.base_lfs:
+                lf = pl.concat(meta.base_lfs, how="diagonal")
+            else:
+                lf = None
+            
+            self._sql_context.unregister(old_name)
+            if lf is not None:
+                self._sql_context.register(new_name, lf)
+        except Exception as e:
+            print(f"SQL Context Rename Warning: {e}")
+        
+        return True
 
     def get_dataset(self, name: str) -> Optional[pl.LazyFrame]:
         """Get LazyFrame for preview (returns first file if process_individual)."""
@@ -139,7 +170,9 @@ class PyQueryEngine:
             "process_individual": meta.process_individual,
             "file_list": meta.file_list,
             "file_count": meta.file_count,
-            "lazyframe_count": lf_count
+            "lazyframe_count": lf_count,
+            "loader_type": meta.loader_type,
+            "loader_params": meta.loader_params
         }
 
     def _get_datasets_dict_for_execution(self) -> Dict[str, pl.LazyFrame]:
@@ -194,6 +227,10 @@ class PyQueryEngine:
     def get_file_sheet_names(self, file_path: str) -> List[str]:
         """Get sheet names from an Excel file."""
         return get_excel_sheet_names(file_path)
+
+    def get_file_table_names(self, file_path: str) -> List[str]:
+        """Get table names from an Excel file."""
+        return get_excel_table_names(file_path)
 
     def scan_encodings(self, files: List[str]) -> Dict[str, str]:
         """Detect non-utf8 encodings in list of files."""

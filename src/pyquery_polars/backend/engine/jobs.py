@@ -21,7 +21,8 @@ class JobManager:
 
     def start_export_job(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
                          exporter_name: str, params: Union[Dict[str, Any], BaseModel],
-                         project_recipes: Optional[Dict[str, List[RecipeStep]]] = None,
+                         project_recipes: Optional[Dict[str,
+                                                        List[RecipeStep]]] = None,
                          precomputed_lf: Optional[Union[pl.LazyFrame, List[pl.LazyFrame]]] = None) -> str:
         job_id = str(uuid.uuid4())
         exporter = self._exporters.get(exporter_name)
@@ -85,7 +86,7 @@ class JobManager:
 
             info = self._jobs[job_id]
             info.duration = duration
-            
+
             # Status handling
             if export_result.get('status') == 'Done':
                 info.status = "COMPLETED"
@@ -97,7 +98,7 @@ class JobManager:
 
             # Size check
             if export_result.get('size_str'):
-                info.size_str = export_result.get('size_str')
+                info.size_str = str(export_result.get('size_str'))
             else:
                 # Fallback to single file check
                 path = None
