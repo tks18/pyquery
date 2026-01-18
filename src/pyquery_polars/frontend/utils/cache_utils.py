@@ -18,6 +18,14 @@ def get_cached_sheet_names(_engine: PyQueryEngine, path: str, last_modified: Opt
     return _engine.get_file_sheet_names(path)
 
 
+@st.cache_data(show_spinner=False, ttl=60)
+def get_cached_table_names(_engine: PyQueryEngine, path: str, last_modified: Optional[float] = None) -> List[str]:
+    """
+    Cached wrapper for get_file_table_names.
+    """
+    return _engine.get_file_table_names(path)
+
+
 @st.cache_data(show_spinner=False, ttl=30)
 def get_cached_resolved_files(_engine: PyQueryEngine, path: str, filters: List[Any], limit: int = 1000) -> List[str]:
     """
