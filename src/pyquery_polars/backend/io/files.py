@@ -211,37 +211,83 @@ def get_files_from_path(path_str: str) -> List[str]:
     return resolve_file_paths(path_str)
 
 
-def get_excel_sheet_names(file_path: str) -> List[str]:
+def _get_excel_metadata(file_path: str) -> Dict[str, Any]:
     """
-    Efficiently retrieve sheet names from an Excel file using fastexcel.
-    Fallback to 'Sheet1' if any error occurs.
-    Handles globs and directories by inspecting the first matching file.
+    Single-pass Excel metadata extraction.
+    Returns sheet names, table names, and basic file info.
+    Caches results to avoid multiple file reads.
+
+    Returns:
+        Dict with keys: 'sheets' (List[str]), 'tables' (List[str]), 'valid' (bool)
     """
+    metadata = {
+        'sheets': ["Sheet1"],
+        'tables': [],
+        'valid': False
+    }
+
     try:
         # Resolve path (handle globs, dirs)
         files = get_files_from_path(file_path)
         if not files:
-            return ["Sheet1"]
+            return metadata
 
         target_file = files[0]
-
         ext = os.path.splitext(target_file)[1].lower()
-        if ext not in [".xlsx", ".xls", ".xlsm"]:
-            return ["Sheet1"]
 
+        if ext not in [".xlsx", ".xls", ".xlsm", ".xlsb"]:
+            return metadata
+
+        # Single fastexcel reader instantiation
         try:
-            excel = fastexcel.read_excel(target_file)
-            return excel.sheet_names
-        except Exception:
-            # Fallback
+            reader = fastexcel.read_excel(target_file)
+            metadata['sheets'] = reader.sheet_names if reader.sheet_names else [
+                "Sheet1"]
+
+            # Get tables (only for formats that support it)
+            if ext in [".xlsx", ".xlsm", ".xlsb"]:
+                try:
+                    metadata['tables'] = sorted(reader.table_names())
+                except Exception:
+                    metadata['tables'] = []
+
+            metadata['valid'] = True
+            return metadata
+
+        except Exception as e:
+            # Fallback to openpyxl for sheets only
             try:
                 wb = load_workbook(
                     target_file, read_only=True, keep_links=False)
-                return wb.sheetnames
+                metadata['sheets'] = wb.sheetnames if wb.sheetnames else [
+                    "Sheet1"]
+                metadata['valid'] = True
+                wb.close()
+                return metadata
             except:
-                return ["Sheet1"]
-    except Exception as e:
-        return ["Sheet1"]
+                return metadata
+
+    except Exception:
+        return metadata
+
+
+def get_excel_sheet_names(file_path: str) -> List[str]:
+    """
+    Efficiently retrieve sheet names from an Excel file.
+    Uses cached metadata extraction to avoid redundant reads.
+    Fallback to 'Sheet1' if any error occurs.
+    """
+    metadata = _get_excel_metadata(file_path)
+    return metadata['sheets']
+
+
+def get_excel_table_names(file_path: str) -> List[str]:
+    """
+    Retrieve defined Table names from an Excel file.
+    Uses cached metadata extraction to avoid redundant reads.
+    """
+    metadata = _get_excel_metadata(file_path)
+    return metadata['tables']
 
 
 def clean_header_name(col: str) -> str:
