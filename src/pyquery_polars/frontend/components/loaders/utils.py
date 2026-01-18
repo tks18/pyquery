@@ -20,7 +20,7 @@ def filter_list_by_regex(items: List[str], pattern: str) -> List[str]:
 
 
 def handle_auto_inference(engine: PyQueryEngine, alias_val: str):
-    """Runs type inference and adds a clean_cast step if needed."""
+    """Runs type inference and adds/replaces a clean_cast step if needed."""
     try:
         with st.spinner("Auto-detecting types..."):
             inferred = engine.infer_types(alias_val, [], sample_size=1000)
@@ -49,9 +49,26 @@ def handle_auto_inference(engine: PyQueryEngine, alias_val: str):
                         label="Auto Clean Types",
                         params=p.model_dump()
                     )
-                    st.session_state.all_recipes[alias_val].append(new_step)
-                    st.toast(
-                        f"✨ Auto-added cleaning step for {count} columns!", icon="🪄")
+                    
+                    recipe = st.session_state.all_recipes.get(alias_val, [])
+                    
+                    # Check for existing Auto Clean Types step
+                    existing_idx = None
+                    for i, step in enumerate(recipe):
+                        if step.label == "Auto Clean Types" and step.type == "clean_cast":
+                            existing_idx = i
+                            break
+                    
+                    if existing_idx is not None:
+                        # Replace existing step at the same position
+                        recipe[existing_idx] = new_step
+                        st.toast(f"✨ Updated cleaning step for {count} columns!", icon="🔄")
+                    else:
+                        # Insert at the beginning (position 0) since it's a source-level step
+                        recipe.insert(0, new_step)
+                        st.toast(f"✨ Auto-added cleaning step for {count} columns!", icon="🪄")
+                    
+                    st.session_state.all_recipes[alias_val] = recipe
     except Exception as e:
         print(f"Auto infer error: {e}")
 
