@@ -44,7 +44,7 @@ def render_sidebar():
         # --- HELPER: RESET DIALOG STATE ---
         def reset_dialog_state():
              for key in list(st.session_state.keys()):
-                if key.startswith("dlg_"):
+                if isinstance(key, str) and key.startswith("dlg_"):
                     del st.session_state[key]
 
         # --- BUTTON CALLBACKS ---
@@ -124,7 +124,7 @@ def render_sidebar():
             
             # Reset all dialog inputs
             for key in list(st.session_state.keys()):
-                if key.startswith("dlg_"):
+                if isinstance(key, str) and key.startswith("dlg_"):
                     del st.session_state[key]
 
         # --- RENDER DIALOGS IF ACTIVE ---
