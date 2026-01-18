@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep, DatasetMetadata
 from pyquery_polars.core.registry import StepRegistry
-from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
+from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, get_excel_table_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
 from pyquery_polars.core.io_params import FileFilter
 
 # Modules
@@ -194,6 +194,10 @@ class PyQueryEngine:
     def get_file_sheet_names(self, file_path: str) -> List[str]:
         """Get sheet names from an Excel file."""
         return get_excel_sheet_names(file_path)
+
+    def get_file_table_names(self, file_path: str) -> List[str]:
+        """Get table names from an Excel file."""
+        return get_excel_table_names(file_path)
 
     def scan_encodings(self, files: List[str]) -> Dict[str, str]:
         """Detect non-utf8 encodings in list of files."""
