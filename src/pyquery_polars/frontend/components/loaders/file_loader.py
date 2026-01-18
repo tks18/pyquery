@@ -6,9 +6,20 @@ import pandas as pd
 from typing import List
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.file_picker import pick_file, pick_folder
-from pyquery_polars.frontend.utils.cache_utils import get_cached_sheet_names, get_cached_resolved_files, get_cached_encoding_scan
-from pyquery_polars.core.io_params import FileFilter, FilterType
-from pyquery_polars.frontend.components.loaders.utils import filter_list_by_regex, handle_auto_inference
+from pyquery_polars.frontend.utils.cache_utils import get_cached_sheet_names, get_cached_resolved_files, get_cached_encoding_scan, get_cached_table_names
+from pyquery_polars.core.io_params import FileFilter, FilterType, ItemFilter
+from pyquery_polars.frontend.components.loaders.utils import filter_list_by_regex, handle_auto_inference, filter_sheet_names
+
+
+# Constant Map for Filter Types
+FILTER_TYPE_MAP = {
+    "contains": FilterType.CONTAINS,
+    "regex": FilterType.REGEX,
+    "exact": FilterType.EXACT,
+    "glob": FilterType.GLOB,
+    "not_contains": FilterType.NOT_CONTAINS,
+    "is_not": FilterType.IS_NOT
+}
 
 
 @st.dialog("Import File", width="large")
@@ -98,7 +109,7 @@ def show_file_loader(engine: PyQueryEngine):
 
             col_path, col_btn = st.columns([0.85, 0.15])
             path_input = col_path.text_input("File Path", key=path_key, disabled=is_busy,
-                                             on_change=trigger_check_load, help="Enter path and press Enter to load.")
+                                             help="Enter path to file.")
 
             def callback_pick_file():
                 picked = pick_file("Select File")
@@ -177,7 +188,7 @@ def show_file_loader(engine: PyQueryEngine):
                 c_add_1, c_add_2, c_add_3, c_add_4 = st.columns(
                     [0.25, 0.25, 0.4, 0.1])
                 new_f_type = c_add_1.selectbox(
-                    "Type", ["contains", "regex", "exact", "glob"], key="new_filt_type", disabled=is_busy)
+                    "Type", ["contains", "regex", "exact", "glob", "not_contains", "is_not"], key="new_filt_type", disabled=is_busy)
                 new_f_target = c_add_2.selectbox(
                     "Target", ["filename", "path"], key="new_filt_target", disabled=is_busy)
                 new_f_val = c_add_3.text_input(
@@ -197,16 +208,10 @@ def show_file_loader(engine: PyQueryEngine):
 
             # Convert to FileFilter objects
             if st.session_state[filter_key]:
-                type_map = {
-                    "contains": FilterType.CONTAINS,
-                    "regex": FilterType.REGEX,
-                    "exact": FilterType.EXACT,
-                    "glob": FilterType.GLOB
-                }
                 for f in st.session_state[filter_key]:
-                    if f['type'] in type_map:
+                    if f['type'] in FILTER_TYPE_MAP:
                         effective_filters.append(FileFilter(
-                            type=type_map[f['type']],
+                            type=FILTER_TYPE_MAP[f['type']],
                             value=f['value'],
                             target=f.get('target', 'filename')
                         ))
@@ -235,14 +240,14 @@ def show_file_loader(engine: PyQueryEngine):
                         # Quick scan for potential base files (limit 50 for UI)
                         matches = []
                         try:
-                            is_rec = "**" in effective_path
-                            cnt = 0
-                            for f in glob.iglob(effective_path, recursive=is_rec):
+                            # Use cached resolver to verify filters are respected
+                            resolved = get_cached_resolved_files(
+                                engine, effective_path, effective_filters, limit=50)
+                            
+                            # Filter for Excel extensions just in case pattern was broad
+                            for f in resolved:
                                 if f.lower().endswith(('.xlsx', '.xls', '.xlsm')):
                                     matches.append(f)
-                                    cnt += 1
-                                    if cnt >= 50:
-                                        break
                         except:
                             pass
 
@@ -260,86 +265,305 @@ def show_file_loader(engine: PyQueryEngine):
                             sheet_source_file = None
 
                     if sheet_source_file:
-                        # Get sheets from file using CACHED function
-                        sheets = get_cached_sheet_names(
-                            engine, sheet_source_file)
+                        # --- EXCEL LOAD TARGET MODE ---
+                        # Toggle between Sheets and Tables
+                        excel_load_target = st.radio("Load Target", ["Sheet", "Table"], horizontal=True, key=f"dlg_{loader_name}_excel_target", disabled=is_busy)
+                        
+                        if excel_load_target == "Table":
+                            # TABLE MODE
+                            table_mode = st.radio("Selection Mode", ["Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_table_mode", disabled=is_busy)
+                            st.session_state[f"dlg_{loader_name}_table_mode_selection"] = table_mode # Persist
 
-                        col_filter, col_act = st.columns([0.7, 0.3])
-                        sheet_filter = col_filter.text_input(
-                            "Filter Sheets", "", key="sheet_regex_filter", placeholder="e.g. Sheet.*", disabled=is_busy)
+                            if table_mode == "Manual Selection":
+                                tables = get_cached_table_names(engine, sheet_source_file)
+                                if not tables:
+                                    st.warning("No named tables found in this file.")
+                                    st.session_state[f"dlg_{loader_name}_final_table"] = None
+                                else:
+                                    # Filter UI
+                                    t_col_f, t_col_act = st.columns([0.6, 0.4])
+                                    table_filter = t_col_f.text_input("Filter Tables", "", placeholder="e.g. Table.*", key=f"dlg_{loader_name}_tbl_regex")
+                                    
+                                    filtered_tables = tables
+                                    if table_filter:
+                                        filtered_tables = filter_list_by_regex(tables, table_filter)
+                                    
+                                    # Select All Logic
+                                    c_all, c_vis = t_col_act.columns(2)
+                                    sel_all_global = c_all.checkbox("All", key=f"dlg_{loader_name}_tbl_all_g", help="Select all tables in file")
+                                    sel_all_vis = c_vis.checkbox("Filtered", key=f"dlg_{loader_name}_tbl_all_v", disabled=not table_filter, help="Select all visible tables")
+                                    
+                                    if sel_all_global:
+                                        st.session_state[f"dlg_{loader_name}_final_table"] = tables
+                                        st.caption(f"Selected all {len(tables)} tables.")
+                                    elif sel_all_vis:
+                                        st.session_state[f"dlg_{loader_name}_final_table"] = filtered_tables
+                                        st.caption(f"Selected {len(filtered_tables)} filtered tables.")
+                                    else:
+                                        selected_table = st.multiselect(
+                                            "Select Table(s)", 
+                                            filtered_tables,
+                                            default=[filtered_tables[0]] if filtered_tables else [],
+                                            key=f"dlg_{loader_name}_sel_table",
+                                            disabled=is_busy
+                                        )
+                                        st.session_state[f"dlg_{loader_name}_final_table"] = selected_table
+                            else:
+                                # DYNAMIC TABLE FILTERS
+                                st.caption("Define rules to select tables automatically from ALL files.")
+                                st.session_state[f"dlg_{loader_name}_final_table"] = [] # Clear manual selection
+                                
+                                t_filter_key = f"dlg_{loader_name}_table_filters"
+                                if t_filter_key not in st.session_state:
+                                    st.session_state[t_filter_key] = []
+                                
+                                # Show Existing Filters
+                                for i, f in enumerate(st.session_state[t_filter_key]):
+                                    c1, c2, c3 = st.columns([0.3, 0.6, 0.1])
+                                    c1.markdown(f"**{f['type']}**")
+                                    c2.text(f['value'])
+                                    def del_t_filter(idx):
+                                        st.session_state[t_filter_key].pop(idx)
+                                    c3.button("✕", key=f"btn_del_tfilt_{i}", on_click=del_t_filter, args=(i,), disabled=is_busy)
+                                
+                                # Add New Filter
+                                with st.container(border=True):
+                                    c_add_1, c_add_2, c_add_3 = st.columns([0.4, 0.5, 0.1])
+                                    new_t_type = c_add_1.selectbox("Type", ["contains", "regex", "exact", "glob", "not_contains", "is_not"], key="new_tfilt_type", disabled=is_busy)
+                                    new_t_val = c_add_2.text_input("Pattern", key="new_tfilt_val", disabled=is_busy)
+                                    
+                                    def add_t_filter():
+                                        if st.session_state.new_tfilt_val:
+                                            st.session_state[t_filter_key].append({
+                                                "type": st.session_state.new_tfilt_type,
+                                                "value": st.session_state.new_tfilt_val
+                                            })
+                                            st.session_state.new_tfilt_val = ""
+                                    
+                                    c_add_3.button("➕", on_click=add_t_filter, key="btn_add_tfilt", disabled=is_busy)
 
-                        filtered_sheets = sheets
-                        if sheet_filter:
-                            filtered_sheets = filter_list_by_regex(
-                                sheets, sheet_filter)
-
-                        all_sheets = col_act.checkbox(
-                            "Select All Filtered", value=False, disabled=is_busy)
-
-                        if all_sheets:
-                            selected_sheets = filtered_sheets
+                                # Preview Matches (Base File)
+                                if st.session_state[t_filter_key]:
+                                    try:
+                                        base_tables = get_cached_table_names(engine, sheet_source_file)
+                                        st.caption(f"Filters will be applied to all files. (Base file has {len(base_tables)} tables)")
+                                    except:
+                                        pass
+                        
                         else:
-                            selected_sheets = st.multiselect(
-                                "Select Sheets",
-                                filtered_sheets,
-                                default=["Sheet1"] if "Sheet1" in filtered_sheets else (
-                                    [filtered_sheets[0]] if filtered_sheets else []),
-                                disabled=is_busy
-                            )
+                            # SHEET MODE
+                            st.session_state[f"dlg_{loader_name}_final_table"] = None # Reset
+                            
+                            # SHEET SELECTION MODE
+                            sheet_mode = st.radio("Selection Mode", ["Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_sheet_mode", disabled=is_busy)
+                            st.session_state[f"dlg_{loader_name}_sheet_mode_selection"] = sheet_mode
+
+                            if sheet_mode == "Manual Selection":
+                                # Existing Logic
+                                sheets = get_cached_sheet_names(
+                                    engine, sheet_source_file)
+
+                                col_filter, col_act = st.columns([0.6, 0.4])
+                                sheet_filter = col_filter.text_input(
+                                    "Filter Sheets", "", key="sheet_regex_filter", placeholder="e.g. Sheet.*", disabled=is_busy)
+
+                                filtered_sheets = sheets
+                                if sheet_filter:
+                                    filtered_sheets = filter_list_by_regex(
+                                        sheets, sheet_filter)
+
+                                c_all_s, c_vis_s = col_act.columns(2)
+                                all_sheets_global = c_all_s.checkbox(
+                                    "All", value=False, key=f"dlg_{loader_name}_sht_all_g", disabled=is_busy, help="Select all sheets")
+                                all_sheets_vis = c_vis_s.checkbox(
+                                    "Filtered", value=False, key=f"dlg_{loader_name}_sht_all_v", disabled=not sheet_filter, help="Select visible sheets")
+
+                                if all_sheets_global:
+                                    selected_sheets = sheets
+                                    st.caption(f"Selected all {len(sheets)} sheets.")
+                                elif all_sheets_vis:
+                                    selected_sheets = filtered_sheets
+                                    st.caption(f"Selected {len(filtered_sheets)} filtered sheets.")
+                                else:
+                                    selected_sheets = st.multiselect(
+                                        "Select Sheets",
+                                        filtered_sheets,
+                                        default=["Sheet1"] if "Sheet1" in filtered_sheets else (
+                                            [filtered_sheets[0]] if filtered_sheets else []),
+                                        disabled=is_busy
+                                    )
+                            else:
+                                # DYNAMIC FILTERS (New)
+                                st.caption("Define rules to select sheets automatically from ALL files.")
+                                
+                                s_filter_key = f"dlg_{loader_name}_sheet_filters"
+                                if s_filter_key not in st.session_state:
+                                    st.session_state[s_filter_key] = []
+                                
+                                # Show Existing Filters
+                                for i, f in enumerate(st.session_state[s_filter_key]):
+                                    c1, c2, c3 = st.columns([0.3, 0.6, 0.1])
+                                    c1.markdown(f"**{f['type']}**")
+                                    c2.text(f['value'])
+                                    def del_s_filter(idx):
+                                        st.session_state[s_filter_key].pop(idx)
+                                    c3.button("✕", key=f"btn_del_sfilt_{i}", on_click=del_s_filter, args=(i,), disabled=is_busy)
+                                
+                                # Add New Filter
+                                with st.container(border=True):
+                                    c_add_1, c_add_2, c_add_3 = st.columns([0.4, 0.5, 0.1])
+                                    new_s_type = c_add_1.selectbox("Type", ["contains", "regex", "exact", "glob", "not_contains", "is_not"], key="new_sfilt_type", disabled=is_busy)
+                                    new_s_val = c_add_2.text_input("Pattern", key="new_sfilt_val", disabled=is_busy)
+                                    
+                                    def add_s_filter():
+                                        if st.session_state.new_sfilt_val:
+                                            st.session_state[s_filter_key].append({
+                                                "type": st.session_state.new_sfilt_type,
+                                                "value": st.session_state.new_sfilt_val
+                                            })
+                                            st.session_state.new_sfilt_val = ""
+                                    
+                                    c_add_3.button("➕", on_click=add_s_filter, key="btn_add_sfilt", disabled=is_busy)
+
+                                # Preview Matches (Base File)
+                                if st.session_state[s_filter_key]:
+                                    try:
+                                        base_sheets = get_cached_sheet_names(engine, sheet_source_file)
+                                        # Client-side preview check (simple approximation)
+                                        # converting dict filters to IO Params filters logic is strict in backend
+                                        # Here we approximate for UI feedback
+                                        preview_matches = []
+                                        
+                                        # Build temporary filters
+                                        temp_filters = []
+                                        for f in st.session_state[s_filter_key]:
+                                            if f['type'] in FILTER_TYPE_MAP:
+                                                temp_filters.append(ItemFilter(type=FILTER_TYPE_MAP[f['type']], value=f['value']))
+
+                                        # Reuse Backend Helper logic (replicated for Frontend simplicity or imported?)
+                                        # Since we can't easily import backend internal helpers, we use a simple loop
+                                        # Or better: Just show "Applied dynamically to all files"
+                                        st.caption(f"Filters will be applied to all files. (Base file has {len(base_sheets)} sheets)")
+                                    except:
+                                        pass
                 except Exception as e:
                     st.warning(f"Could not read sheets: {e}")
 
         # --- PREVIEW & REVIEW (Dynamic Tabs) ---
         with st.expander("🔎 Preview & Review", expanded=True):
             tabs_labels = ["📂 Matched Files"]
-            if is_excel:
-                tabs_labels.append("📑 Selected Sheets")
+            if is_excel and effective_path:
+                final_table = st.session_state.get(f"dlg_{loader_name}_final_table")
+                if final_table:
+                    tabs_labels.append("📑 Selected Tables")
+                elif selected_sheets:
+                    tabs_labels.append("📑 Selected Sheets")
 
             tabs = st.tabs(tabs_labels)
 
-        # TAB 1: Files
-        with tabs[0]:
-            if effective_path:
-                if st.button("Load File Preview", key=f"btn_{loader_name}_preview"):
-                    try:
-                        # Use resolve_files via Engine (CACHED)
-                        found_files = []
+            # TAB 1: Files
+            with tabs[0]:
+                if effective_path:
+                    if st.button("Load File Preview", key=f"btn_{loader_name}_preview"):
                         try:
-                            found_files = get_cached_resolved_files(
-                                engine, effective_path, effective_filters, limit=1000)
+                            # Use resolve_files via Engine (CACHED)
+                            found_files = []
+                            try:
+                                found_files = get_cached_resolved_files(
+                                    engine, effective_path, effective_filters, limit=1000)
+                            except Exception as e:
+                                st.error(f"Error resolving paths: {e}")
+
+                            scan_limit = 1000
+                            count = len(found_files)
+
+                            display_files = found_files[:scan_limit]
+                            data = []
+                            for f in display_files:
+                                data.append({
+                                    "File Name": os.path.basename(f),
+                                    "Type": os.path.splitext(f)[1],
+                                    "Path": f
+                                })
+
+                            if found_files:
+                                st.success(
+                                    f"Found {len(found_files)}{'+' if count >= scan_limit else ''} files.")
+                                st.dataframe(pd.DataFrame(data))
+                            else:
+                                st.warning("No files found matching the pattern.")
                         except Exception as e:
-                            st.error(f"Error resolving paths: {e}")
-
-                        scan_limit = 1000
-                        count = len(found_files)
-
-                        display_files = found_files[:scan_limit]
-                        data = []
-                        for f in display_files:
-                            data.append({
-                                "File Name": os.path.basename(f),
-                                "Path": f
-                            })
-
-                        if found_files:
-                            st.success(
-                                f"Found {len(found_files)}{'+' if count >= scan_limit else ''} files.")
-                            st.dataframe(pd.DataFrame(data))
-                        else:
-                            st.warning("No files found matching the pattern.")
-                    except Exception as e:
-                        st.error(f"Error previewing files: {e}")
+                            st.error(f"Error previewing files: {e}")
+                    else:
+                        st.caption(
+                            "Click to preview matched files (Optimized for speed).")
                 else:
-                    st.caption(
-                        "Click to preview matched files (Optimized for speed).")
-            else:
-                st.info("Select a path to preview files.")
+                    st.info("Select a path to preview files.")
 
-        # TAB 2: Sheets
-        if is_excel and selected_sheets:
-            with tabs[1]:
-                st.dataframe(pd.DataFrame(
-                    {"Sheet Name": selected_sheets}), hide_index=True)
+            # TAB 2: Sheets or Tables
+            if is_excel:
+                 final_table = st.session_state.get(f"dlg_{loader_name}_final_table")
+                 src_fname = os.path.basename(sheet_source_file) if sheet_source_file else "Multiple/Pattern"
+                 
+                 if final_table and len(tabs) > 1:
+                    with tabs[1]:
+                        # Enhanced Table Layout
+                        df_table = pd.DataFrame({
+                            "Table Name": final_table,
+                            "Source Type": ["Manual Selection"] * len(final_table),
+                            "Source File": [src_fname] * len(final_table)
+                        })
+                        st.dataframe(df_table, hide_index=True)
+                 
+                 elif len(tabs) > 1:
+                    with tabs[1]:
+                        # Logic depends on mode
+                        if st.session_state.get(f"dlg_{loader_name}_sheet_mode_selection") == "Dynamic Filter":
+                            s_filts = st.session_state.get(f"dlg_{loader_name}_sheet_filters", [])
+                            if s_filts:
+                                st.info(f"Filters check against template: {src_fname}")
+                                
+                                try:
+                                    # Reconstruct Filters
+                                    preview_filters = []
+                                    for f in s_filts:
+                                        if f['type'] in FILTER_TYPE_MAP:
+                                            preview_filters.append(ItemFilter(
+                                                type=FILTER_TYPE_MAP[f['type']],
+                                                value=f['value']
+                                            ))
+
+                                    # Get Sheets & Filter
+                                    if sheet_source_file:
+                                        base_sheets = get_cached_sheet_names(engine, sheet_source_file)
+                                    else:
+                                        base_sheets = []
+                                    matched = filter_sheet_names(base_sheets, preview_filters)
+                                    
+                                    # Enhanced Dynamic Preview
+                                    df_dynamic = pd.DataFrame({
+                                        "Matched Sheet Name": matched,
+                                        "Match Rule": ["Dynamic Filter"] * len(matched),
+                                        "Source File": [src_fname] * len(matched)
+                                    })
+
+                                    st.dataframe(df_dynamic, hide_index=True)
+                                    
+                                    if not matched:
+                                        st.warning("No sheets in the template file match these filters.")
+
+                                except Exception as e:
+                                    st.error(f"Error generating preview: {e}")
+                            else:
+                                st.info("No filters defined.")
+                        elif selected_sheets:
+                            # Enhanced Manual Sheet Layout
+                            df_manual = pd.DataFrame({
+                                "Sheet Name": selected_sheets,
+                                "Source Type": ["Manual Selection"] * len(selected_sheets),
+                                "Source File": [src_fname] * len(selected_sheets)
+                            })
+                            st.dataframe(df_manual, hide_index=True)
 
         # --- SETTINGS ---
         with st.expander("⚙️ Loading Settings", expanded=not is_busy):
@@ -390,13 +614,7 @@ def show_file_loader(engine: PyQueryEngine):
         st.session_state.show_loader_file = False
         st.rerun()
 
-    # Enter to Load Trigger Check
-    trigger_auto = False
-    if st.session_state.get(f"dlg_{loader_name}_trigger"):
-        trigger_auto = True
-        st.session_state[f"dlg_{loader_name}_trigger"] = False  # Reset
-
-    if c_submit.button(btn_label, type=btn_type, width="stretch", disabled=is_busy) or trigger_auto:
+    if c_submit.button(btn_label, type=btn_type, width="stretch", disabled=is_busy):
         if not alias_val:
             st.error("Alias is required.")
         elif mode == "Single File" and (not effective_path or not os.path.exists(effective_path)):
@@ -407,18 +625,71 @@ def show_file_loader(engine: PyQueryEngine):
             st.error(f"Directory not found: {folder_input}")
         else:
             # PACK JOB PARAMS
+            final_table = st.session_state.get(f"dlg_{loader_name}_final_table")
+            
+            # Prepare Filters
+            effective_sheet_filters = None
+            effective_table_filters = None
+            effective_sheets = None
+            
+            # Check target mode from session state to handle empty selections correctly
+            excel_target_mode = st.session_state.get(f"dlg_{loader_name}_excel_target", "Sheet")
+
+            if excel_target_mode == "Table":
+                # Table Mode
+                table_mode = st.session_state.get(f"dlg_{loader_name}_table_mode_selection")
+                
+                # Check Select All Global
+                if st.session_state.get(f"dlg_{loader_name}_tbl_all_g", False):
+                    final_table = "__ALL_TABLES__"
+                
+                elif table_mode == "Dynamic Filter":
+                     # BUILD TABLE FILTERS
+                     t_filts = st.session_state.get(f"dlg_{loader_name}_table_filters", [])
+                     if t_filts:
+                         effective_table_filters = []
+                         for f in t_filts:
+                             if f['type'] in FILTER_TYPE_MAP:
+                                 effective_table_filters.append(ItemFilter(
+                                     type=FILTER_TYPE_MAP[f['type']],
+                                     value=f['value']
+                                 ))
+            
+            elif not final_table:
+                 # Sheet Mode (and no table selected - creating mutually exclusive path)
+                 sheet_mode = st.session_state.get(f"dlg_{loader_name}_sheet_mode_selection")
+                 
+                 # Check Select All Global Sheet
+                 if st.session_state.get(f"dlg_{loader_name}_sht_all_g", False):
+                     effective_sheets = "__ALL_SHEETS__"
+                 
+                 elif sheet_mode == "Dynamic Filter":
+                     # BUILD SHET FILTERS
+                     s_filts = st.session_state.get(f"dlg_{loader_name}_sheet_filters", [])
+                     if s_filts:
+                         effective_sheet_filters = []
+                         for f in s_filts:
+                             if f['type'] in FILTER_TYPE_MAP:
+                                 effective_sheet_filters.append(ItemFilter(
+                                     type=FILTER_TYPE_MAP[f['type']],
+                                     value=f['value']
+                                 ))
+                 else:
+                     effective_sheets = selected_sheets
+
             params = {
                 "path": effective_path,
                 "filters": effective_filters,
-                "sheet": selected_sheets,
+                "sheet": effective_sheets,
+                "sheet_filters": effective_sheet_filters,
+                "table": final_table,
+                "table_filters": effective_table_filters,
                 "alias": alias_val,
                 "process_individual": process_individual,
                 "include_source_info": include_src,
                 "clean_headers": clean_headers,
                 "auto_infer": auto_infer,
                 "split_sheets": split_sheets,
-                # "issues": ... # Calculated dynamically now
-                # "all_files": ... # Calculated dynamically now
             }
 
             st.session_state[job_params_key] = params
@@ -503,51 +774,74 @@ def show_file_loader(engine: PyQueryEngine):
                     split_sheets = job_params.get("split_sheets", False)
                     auto_infer = job_params.get("auto_infer", False)
 
-                    if split_sheets and job_params.get("sheet"):
-                        # Multi-Dataset Load
-                        sheet_list = job_params["sheet"]
-                        last_active_alias = alias_val
+                    if split_sheets:
+                        # Multi-Dataset Load (Split Mode)
+                        sheet_list = []
+                        
+                        # Case 1: Manual Selection
+                        if job_params.get("sheet"):
+                            sheet_list = job_params["sheet"]
+                        
+                        # Case 2: Dynamic Filter (Resolving for Split)
+                        elif job_params.get("sheet_filters"):
+                             try:
+                                 # We need to resolve all sheets first
+                                 # We only support this for Single File mode currently (as per split_sheets availability)
+                                 base_file = job_params["path"]
+                                 all_sheets = get_cached_sheet_names(engine, base_file)
+                                 sheet_list = filter_sheet_names(all_sheets, job_params["sheet_filters"])
+                                 
+                                 if not sheet_list:
+                                     st.warning("No sheets matched the dynamic filters.")
+                             except Exception as e:
+                                 st.error(f"Error resolving sheets for splitting: {e}")
 
-                        progress_text = "Importing sheets..."
-                        my_bar = st.progress(0, text=progress_text)
+                        if sheet_list:
+                             # ... proceed with split logic ...
+                            last_active_alias = alias_val
 
-                        total_sheets = len(sheet_list)
+                            progress_text = "Importing sheets..."
+                            my_bar = st.progress(0, text=progress_text)
 
-                        for i, sheet_name in enumerate(sheet_list):
-                            my_bar.progress(
-                                (i + 1) / total_sheets, text=f"Importing {sheet_name}...")
+                            total_sheets = len(sheet_list)
 
-                            current_alias = f"{alias_val}_{sheet_name}"
+                            for i, sheet_name in enumerate(sheet_list):
+                                my_bar.progress(
+                                    (i + 1) / total_sheets, text=f"Importing {sheet_name}...")
 
-                            curr_params = job_params.copy()
-                            curr_params["sheet"] = [sheet_name]
-                            curr_params["alias"] = current_alias
+                                current_alias = f"{alias_val}_{sheet_name}"
 
-                            res_sheet = engine.run_loader("File", curr_params)
-                            if res_sheet:
-                                lf, meta = res_sheet
-                                engine.add_dataset(current_alias, lf, meta)
+                                curr_params = job_params.copy()
+                                curr_params["sheet"] = [sheet_name]
+                                # Remove dynamic filters effectively for this specific sheet load
+                                curr_params.pop("sheet_filters", None)
+                                curr_params["alias"] = current_alias
 
-                                # Init Recipe
-                                if current_alias not in st.session_state.all_recipes:
-                                    st.session_state.all_recipes[current_alias] = [
-                                    ]
+                                res_sheet = engine.run_loader("File", curr_params)
+                                if res_sheet:
+                                    lf, meta = res_sheet
+                                    engine.add_dataset(current_alias, lf, meta)
 
-                                # Auto Infer
-                                if auto_infer:
-                                    st.write(
-                                        f"Inferring types for {current_alias}...")
-                                    handle_auto_inference(
-                                        engine, current_alias)
+                                    # Init Recipe
+                                    if current_alias not in st.session_state.all_recipes:
+                                        st.session_state.all_recipes[current_alias] = [
+                                        ]
 
-                                last_active_alias = current_alias
-                            else:
-                                st.warning(
-                                    f"Skipped sheet: {sheet_name} (Load Failed)")
+                                    # Auto Infer
+                                    if auto_infer:
+                                        st.write(
+                                            f"Inferring types for {current_alias}...")
+                                        handle_auto_inference(
+                                            engine, current_alias)
 
-                        st.session_state.active_base_dataset = last_active_alias
-                        st.session_state.recipe_steps = []
-                        my_bar.empty()
+                                    last_active_alias = current_alias
+                                else:
+                                    st.warning(
+                                        f"Skipped sheet: {sheet_name} (Load Failed)")
+
+                            st.session_state.active_base_dataset = last_active_alias
+                            st.session_state.recipe_steps = []
+                            my_bar.empty()
 
                     else:
                         # Single Buffer Load
