@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.6.0](https://github.com/tks18/pyquery/compare/v2.5.0...v2.6.0) (2026-01-18)
+
+
+### Docs 📃
+
+* **readme:** update readme ([8276f96](https://github.com/tks18/pyquery/commit/8276f96e9126505cdca7f7cc0cf168ab7b602de4))
+
+
+### Bug Fixes 🛠
+
+* **backend/transforms:** advanced: fix the variables being passed to env ([1c0b924](https://github.com/tks18/pyquery/commit/1c0b924503156be68685577124d2f80f88bacdab))
+* **frontend/components:** eda: sometimes the fingerprint gets wrongly created ([f8d0206](https://github.com/tks18/pyquery/commit/f8d02061bded2466cb2faaeaff17e19c4de48d25))
+
+
+### Build System 🏗
+
+* **pyproject:** add sqlalchemy as dependency for sql workflows ([97ebe4c](https://github.com/tks18/pyquery/commit/97ebe4c947cc867f27675bd66c53a367b47490a1))
+
+
+### Features 🔥
+
+* **backend/core:** expose the api for getting table names ([a759fad](https://github.com/tks18/pyquery/commit/a759fad2ff8b64ed203bbc1689f48b7197fcc9c7))
+* **backend/core:** support additional meta related to loader to be stored in backend ([068b730](https://github.com/tks18/pyquery/commit/068b730f4c5602ece0b976af71e603d30c1535d4))
+* **backend/io:** app now supports dynamic filters being applied for excel sheets/tables ([6c04e6f](https://github.com/tks18/pyquery/commit/6c04e6f13f6543e1a36cf4e299882fb8e08cd6d9))
+* **backend/io:** now supports excel tables as well as inputs ([1ff81d0](https://github.com/tks18/pyquery/commit/1ff81d0acc02428e8cf683e5944e3bc2d42b1609))
+* **backend/io:** plugin: update function signature for file loader ([fc26d21](https://github.com/tks18/pyquery/commit/fc26d210b419f6970563f5800638a565bde90b6c))
+* **cli/core:** update cli to support dev flag for testing the app ([fc6c40e](https://github.com/tks18/pyquery/commit/fc6c40e4786d7cf91f97cb7df9b3f6e6f02d646d))
+* **cli:** when dev mode is enabled, watch for entire root not only frontend ([25c3faf](https://github.com/tks18/pyquery/commit/25c3fafc76e7dc36bb22b093d3b31a55a70010e0))
+* **frontend/components:** file-loader: completely revamp - enable sup for dynamic filters, tables ([d363bfb](https://github.com/tks18/pyquery/commit/d363bfbdb892eaad0f46cb3ec4d3710e3b7d0aa9))
+* **frontend/components:** now file loader supports edit mode ([d941b3a](https://github.com/tks18/pyquery/commit/d941b3a917f3f06d417468c62ddc746d7a171358))
+* **frontend/components:** recipe-editor: allow to view raw source before t'ions, beautify overview ([e948e51](https://github.com/tks18/pyquery/commit/e948e51835c5da29ed963d9543421f0f50982384))
+* **frontend/components:** sidebar: support editing of dataset settings after loading ([1cc0cae](https://github.com/tks18/pyquery/commit/1cc0cae25a04e845b8d6b7b0ec809928582dd0c9))
+* **frontend/components:** support edit mode for api-loader as well ([859621d](https://github.com/tks18/pyquery/commit/859621db3bf71485d92d74e713cb059230315624))
+* **frontend/components:** update sql_loader to support edit mode ([801224e](https://github.com/tks18/pyquery/commit/801224e8264c366f15bfa1791d3322c84dac4494))
+* **frontend/utils:** now auto inference also supports edit mode and works at later point of time ([abe96d6](https://github.com/tks18/pyquery/commit/abe96d6b97f8e8ae4c4216bb58e0d362565cb557))
+* **frontend/utils:** write cache helpers for table names and dynamic filter support ([97c2208](https://github.com/tks18/pyquery/commit/97c22089066342b89ccd1225ed8837ffc704da71))
+* **frontend/utils:** write utils for caching table names for rerender ([78ec974](https://github.com/tks18/pyquery/commit/78ec9746e4953424ff1f1e46c75891a054b14417))
+* **models:** update datasetschema to support additional metadata for loader ([2c1bf3b](https://github.com/tks18/pyquery/commit/2c1bf3b71fb8a166c54fd04b94e730eeb17941ec))
+* **params:** update io params to support item filters and table names ([318506c](https://github.com/tks18/pyquery/commit/318506cdde124f7865b0b295e5aeaad1d4c4d763))
+
+
+### Styling 🎨
+
+* **backend/jobs:** linter changes ([39f9485](https://github.com/tks18/pyquery/commit/39f948512e52791421f1556034cf6aeb05374ba6))
+* **frontend/components:** fix pylance error ([0072c04](https://github.com/tks18/pyquery/commit/0072c0440ead6055a9b2e54921a6cb98efb7c6ef))
+
+
+### Others 🔧
+
+* **pyversion:** update app to v2.6.0 ([61a5c87](https://github.com/tks18/pyquery/commit/61a5c87d552ebd7a9b102051758de2d1bfc5940c))
+
 ## [2.5.0](https://github.com/tks18/pyquery/compare/v2.4.0...v2.5.0) (2026-01-15)
 
 
