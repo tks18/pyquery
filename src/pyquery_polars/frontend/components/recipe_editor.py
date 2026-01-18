@@ -12,11 +12,6 @@ def render_recipe_editor(dataset_name):
         st.info("Please select or import a dataset.")
         return
 
-    if st.session_state.recipe_steps:
-        with st.expander("🗺️ Recipe Overview", expanded=False):
-            st.markdown(" ➝ ".join(
-                [f"**{i+1}.** {s.label}" for i, s in enumerate(st.session_state.recipe_steps)]))
-
     engine = cast(PyQueryEngine, st.session_state.get('engine'))
 
     if not engine:
@@ -35,6 +30,40 @@ def render_recipe_editor(dataset_name):
             st.session_state.view_at_step_id = None
         else:
             st.session_state.view_at_step_id = sid
+    
+    # Callback for Raw Source View
+    def _set_view_raw():
+        if st.session_state.get('view_at_step_id') == "__RAW_SOURCE__":
+            st.session_state.view_at_step_id = None
+        else:
+            st.session_state.view_at_step_id = "__RAW_SOURCE__"
+
+    # --- RECIPE OVERVIEW EXPANDER ---
+    if st.session_state.recipe_steps:
+        with st.expander("🗺️ Recipe Overview", expanded=False):
+            steps = st.session_state.recipe_steps
+            
+            # Show steps as numbered list with columns
+            for i, s in enumerate(steps):
+                c_num, c_label = st.columns([0.08, 0.92])
+                c_num.markdown(f"**{i+1}.**")
+                c_label.markdown(f"`{s.type}` → {s.label}")
+            
+            st.caption(f"📊 Total: {len(steps)} step{'s' if len(steps) != 1 else ''}")
+
+    # --- VIEW SOURCE (Step 0 - Before recipe steps) ---
+    is_viewing_raw = st.session_state.get("view_at_step_id") == "__RAW_SOURCE__"
+    
+    with st.expander("📄 Source Data", expanded=False):
+        c_lbl, c_actions = st.columns([0.65, 0.35])
+        with c_lbl:
+            st.caption("Preview Original data before any transformations")
+        
+        with c_actions:
+            btn_type_raw = "primary" if is_viewing_raw else "secondary"
+            st.button("👁️ Preview", key="view_raw_source", 
+                     help="Inspect raw source data",
+                     type=btn_type_raw, on_click=_set_view_raw)
 
     # --- RECIPE UI LOOP ---
     for i, step in enumerate(st.session_state.recipe_steps):
@@ -111,12 +140,17 @@ def render_recipe_editor(dataset_name):
     
     view_id = st.session_state.get('view_at_step_id')
     if view_id:
-        idx = next((i for i, s in enumerate(target_steps) if s.id == view_id), -1)
-        if idx != -1:
-            target_steps = target_steps[:idx+1]
-            title_suffix = f" (Step #{idx+1})"
+        if view_id == "__RAW_SOURCE__":
+            # Show raw source with no steps applied
+            target_steps = []
+            title_suffix = " (Raw Source)"
         else:
-            st.session_state.view_at_step_id = None
+            idx = next((i for i, s in enumerate(target_steps) if s.id == view_id), -1)
+            if idx != -1:
+                target_steps = target_steps[:idx+1]
+                title_suffix = f" (Step #{idx+1})"
+            else:
+                st.session_state.view_at_step_id = None
 
     st.subheader(f"📊 Live Preview (Top 1k){title_suffix}")
     
