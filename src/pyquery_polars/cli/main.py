@@ -12,6 +12,8 @@ def main():
     # Default to UI if no args
     if len(sys.argv) == 1:
         sys.argv.append("ui")
+    elif len(sys.argv) == 2 and sys.argv[1] == "--dev":
+        sys.argv.insert(1, "ui")
 
     # Check for --dev flag early to skip banner
     dev_mode = "--dev" in sys.argv
@@ -136,7 +138,10 @@ def main():
         cmd = ["streamlit", "run", app_path, "--server.port", str(args.port)]
         
         if args.dev:
-            cmd.append("--logger.level=debug")
+            # Watch the entire package root using Streamlit's folderWatchList option
+            package_root = os.path.dirname(current_dir)
+            cmd.extend(["--server.folderWatchList", package_root])
+            log_step(f"Watching Folders: {package_root}", module="DEV-MODE", icon="👀")
             log_step("Dev Mode Enabled: Verbose Logging Active", module="DEV-MODE", icon="🛠️")
         try:
             subprocess.run(cmd)
