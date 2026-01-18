@@ -24,8 +24,11 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
         return None
 
     result = load_lazy_frame(
-        files,
-        params.sheet,
+        files=files,
+        sheet_name=params.sheet,
+        sheet_filters=params.sheet_filters,
+        table_name=params.table,
+        table_filters=params.table_filters,
         process_individual=params.process_individual,
         include_source_info=params.include_source_info,
         clean_headers=getattr(params, 'clean_headers', False)
