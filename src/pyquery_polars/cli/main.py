@@ -9,11 +9,19 @@ from pyquery_polars.cli.branding import show_banner, log_step, log_error, log_su
 
 
 def main():
-    # Show Banner for all commands (Console Appeal)
-    try:
-        show_banner()
-    except Exception:
-        pass # Fallback if rich fails or unicode issues
+    # Default to UI if no args
+    if len(sys.argv) == 1:
+        sys.argv.append("ui")
+
+    # Check for --dev flag early to skip banner
+    dev_mode = "--dev" in sys.argv
+    
+    # Show Banner for all commands (Console Appeal) IF NOT IN DEV MODE
+    if not dev_mode:
+        try:
+            show_banner()
+        except Exception:
+            pass # Fallback if rich fails or unicode issues
 
     parser = argparse.ArgumentParser(description="Shan's PyQuery Platform CLI")
     subparsers = parser.add_subparsers(
@@ -57,10 +65,14 @@ def main():
     run_parser.add_argument(
         "--export-individual", action="store_true",
         help="Export results as separate files (requires --process-individual)")
+    run_parser.add_argument(
+        "--dev", action="store_true", help="Enable Dev Mode (No Banner, Verbose Logs)")
 
     # 2. INTERACTIVE (TUI)
-    subparsers.add_parser(
+    interactive_parser = subparsers.add_parser(
         "interactive", help="Start the Interactive Terminal UI")
+    interactive_parser.add_argument(
+        "--dev", action="store_true", help="Enable Dev Mode (No Banner, Verbose Logs)")
 
     # 3. API (Server)
     api_parser = subparsers.add_parser("api", help="Start the FastAPI Server")
@@ -68,22 +80,26 @@ def main():
         "--port", type=int, default=8000, help="Port to run on")
     api_parser.add_argument(
         "--reload", action="store_true", help="Enable auto-reload")
+    api_parser.add_argument(
+        "--dev", action="store_true", help="Enable Dev Mode (No Banner, Verbose Logs)")
 
     # 4. UI (Streamlit)
     ui_parser = subparsers.add_parser("ui", help="Start the Streamlit Web App")
     ui_parser.add_argument(
         "--port", type=int, default=8501, help="Port to run on")
-
-    # Default to UI if no args
-    if len(sys.argv) == 1:
-        sys.argv.append("ui")
+    ui_parser.add_argument(
+        "--dev", action="store_true", help="Enable Dev Mode (No Banner, Verbose Logs)")
 
     args = parser.parse_args()
 
     if args.command == "run":
+        if args.dev:
+             log_step("Dev Mode Enabled (Headless)", module="DEV-MODE", icon="🛠️")
         run_headless(args)
 
     elif args.command == "interactive":
+        if args.dev:
+            log_step("Dev Mode Enabled (Interactive)", module="DEV-MODE", icon="🛠️")
         run_interactive()
 
     elif args.command == "api":
@@ -94,6 +110,11 @@ def main():
         cmd = ["uvicorn", target, "--port", str(args.port)]
         if args.reload:
             cmd.append("--reload")
+        
+        if args.dev:
+            cmd.append("--log-level=debug")
+            log_step("Dev Mode Enabled: Verbose Logging Active", module="DEV-MODE", icon="🛠️")
+            
         try:
             subprocess.run(cmd)
         except KeyboardInterrupt:
@@ -113,6 +134,10 @@ def main():
             sys.exit(1)
 
         cmd = ["streamlit", "run", app_path, "--server.port", str(args.port)]
+        
+        if args.dev:
+            cmd.append("--logger.level=debug")
+            log_step("Dev Mode Enabled: Verbose Logging Active", module="DEV-MODE", icon="🛠️")
         try:
             subprocess.run(cmd)
         except KeyboardInterrupt:
