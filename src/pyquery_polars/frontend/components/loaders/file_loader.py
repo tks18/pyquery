@@ -350,7 +350,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
         effective_filters = []
 
         if mode == "Folder Pattern":
-            with st.expander("Advanced File & Path Filters", expanded=False):
+            with st.expander("🔍 Advanced File & Path Filters", expanded=False):
                 st.caption(
                     "Apply additional filters to file paths & file names.")
 
