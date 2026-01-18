@@ -128,11 +128,24 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                 st.session_state[mode_key] = "Single File"
                 st.session_state[path_key] = original_path
 
-            # Excel settings
-            if params.get("table"):
+            # Excel settings - PRE-FILL THE WIDGET KEYS
+            # Check for Table Mode (either explicit selection or dynamic filters)
+            if params.get("table") or params.get("table_filters"):
                 st.session_state[f"dlg_{loader_name}_excel_target"] = "Table"
-            elif params.get("sheet"):
+                # For table mode, the widget key is `dlg_{loader_name}_table_mode`
+                if params.get("table_filters"):
+                    st.session_state[f"dlg_{loader_name}_table_mode"] = "Dynamic Filter"
+                else:
+                    st.session_state[f"dlg_{loader_name}_table_mode"] = "Manual Selection"
+
+            # Check for Sheet Mode (either explicit selection or dynamic filters)
+            elif params.get("sheet") or params.get("sheet_filters"):
                 st.session_state[f"dlg_{loader_name}_excel_target"] = "Sheet"
+                
+                if params.get("sheet_filters"):
+                    st.session_state[f"dlg_{loader_name}_sheet_mode"] = "Dynamic Filter"
+                else:
+                    st.session_state[f"dlg_{loader_name}_sheet_mode"] = "Manual Selection"
 
             # Options - use session state keys
             st.session_state[f"dlg_{loader_name}_process_individual"] = params.get(
@@ -175,21 +188,26 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
             if params.get("sheet_filters"):
                 st.session_state[f"dlg_{loader_name}_sheet_filters"] = convert_filters_for_display(
                     params["sheet_filters"])
-                st.session_state[f"dlg_{loader_name}_sheet_mode_selection"] = "Dynamic Filter"
 
             # Table filters
             if params.get("table_filters"):
                 st.session_state[f"dlg_{loader_name}_table_filters"] = convert_filters_for_display(
                     params["table_filters"])
-                st.session_state[f"dlg_{loader_name}_table_mode_selection"] = "Dynamic Filter"
 
-            # Pre-fill selected sheets/tables if manually selected
-            if params.get("sheet") and params["sheet"] != "__ALL_SHEETS__":
-                if isinstance(params["sheet"], list):
+            # Pre-fill selected sheets if manually selected
+            if params.get("sheet"):
+                if params["sheet"] == "__ALL_SHEETS__":
+                    st.session_state[f"dlg_{loader_name}_sht_all_g"] = True
+                elif isinstance(params["sheet"], list):
+                    # For manual selection, we default to the list. 
+                    # NOTE: This key is used in multiselect `default` param, BUT multiselect uses `key` for state
                     st.session_state[f"dlg_{loader_name}_sel_sheet"] = params["sheet"]
 
-            if params.get("table") and params["table"] != "__ALL_TABLES__":
-                if isinstance(params["table"], list):
+            # Pre-fill selected tables if manually selected
+            if params.get("table"):
+                if params["table"] == "__ALL_TABLES__":
+                    st.session_state[f"dlg_{loader_name}_tbl_all_g"] = True
+                elif isinstance(params["table"], list):
                     st.session_state[f"dlg_{loader_name}_sel_table"] = params["table"]
                     st.session_state[f"dlg_{loader_name}_final_table"] = params["table"]
 
@@ -332,7 +350,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
         effective_filters = []
 
         if mode == "Folder Pattern":
-            with st.expander("Advanced File & Path Filters", expanded=False):
+            with st.expander("🔍 Advanced File & Path Filters", expanded=False):
                 st.caption(
                     "Apply additional filters to file paths & file names.")
 
@@ -399,8 +417,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
         selected_sheets = ["Sheet1"]
 
         if is_excel and effective_path:
-            st.write("###### Excel Sheets")
-            with st.container(border=True):
+            with st.expander("📊 Excel Settings", expanded=True):
                 try:
                     # Handle Glob Base Selection
                     if "*" in effective_path:
@@ -433,16 +450,21 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
 
                     if sheet_source_file:
                         # --- EXCEL LOAD TARGET MODE ---
-                        # Toggle between Sheets and Tables
-                        excel_load_target = st.radio("Load Target", [
+                        c_target, c_mode_sel = st.columns(2)
+                        
+                        # LEFT: Toggle between Sheets and Tables
+                        excel_load_target = c_target.radio("Load Target", [
                                                      "Sheet", "Table"], horizontal=True, key=f"dlg_{loader_name}_excel_target", disabled=is_busy)
 
                         if excel_load_target == "Table":
                             # TABLE MODE
-                            table_mode = st.radio("Selection Mode", [
+                            # RIGHT: Selection Mode
+                            table_mode = c_mode_sel.radio("Selection Mode", [
                                                   "Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_table_mode", disabled=is_busy)
                             # Persist
                             st.session_state[f"dlg_{loader_name}_table_mode_selection"] = table_mode
+                            
+                            st.divider()
 
                             if table_mode == "Manual Selection":
                                 tables = get_cached_table_names(
@@ -542,13 +564,15 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
 
                         else:
                             # SHEET MODE
-                            # Reset
-                            st.session_state[f"dlg_{loader_name}_final_table"] = None
-
-                            # SHEET SELECTION MODE
-                            sheet_mode = st.radio("Selection Mode", [
+                            # RIGHT: Selection Mode
+                            sheet_mode = c_mode_sel.radio("Selection Mode", [
                                                   "Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_sheet_mode", disabled=is_busy)
                             st.session_state[f"dlg_{loader_name}_sheet_mode_selection"] = sheet_mode
+                            
+                            st.divider()
+                            
+                            # Reset
+                            st.session_state[f"dlg_{loader_name}_final_table"] = None
 
                             if sheet_mode == "Manual Selection":
                                 # Existing Logic

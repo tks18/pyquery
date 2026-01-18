@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.1](https://github.com/tks18/pyquery/compare/v2.6.0...v2.6.1) (2026-01-18)
+
+
+### Styling 🎨
+
+* **frontend/components:** file-loader: add emoji ([7d88fe6](https://github.com/tks18/pyquery/commit/7d88fe60bb82bb7fba68a6bb8f0cccc637a03960))
+
+
+### Bug Fixes 🛠
+
+* **frontend/components:** file-loader: restoring of excel settings on edit not proper ([ac03f5f](https://github.com/tks18/pyquery/commit/ac03f5fbcd22a9e3277989d81515f5d80d44c93f))
+* **frontend/components:** file-loader: use the space better for excel settings ([1785deb](https://github.com/tks18/pyquery/commit/1785debc0eb8235e159f356315d572fca544a281))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.6.1 ([042931e](https://github.com/tks18/pyquery/commit/042931e63234f0657877c7d7a04faef2d4fba6c5))
+
 ## [2.6.0](https://github.com/tks18/pyquery/compare/v2.5.0...v2.6.0) (2026-01-18)
 
 
