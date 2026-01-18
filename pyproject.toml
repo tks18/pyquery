@@ -47,6 +47,7 @@ dependencies = [
     "scikit-learn>=1.6.1",
     "scipy>=1.13.1",
     "chardet>=5.2.0",
+    "sqlalchemy>=2.0.45",
 ]
 
 [build-system]
