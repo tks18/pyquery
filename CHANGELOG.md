@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.7.0](https://github.com/tks18/pyquery/compare/v2.6.2...v2.7.0) (2026-01-24)
+
+
+### Code Refactoring 🖌
+
+* **core/io:** rename the file io_params -> io.py ([b8f1b54](https://github.com/tks18/pyquery/commit/b8f1b54e08d6852182e74815eb88a35fe4d77b55))
+
+
+### Features 🔥
+
+* **backend/core:** multiple features -> recipe storage + project handling ([542e39d](https://github.com/tks18/pyquery/commit/542e39d2d6e7b867933450d6e2130da9545d3b1c))
+* **backend/io:** add a new export function for use by cli to export directly ([720457c](https://github.com/tks18/pyquery/commit/720457c243bd475d7a9e5d9c1420002887557d49))
+* **backend/io:** allow for setting staging path using env ([79456e7](https://github.com/tks18/pyquery/commit/79456e70d0768233814f99b044e4ca6e88c50a64))
+* **backend/project:** add handlers for loading/saving project files ([4ee6bdf](https://github.com/tks18/pyquery/commit/4ee6bdfb7e54fe89efcc5ea130336fc95ad384e3))
+* **cli/branding:** update branding.py to add more helper functions for cli headless ([e4ab965](https://github.com/tks18/pyquery/commit/e4ab9652db88ea837fcad95fb29a649d9da3d88b))
+* **cli/headless:** completely revamp headless to support all the features from backend ([7c99d58](https://github.com/tks18/pyquery/commit/7c99d58721c252c8db1543c5ff19f798f8915602))
+* **cli/interactive:** remove interactive as its a low usage tool ([da5d537](https://github.com/tks18/pyquery/commit/da5d537cf4af633cb4958641352c8021a71307e7))
+* **cli/main:** implement new features from backend, remove interactive ([7a98c31](https://github.com/tks18/pyquery/commit/7a98c311b4bfc62ece62ea0dd77a218da8b8dfbd))
+* **core:** introduce project capabilities - params for handling project files ([569ffda](https://github.com/tks18/pyquery/commit/569ffda174ff792d14174b3556dd885f6dd47555))
+* **frontend/components:** introduce project dialog handlers, now save and load project files ([c9d31a4](https://github.com/tks18/pyquery/commit/c9d31a40a1ab1c7402d92325576ca915e96d0237))
+* **frontend/components:** sidebar: add project import / export buttons ([539de1a](https://github.com/tks18/pyquery/commit/539de1ad58181ecc21dca09e925aaa711c45615e))
+* **frontend/state:** update state manager to sync recipes from backend ([964af00](https://github.com/tks18/pyquery/commit/964af0019e7357276a6f489d05f313ade349a54d))
+* **frontend/utils:** sync the auto infer step to the backend ([ff84b15](https://github.com/tks18/pyquery/commit/ff84b15c1a527c1081dee46100a2bcb741e11e36))
+
+
+### Bug Fixes 🛠
+
+* **cli/main:** by mistake deleted ui related parsers, added back ([0c1eb3a](https://github.com/tks18/pyquery/commit/0c1eb3af199ccd3cc7a846f5b569d1755108f10e))
+* **frontend/components:** file-loader: sheet / table didnt get populated when editing ([806ea08](https://github.com/tks18/pyquery/commit/806ea08a8642953b35a98ab71be44ed94827f9cb))
+
+
+### Docs 📃
+
+* **readme:** update readme to reflect recent changes ([b4ef9d5](https://github.com/tks18/pyquery/commit/b4ef9d57e55f112fb8c19ad794627acb63f8f8c7))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.7.0 ([370b798](https://github.com/tks18/pyquery/commit/370b7985d0085915ae1b887d3309cc29e7380c41))
+
 ### [2.6.2](https://github.com/tks18/pyquery/compare/v2.6.1...v2.6.2) (2026-01-24)
 
 
