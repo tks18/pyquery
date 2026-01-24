@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.8.0](https://github.com/tks18/pyquery/compare/v2.7.0...v2.8.0) (2026-01-24)
+
+
+### Features 🔥
+
+* **backend/core:** move the auto type infer step to the backend ([b17235a](https://github.com/tks18/pyquery/commit/b17235aa69deb98510edf934e5f78473f3f34998))
+* **cli/headless:** now use sql to transform the loaded data on the fly and save it, all headless ([25e4031](https://github.com/tks18/pyquery/commit/25e4031c73221fd395bfcb23705f038a66cf61bc))
+* **cli/main:** add split-files, transform-sql & alias for additional functionality ([3ba77d4](https://github.com/tks18/pyquery/commit/3ba77d43979b926bc15ed09d9ed15ff7a9b4c966))
+* **frontend/components:** file-loader: new feature: split files now available ([1cea0dd](https://github.com/tks18/pyquery/commit/1cea0dd5eda2ea2ccc347ead77921c9ff1964ad9))
+* **frontend/utils:** use the new backend api for infer types ([86bff41](https://github.com/tks18/pyquery/commit/86bff416f86245bb0fc9c875a061fe64d24ac523))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.8.0 ([62167fd](https://github.com/tks18/pyquery/commit/62167fd36b536707b80b9d9efea70e5f827a4ef0))
+
 ## [2.7.0](https://github.com/tks18/pyquery/compare/v2.6.2...v2.7.0) (2026-01-24)
 
 
