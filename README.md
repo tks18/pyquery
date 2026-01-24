@@ -32,12 +32,12 @@
 
 ## 🧠 TL;DR (For the goldfish attention spans)
 
-> **✨ New Drop:**
-> PyQuery now boots like a literal operating system, adapts its CLI theme based on your vibe, fixes broken CSV encodings automatically, and isolates bad files so one cursed spreadsheet doesn’t ratio your entire pipeline.
+> **✨ New Drop: Headless Ghost Mode 👻**
+> PyQuery now supports total **Headless Automation**. Run massive pipelines in CI/CD, schedule tasks, and bypass the UI entirely with the re-architected `run` command.
 
 1.  **Install it:** `pip install pyquery-polars` (Don't be basic).
-2.  **Run it:** `pyquery ui` (Visuals) or `pyquery run` (Speedrun).
-3.  **The Flex:** It's a local-first, privacy-focused engine that eats Excel sheets and CSVs for breakfast using Rust. It has built-in ML, Monte Carlo sims, and SQL. It's basically a Data Scientist in a box.
+2.  **Run it:** `pyquery ui` (Visuals) or `pyquery run` (Speedrun/Headless).
+3.  **The Flex:** It's a local-first, privacy-focused engine that eats Excel sheets and CSVs for breakfast using Rust.
 
 ---
 
@@ -49,11 +49,12 @@ Long ago, the Data World was **mid**. Analysts lived in fear of the `MemoryError
 
 From the depths of the Rusty abyss, **PyQuery** has awakened. I am not just an ETL tool anymore. I am the entire war room. I am here to **obliterate** your bottlenecks and **ratio** your old benchmarks.
 
-- While they study the blade (Excel), I studied the **Lazy Frame**.
-- While they manage memory, I **devour** it.
-- While they draw primitive charts, I **simulate the future**.
+### The Core Philosophy (Our Ninja Way) 🥷
 
-The age of waiting is over. **Total Domination** is the only metric that matters.
+- **Lazy Execution**: Nothing computes until you say "Export". This optimizes memory and speed so your hardware doesn't scream.
+- **Zero-Copy**: Data is processed efficiently without redundant copies. We don't waste bits.
+- **Strict & Clean**: Enforces strict typing and argument validation. No ambiguous magic, just pure logic.
+- **Automation First**: While the UI is gorgeous, PyQuery is built to run alone in the dark.
 
 ### **Welcome to your Villain Arc.** 👹
 
@@ -73,6 +74,7 @@ We don't usually punch down, but you handed us the gloves.
 | **Boot XP**      | **Cinematic CLI with Themes & Logs**                           | **Static Spinner of Doom**                                                  |
 | **Broken CSVs**  | **Auto-healed at ingest**                                      | **Crashes silently**                                                        |
 | **One Bad File** | **Isolated & corrected**                                       | **Pipeline dead**                                                           |
+| **Headless**     | **Full CLI Automation.** Designed for CI/CD pipelines.         | **UI Dependent.** Good luck automating that in a Linux shell.               |
 
 ---
 
@@ -91,6 +93,25 @@ The CLI dynamically switches **color gradients, borders, and mood** based on you
 - **Rustacean:** Pure Polars lore.
 - **Matrix:** Hacker-core, green text supremacy.
 - **Villain Arc:** Purple & gold. No mercy.
+
+### 👻 Headless Revamp: The `run` Command
+
+The CLI has been completely re-architected for **Automation Supremacy**. The `run` command is your primary entry point for headless operations.
+
+```bash
+# Basic Speedrun
+pyquery run --source data.csv --output results.parquet
+
+# Project Mode (Load the whole squad)
+pyquery run --project daily_report.pyquery --output dist/
+```
+
+##### 🛠️ Execution Modes:
+
+- Source Mode (--source): Quick ad-hoc processing of single files, SQL queries, or APIs.
+- Project Mode (--project): Load a predefined .pyquery project file containing multiple datasets and recipes.
+
+Note: These flags are mutually exclusive. Choose your path.
 
 ### 📟 Sequential Boot Logs
 
@@ -190,6 +211,13 @@ Backend I/O that actually understands real-world data. Real data is cursed. We p
   - We isolate. We adapt. We continue.
 - **📂 Recursive Folder Globbing (Upgraded):**
   - Patterns like `data/**/*.csv` work even when schemas differ slightly or headers are misaligned.
+- **🏗️ Staging Ground (Infrastructure Rizz):**
+  - Control your intermediate storage. If your `%TEMP%` partition is small, tell PyQuery where the real space is using the `PYQUERY_STAGING_DIR` environment variable.
+  ```bash
+  # Linux/Mac Power Move
+  export PYQUERY_STAGING_DIR="/mnt/fast_ssd/pyquery_cache"
+  pyquery run ...
+  ```
 - **🔍 Advanced File Filtering (Precision Strikes):**
   - Multiple Filter Types: `Glob`, `Regex`, `Contains`, `Not Contains`, `Exact`, `Is Not`.
   - **Stackable Logic:** Must contain `sales` + Must NOT contain `backup` + Must match regex `\d{4}`.
@@ -261,7 +289,7 @@ We don't post without proof. We mog the competition.
 
 ---
 
-## 🎮 Choose Your Fighter (5 Paths to Power)
+## 🎮 Choose Your Fighter (4 Paths to Power)
 
 We don't limit you. Dominate however you choose.
 
@@ -285,20 +313,7 @@ pyquery ui
 
 ```
 
-### 2. 💻 The Interactive CLI (Shadow Mode)
-
-For when you operate in the dark. ☕ This isn't a command line. It's a cockpit.
-
-- **Dynamic Menus:** Arrow keys to select transforms.
-- **Rich Tables:** Beautiful, colorful ASCII dataframes.
-
-```bash
-pyquery interactive
-# Enter the Matrix. 🕶️
-
-```
-
-### 3. 🤖 The API (Headless Beast)
+### 2. 🤖 The API (Headless Beast)
 
 Building a machine? Run PyQuery as the engine.
 
@@ -311,7 +326,7 @@ pyquery api
 
 ```
 
-### 4. ⚡ The Batch Runner (Speedrun)
+### 3. ⚡ The Batch Runner (Speedrun)
 
 For automation. No interface. Just speed.
 
@@ -321,7 +336,7 @@ pyquery run -s input.csv -r recipe.json -o output.parquet
 
 ```
 
-### 5. 🧙‍♂️ The Sorcerer (Python SDK)
+### 4. 🧙‍♂️ The Sorcerer (Python SDK)
 
 For the developers who want to weave PyQuery into their own code.
 
