@@ -19,15 +19,23 @@ from openpyxl import load_workbook
 from typing import List, Literal, Optional, Any, Dict, cast, Iterator, Union
 import fnmatch
 
-from ...core.io_params import FileFilter, ItemFilter, FilterType
+from ...core.io import FileFilter, ItemFilter, FilterType
 
 STAGING_DIR_NAME = "pyquery_staging"
 
 
 def get_staging_dir() -> str:
-    """Get or create the centralized staging directory."""
-    temp_dir = tempfile.gettempdir()
-    staging_path = os.path.join(temp_dir, STAGING_DIR_NAME)
+    """
+    Get or create the centralized staging directory.
+    Respects 'PYQUERY_STAGING_DIR' environment variable if set.
+    """
+    env_path = os.environ.get("PYQUERY_STAGING_DIR")
+    if env_path:
+        staging_path = os.path.abspath(env_path)
+    else:
+        temp_dir = tempfile.gettempdir()
+        staging_path = os.path.join(temp_dir, STAGING_DIR_NAME)
+    
     os.makedirs(staging_path, exist_ok=True)
     return staging_path
 
@@ -941,3 +949,21 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
         }]
     except Exception as e:
         result_container['status'] = f"Error: {e}"
+
+
+def export_direct(df: pl.DataFrame, fmt: str, params: Any):
+    """
+    Direct export of a DataFrame (for CLI merge mode).
+    No background thread - synchronous export.
+    
+    Args:
+        df: DataFrame to export
+        fmt: Exporter name (Parquet, CSV, etc.)
+        params: Export params (Pydantic model or dict)
+    """
+    result_container = {}
+    lf = df.lazy()
+    export_worker(lf, params, fmt, result_container)
+    
+    if str(result_container.get('status', '')).startswith("Error"):
+        raise RuntimeError(result_container['status'])

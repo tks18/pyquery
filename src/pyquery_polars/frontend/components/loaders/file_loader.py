@@ -7,7 +7,7 @@ from typing import List, Optional
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.file_picker import pick_file, pick_folder
 from pyquery_polars.frontend.utils.cache_utils import get_cached_sheet_names, get_cached_resolved_files, get_cached_encoding_scan, get_cached_table_names
-from pyquery_polars.core.io_params import FileFilter, FilterType, ItemFilter
+from pyquery_polars.core.io import FileFilter, FilterType, ItemFilter
 from pyquery_polars.frontend.components.loaders.utils import filter_list_by_regex, handle_auto_inference, filter_sheet_names
 
 
@@ -603,11 +603,24 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                                     st.caption(
                                         f"Selected {len(filtered_sheets)} filtered sheets.")
                                 else:
+                                    # Get pre-filled sheets from edit mode if available
+                                    prefill_key = f"dlg_{loader_name}_sel_sheet"
+                                    prefilled_sheets = st.session_state.get(prefill_key, [])
+                                    
+                                    # Determine default - use prefilled if valid, else fallback
+                                    if prefilled_sheets and all(s in filtered_sheets for s in prefilled_sheets):
+                                        default_sheets = prefilled_sheets
+                                    elif "Sheet1" in filtered_sheets:
+                                        default_sheets = ["Sheet1"]
+                                    elif filtered_sheets:
+                                        default_sheets = [filtered_sheets[0]]
+                                    else:
+                                        default_sheets = []
+                                    
                                     selected_sheets = st.multiselect(
                                         "Select Sheets",
                                         filtered_sheets,
-                                        default=["Sheet1"] if "Sheet1" in filtered_sheets else (
-                                            [filtered_sheets[0]] if filtered_sheets else []),
+                                        default=default_sheets,
                                         disabled=is_busy
                                     )
                             else:

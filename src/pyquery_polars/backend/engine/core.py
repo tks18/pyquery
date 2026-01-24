@@ -8,7 +8,14 @@ from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep, DatasetMetadata
 from pyquery_polars.core.registry import StepRegistry
 from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, get_excel_table_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
-from pyquery_polars.core.io_params import FileFilter
+from pyquery_polars.core.io import FileFilter
+from pyquery_polars.core.project import (
+    ProjectFile, ProjectMeta, PathConfig, DatasetProject, ProjectImportResult
+)
+from pyquery_polars.backend.project.serializer import (
+    save_project, load_project, resolve_paths, convert_paths_to_relative,
+    validate_dataset_files
+)
 
 # Modules
 from .registry import register_all_steps
@@ -23,6 +30,7 @@ from ..analysis.joins import JoinAnalyzer
 class PyQueryEngine:
     def __init__(self):
         self._datasets: Dict[str, DatasetMetadata] = {}  # Metadata storage
+        self._recipes: Dict[str, List[RecipeStep]] = {}  # Recipe storage (backend-centric)
         self._sql_context = pl.SQLContext()
 
         # Analysis Engine
@@ -93,6 +101,10 @@ class PyQueryEngine:
 
         self._datasets[name] = ds_meta
 
+        # Initialize empty recipe if not exists
+        if name not in self._recipes:
+            self._recipes[name] = []
+
         # Register with SQL context
         try:
             self._sql_context.register(name, concat_lf)
@@ -102,6 +114,9 @@ class PyQueryEngine:
     def remove_dataset(self, name: str):
         if name in self._datasets:
             del self._datasets[name]
+            # Also remove associated recipe
+            if name in self._recipes:
+                del self._recipes[name]
             try:
                 self._sql_context.unregister(name)
             except:
@@ -114,6 +129,10 @@ class PyQueryEngine:
         
         # Move metadata to new key
         self._datasets[new_name] = self._datasets.pop(old_name)
+        
+        # Move recipe to new key
+        if old_name in self._recipes:
+            self._recipes[new_name] = self._recipes.pop(old_name)
         
         # Update SQL context
         try:
@@ -185,6 +204,208 @@ class PyQueryEngine:
                 # Use concatenated view
                 result[name] = pl.concat(meta.base_lfs, how="diagonal")
         return result
+
+    # ==========================
+    # RECIPE MANAGEMENT (Backend-Centric)
+    # ==========================
+    def add_recipe(self, dataset_name: str, recipe: List[RecipeStep]) -> None:
+        """Add or replace recipe for a dataset."""
+        self._recipes[dataset_name] = recipe
+
+    def get_recipe(self, dataset_name: str) -> List[RecipeStep]:
+        """Get recipe for a dataset. Returns empty list if none."""
+        return self._recipes.get(dataset_name, [])
+
+    def update_recipe(self, dataset_name: str, recipe: List[RecipeStep]) -> None:
+        """Update (replace) recipe for a dataset."""
+        self._recipes[dataset_name] = recipe
+
+    def add_recipe_step(self, dataset_name: str, step: RecipeStep) -> None:
+        """Add a single step to a dataset's recipe."""
+        if dataset_name not in self._recipes:
+            self._recipes[dataset_name] = []
+        self._recipes[dataset_name].append(step)
+
+    def clear_recipe(self, dataset_name: str) -> None:
+        """Clear all recipe steps for a dataset."""
+        self._recipes[dataset_name] = []
+
+    def get_all_recipes(self) -> Dict[str, List[RecipeStep]]:
+        """Get all recipes as a dict (for project export and frontend sync)."""
+        return self._recipes.copy()
+
+    def set_all_recipes(self, recipes: Dict[str, List[RecipeStep]]) -> None:
+        """Set all recipes at once (for project import)."""
+        self._recipes = recipes.copy()
+
+    # ==========================
+    # PROJECT MANAGEMENT
+    # ==========================
+    def export_project(
+        self, 
+        path_mode: Literal["absolute", "relative"] = "absolute",
+        base_dir: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> ProjectFile:
+        """
+        Export complete project state to a ProjectFile object.
+        
+        Args:
+            path_mode: 'absolute' or 'relative' for file paths
+            base_dir: Required if path_mode='relative'
+            description: Optional project description
+            
+        Returns:
+            ProjectFile object ready for serialization
+        """
+        datasets = []
+        
+        for name, meta in self._datasets.items():
+            # Get loader params (stored in metadata)
+            loader_params = meta.loader_params or {}
+            loader_type = meta.loader_type or "File"
+            
+            # Get recipe for this dataset
+            recipe = self._recipes.get(name, [])
+            
+            ds = DatasetProject(
+                alias=name,
+                loader_type=loader_type,
+                loader_params=loader_params,
+                recipe=recipe
+            )
+            datasets.append(ds)
+        
+        # Build project file
+        project = ProjectFile(
+            meta=ProjectMeta(description=description),
+            path_config=PathConfig(mode="absolute"),
+            datasets=datasets
+        )
+        
+        # Convert paths if relative mode requested
+        if path_mode == "relative" and base_dir:
+            project = convert_paths_to_relative(project, base_dir)
+        
+        return project
+
+    def save_project_to_file(
+        self,
+        file_path: str,
+        path_mode: Literal["absolute", "relative"] = "absolute",
+        base_dir: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> str:
+        """
+        Export and save project to a .pyquery file.
+        
+        Returns:
+            Path to saved file
+        """
+        project = self.export_project(path_mode, base_dir, description)
+        save_project(project, file_path)
+        return file_path
+
+    def import_project(
+        self,
+        project: ProjectFile,
+        mode: Literal["replace", "merge"] = "replace",
+        base_dir_override: Optional[str] = None
+    ) -> ProjectImportResult:
+        """
+        Import a project, loading datasets and recipes.
+        
+        Args:
+            project: ProjectFile to import
+            mode: 'replace' clears existing, 'merge' adds non-conflicting
+            base_dir_override: Override base_dir for relative path resolution
+            
+        Returns:
+            ProjectImportResult with success status and warnings
+        """
+        result = ProjectImportResult()
+        
+        # Resolve paths to absolute if needed
+        resolved = resolve_paths(project, base_dir_override)
+        
+        # Check for missing files
+        missing = validate_dataset_files(resolved)
+        
+        # Clear existing if replace mode
+        if mode == "replace":
+            self.clear_all()
+        
+        for ds in resolved.datasets:
+            # Skip if dataset exists in merge mode
+            if mode == "merge" and ds.alias in self._datasets:
+                result.datasets_skipped.append(ds.alias)
+                result.warnings.append(f"Skipped '{ds.alias}': already exists")
+                continue
+            
+            # Skip if files are missing
+            if ds.alias in missing:
+                result.datasets_skipped.append(ds.alias)
+                result.warnings.append(
+                    f"Skipped '{ds.alias}': missing files: {missing[ds.alias][:3]}"
+                )
+                continue
+            
+            # Attempt to load dataset
+            try:
+                loader_result = self.run_loader(ds.loader_type, ds.loader_params)
+                
+                if loader_result:
+                    lf, metadata = loader_result
+                    self.add_dataset(
+                        ds.alias, lf, metadata,
+                        loader_type=ds.loader_type,
+                        loader_params=ds.loader_params
+                    )
+                    
+                    # Load recipe
+                    if ds.recipe:
+                        self._recipes[ds.alias] = ds.recipe
+                    
+                    result.datasets_loaded.append(ds.alias)
+                else:
+                    result.datasets_skipped.append(ds.alias)
+                    result.warnings.append(f"Failed to load '{ds.alias}': loader returned None")
+                    
+            except Exception as e:
+                result.datasets_skipped.append(ds.alias)
+                result.errors.append(f"Error loading '{ds.alias}': {str(e)}")
+        
+        result.success = len(result.errors) == 0
+        return result
+
+    def load_project_from_file(
+        self,
+        file_path: str,
+        mode: Literal["replace", "merge"] = "replace"
+    ) -> ProjectImportResult:
+        """
+        Load a project from a .pyquery file.
+        
+        Args:
+            file_path: Path to .pyquery file
+            mode: 'replace' or 'merge'
+            
+        Returns:
+            ProjectImportResult
+        """
+        project = load_project(file_path)
+        
+        # Use file's directory as base for relative path resolution
+        file_dir = os.path.dirname(os.path.abspath(file_path))
+        
+        return self.import_project(project, mode, base_dir_override=file_dir)
+
+    def clear_all(self) -> None:
+        """Clear all datasets and recipes."""
+        dataset_names = list(self._datasets.keys())
+        for name in dataset_names:
+            self.remove_dataset(name)
+        self._recipes.clear()
 
     def get_dataset_for_export(self, name: str, recipe: Sequence[Union[dict, RecipeStep]],
                                project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> Optional[pl.LazyFrame]:

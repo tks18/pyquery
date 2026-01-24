@@ -4,7 +4,7 @@ import streamlit as st
 from typing import List, Dict
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.params import CleanCastParams, CastChange
-from pyquery_polars.core.io_params import FileFilter, ItemFilter, FilterType
+from pyquery_polars.core.io import FileFilter, ItemFilter, FilterType
 from pyquery_polars.core.models import RecipeStep
 import fnmatch
 
@@ -69,6 +69,12 @@ def handle_auto_inference(engine: PyQueryEngine, alias_val: str):
                         st.toast(f"✨ Auto-added cleaning step for {count} columns!", icon="🪄")
                     
                     st.session_state.all_recipes[alias_val] = recipe
+                    
+                    # Sync to backend for project export persistence
+                    try:
+                        engine.update_recipe(alias_val, recipe)
+                    except Exception:
+                        pass  # Backend sync is best-effort
     except Exception as e:
         print(f"Auto infer error: {e}")
 

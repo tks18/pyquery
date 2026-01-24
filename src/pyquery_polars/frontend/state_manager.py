@@ -2,9 +2,64 @@ import streamlit as st
 import json
 import copy
 from datetime import datetime
-from typing import List
+from typing import List, Optional, TYPE_CHECKING
 from pyquery_polars.core.models import RecipeStep
 from pyquery_polars.core.registry import StepRegistry
+
+if TYPE_CHECKING:
+    from pyquery_polars.backend.engine import PyQueryEngine
+
+
+def _get_engine() -> Optional["PyQueryEngine"]:
+    """Get engine from session state if available."""
+    return st.session_state.get('engine')
+
+
+def _sync_to_backend(dataset_name: str, recipe: List[RecipeStep]) -> None:
+    """Sync recipe to backend engine for persistence."""
+    engine = _get_engine()
+    if engine and dataset_name:
+        try:
+            engine.update_recipe(dataset_name, recipe)
+        except Exception as e:
+            print(f"Backend sync warning: {e}")
+
+
+def sync_from_backend(dataset_name: str) -> List[RecipeStep]:
+    """
+    Sync recipe FROM backend to frontend for given dataset.
+    Called after project import or other backend-initiated changes.
+    """
+    engine = _get_engine()
+    if engine and dataset_name:
+        try:
+            backend_recipe = engine.get_recipe(dataset_name)
+            st.session_state.all_recipes[dataset_name] = backend_recipe
+            if st.session_state.active_base_dataset == dataset_name:
+                st.session_state.recipe_steps = backend_recipe
+            return backend_recipe
+        except Exception as e:
+            print(f"Backend sync warning: {e}")
+    return []
+
+
+def sync_all_from_backend() -> None:
+    """
+    Sync ALL recipes from backend to frontend.
+    Called after project import or initial load.
+    """
+    engine = _get_engine()
+    if engine:
+        try:
+            all_backend_recipes = engine.get_all_recipes()
+            st.session_state.all_recipes = all_backend_recipes
+            
+            # Update active recipe_steps if applicable
+            active_ds = st.session_state.active_base_dataset
+            if active_ds and active_ds in all_backend_recipes:
+                st.session_state.recipe_steps = all_backend_recipes[active_ds]
+        except Exception as e:
+            print(f"Backend sync all warning: {e}")
 
 
 def init_session_state():
@@ -121,6 +176,9 @@ def undo():
     st.session_state.all_recipes[active_ds] = prev_state
     st.session_state.recipe_steps = prev_state
     
+    # Sync to backend
+    _sync_to_backend(active_ds, prev_state)
+    
     # Cleanup call removed as ID regeneration handles it
     # cleanup_widget_state(prev_state + current)
 
@@ -146,6 +204,9 @@ def redo():
     st.session_state.all_recipes[active_ds] = next_state
     st.session_state.recipe_steps = next_state
     
+    # Sync to backend
+    _sync_to_backend(active_ds, next_state)
+    
     # Cleanup call removed
     # cleanup_widget_state(next_state + current)
 
@@ -164,6 +225,9 @@ def move_step(index, direction):
     st.session_state.last_added_id = steps[index if direction == -
                                            1 else index+1].id
     st.session_state.recipe_steps = steps
+    
+    # Sync to backend
+    _sync_to_backend(active_ds, steps)
 
 
 def delete_step(index):
@@ -172,6 +236,9 @@ def delete_step(index):
     if active_ds:
         st.session_state.all_recipes[active_ds].pop(index)
         st.session_state.recipe_steps = st.session_state.all_recipes[active_ds]
+        
+        # Sync to backend
+        _sync_to_backend(active_ds, st.session_state.all_recipes[active_ds])
 
 
 def add_step(step_type: str, default_label: str):
@@ -220,6 +287,9 @@ def add_step(step_type: str, default_label: str):
     st.session_state.recipe_steps = st.session_state.all_recipes[active_ds]
     # Flag to suppress checkpoint on immediate sync
     st.session_state.just_added_step = True
+    
+    # Sync to backend
+    _sync_to_backend(active_ds, st.session_state.all_recipes[active_ds])
 
 
 def update_step_params(step_id: str, new_params: dict, create_checkpoint: bool = True):
@@ -236,6 +306,9 @@ def update_step_params(step_id: str, new_params: dict, create_checkpoint: bool =
             step.params = new_params
             st.session_state.recipe_steps = steps
             st.session_state.all_recipes[active_ds] = steps  # Force write
+            
+            # Sync to backend
+            _sync_to_backend(active_ds, steps)
             return
 
 
@@ -255,6 +328,10 @@ def load_recipe_from_json(uploaded_file):
 
         st.session_state.all_recipes[active_ds] = steps
         st.session_state.recipe_steps = steps
+        
+        # Sync to backend
+        _sync_to_backend(active_ds, steps)
+        
         st.success("Recipe loaded!")
     except Exception as e:
         st.error(f"Invalid JSON or Schema Mismatch: {e}")
