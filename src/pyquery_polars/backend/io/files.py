@@ -32,6 +32,27 @@ def get_staging_dir() -> str:
     return staging_path
 
 
+def create_unique_staging_folder(base_name: str) -> str:
+    """
+    Create a unique subfolder in the staging directory.
+    Format: timestamp_uuid_basename
+    """
+    staging_root = get_staging_dir()
+    
+    # Generate unique identifier components
+    ts = int(time.time())
+    unique_id = uuid.uuid4().hex[:8]
+    
+    # Sanitize base name
+    safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', base_name)
+    
+    folder_name = f"{ts}_{unique_id}_{safe_name}"
+    folder_path = os.path.join(staging_root, folder_name)
+    
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+
 def cleanup_staging_files(max_age_hours: int = 24):
     """Clean up old files from the staging directory."""
     try:
@@ -46,7 +67,10 @@ def cleanup_staging_files(max_age_hours: int = 24):
                     if os.path.isfile(file_path):
                         if os.path.getmtime(file_path) < cutoff:
                             os.remove(file_path)
-                            # print(f"Cleaned up stale staging file: {filename}") # Reduce noise
+                    elif os.path.isdir(file_path):
+                        # Clean up stale directories
+                        if os.path.getmtime(file_path) < cutoff:
+                            shutil.rmtree(file_path)
                 except Exception as e:
                     pass
     except Exception as e:
