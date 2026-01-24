@@ -23,58 +23,32 @@ def handle_auto_inference(engine: PyQueryEngine, alias_val: str):
     """Runs type inference and adds/replaces a clean_cast step if needed."""
     try:
         with st.spinner("Auto-detecting types..."):
-            inferred = engine.infer_types(alias_val, [], sample_size=1000)
-            if inferred:
+            # Use centralized backend logic
+            new_step = engine.auto_infer_dataset(alias_val)
 
-                TYPE_ACTION_MAP = {
-                    "Int64": "To Int",
-                    "Float64": "To Float",
-                    "Date": "To Date",
-                    "Datetime": "To Datetime",
-                    "Boolean": "To Boolean"
-                }
+            if new_step:
+                # Sync frontend state
+                recipe = st.session_state.all_recipes.get(alias_val, [])
 
-                p = CleanCastParams()
-                count = 0
-                for col, dtype in inferred.items():
-                    action = TYPE_ACTION_MAP.get(dtype)
-                    if action:
-                        p.changes.append(CastChange(col=col, action=action))
-                        count += 1
+                # Check for existing Auto Clean Types step
+                existing_idx = None
+                for i, step in enumerate(recipe):
+                    if step.label == "Auto Clean Types" and step.type == "clean_cast":
+                        existing_idx = i
+                        break
 
-                if count > 0:
-                    new_step = RecipeStep(
-                        id=str(uuid.uuid4()),
-                        type="clean_cast",
-                        label="Auto Clean Types",
-                        params=p.model_dump()
-                    )
-                    
-                    recipe = st.session_state.all_recipes.get(alias_val, [])
-                    
-                    # Check for existing Auto Clean Types step
-                    existing_idx = None
-                    for i, step in enumerate(recipe):
-                        if step.label == "Auto Clean Types" and step.type == "clean_cast":
-                            existing_idx = i
-                            break
-                    
-                    if existing_idx is not None:
-                        # Replace existing step at the same position
-                        recipe[existing_idx] = new_step
-                        st.toast(f"✨ Updated cleaning step for {count} columns!", icon="🔄")
-                    else:
-                        # Insert at the beginning (position 0) since it's a source-level step
-                        recipe.insert(0, new_step)
-                        st.toast(f"✨ Auto-added cleaning step for {count} columns!", icon="🪄")
-                    
-                    st.session_state.all_recipes[alias_val] = recipe
-                    
-                    # Sync to backend for project export persistence
-                    try:
-                        engine.update_recipe(alias_val, recipe)
-                    except Exception:
-                        pass  # Backend sync is best-effort
+                if existing_idx is not None:
+                    # Replace existing step at the same position
+                    recipe[existing_idx] = new_step
+                    st.toast(f"✨ Updated cleaning step!", icon="🔄")
+                else:
+                    # Insert at the beginning (position 0)
+                    recipe.insert(0, new_step)
+                    st.toast(f"✨ Auto-added cleaning step!", icon="🪄")
+
+                # Update Session State
+                st.session_state.all_recipes[alias_val] = recipe
+
     except Exception as e:
         print(f"Auto infer error: {e}")
 
