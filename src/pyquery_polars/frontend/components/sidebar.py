@@ -8,6 +8,23 @@ from pyquery_polars.core.registry import StepRegistry
 from pyquery_polars.frontend.components.loaders import show_file_loader, show_sql_loader, show_api_loader
 
 
+def _open_project_export():
+    """Helper to open project export dialog."""
+    st.session_state.show_loader_file = False
+    st.session_state.show_loader_sql = False
+    st.session_state.show_loader_api = False
+    st.session_state.show_project_export = True
+    st.session_state.show_project_import = False
+
+def _open_project_import():
+    """Helper to open project import dialog."""
+    st.session_state.show_loader_file = False
+    st.session_state.show_loader_sql = False
+    st.session_state.show_loader_api = False
+    st.session_state.show_project_export = False
+    st.session_state.show_project_import = True
+
+
 def render_sidebar():
     engine = cast(PyQueryEngine, st.session_state.get('engine'))
     if not engine:
@@ -19,10 +36,21 @@ def render_sidebar():
 
         active_ds = st.session_state.active_base_dataset
 
-        # --- 0. ACTIVE DATASET METRICS ---
+        # --- TOP BAR: Active Dataset + Project Actions ---
         if active_ds:
-            st.caption(f"Active: **{active_ds}**")
-            st.divider()
+            # Single line: Active dataset name with project action buttons
+            col_ds, col_save, col_load = st.columns([0.6, 0.2, 0.2])
+            col_ds.markdown(f"🎯 **{active_ds}**")
+            col_save.button("💾", help="Save Project", key="btn_proj_save", on_click=lambda: _open_project_export())
+            col_load.button("📂", help="Load Project", key="btn_proj_load", on_click=lambda: _open_project_import())
+        else:
+            # No active dataset - just show project buttons with label
+            col_label, col_save, col_load = st.columns([0.6, 0.2, 0.2])
+            col_label.caption("No dataset loaded")
+            col_save.button("💾", help="Save Project", key="btn_proj_save", on_click=lambda: _open_project_export())
+            col_load.button("📂", help="Load Project", key="btn_proj_load", on_click=lambda: _open_project_import())
+        
+        st.divider()
 
         # --- 1. DATASET MANAGER ---
         st.subheader("🗂️ Datasets")
@@ -40,12 +68,19 @@ def render_sidebar():
             st.session_state.show_loader_api = False
         if "edit_mode_dataset" not in st.session_state:
             st.session_state.edit_mode_dataset = None
+        if "show_project_export" not in st.session_state:
+            st.session_state.show_project_export = False
+        if "show_project_import" not in st.session_state:
+            st.session_state.show_project_import = False
 
         # --- HELPER: RESET DIALOG STATE ---
         def reset_dialog_state():
-             for key in list(st.session_state.keys()):
-                if isinstance(key, str) and key.startswith("dlg_"):
-                    del st.session_state[key]
+            try:
+                for key in list(st.session_state.keys()):
+                    if isinstance(key, str) and key.startswith("dlg_"):
+                        del st.session_state[key]
+            except Exception:
+                pass  # Ignore errors during rapid state changes
 
         # --- BUTTON CALLBACKS ---
         def open_file_loader():
@@ -54,6 +89,8 @@ def render_sidebar():
             st.session_state.show_loader_file = True
             st.session_state.show_loader_sql = False
             st.session_state.show_loader_api = False
+            st.session_state.show_project_export = False
+            st.session_state.show_project_import = False
             st.session_state.dlg_just_opened = True
 
         def open_sql_loader():
@@ -62,6 +99,8 @@ def render_sidebar():
             st.session_state.show_loader_file = False
             st.session_state.show_loader_sql = True
             st.session_state.show_loader_api = False
+            st.session_state.show_project_export = False
+            st.session_state.show_project_import = False
             st.session_state.dlg_just_opened = True
 
         def open_api_loader():
@@ -70,6 +109,8 @@ def render_sidebar():
             st.session_state.show_loader_file = False
             st.session_state.show_loader_sql = False
             st.session_state.show_loader_api = True
+            st.session_state.show_project_export = False
+            st.session_state.show_project_import = False
             st.session_state.dlg_just_opened = True
 
         if col_imp1.button("📂 File", help="Import Local Files", width="stretch", on_click=open_file_loader):
@@ -130,7 +171,14 @@ def render_sidebar():
         # --- RENDER DIALOGS IF ACTIVE ---
         edit_ds = st.session_state.get("edit_mode_dataset")
         
-        if st.session_state.show_loader_file:
+        # Check project dialogs first (they reset loader states when opened)
+        if st.session_state.get("show_project_export", False):
+            from pyquery_polars.frontend.components.project_dialog import show_project_export_dialog
+            show_project_export_dialog(engine)
+        elif st.session_state.get("show_project_import", False):
+            from pyquery_polars.frontend.components.project_dialog import show_project_import_dialog
+            show_project_import_dialog(engine)
+        elif st.session_state.show_loader_file:
             if edit_ds:
                 show_file_loader(engine, edit_mode=True, edit_dataset_name=edit_ds)
             else:
@@ -302,10 +350,14 @@ def render_sidebar():
 
         # --- FINAL: PERSIST STATE FOR NEXT RUN ---
         # We compute hash at the END to capture any programmatic state changes made during this run.
-        end_dlg_values = {
-            k: v for k, v in st.session_state.items() if isinstance(k, str) and k.startswith("dlg_")}
-        # Filter buttons
-        end_values_str = str(sorted(
-            [(k, v) for k, v in end_dlg_values.items() if not k.startswith("dlg_btn")]))
-        st.session_state.last_dlg_hash = hashlib.md5(
-            end_values_str.encode()).hexdigest()
+        # Use list() to snapshot keys to avoid iteration errors during rapid state changes
+        try:
+            dlg_keys = [k for k in list(st.session_state.keys()) if isinstance(k, str) and k.startswith("dlg_")]
+            end_dlg_values = {k: st.session_state.get(k) for k in dlg_keys}
+            # Filter buttons
+            end_values_str = str(sorted(
+                [(k, v) for k, v in end_dlg_values.items() if not k.startswith("dlg_btn")]))
+            st.session_state.last_dlg_hash = hashlib.md5(
+                end_values_str.encode()).hexdigest()
+        except Exception:
+            pass  # Ignore hash computation errors during rapid state changes
