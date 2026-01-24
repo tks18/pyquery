@@ -31,7 +31,8 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
         table_filters=params.table_filters,
         process_individual=params.process_individual,
         include_source_info=params.include_source_info,
-        clean_headers=getattr(params, 'clean_headers', False)
+        clean_headers=getattr(params, 'clean_headers', False),
+        dataset_alias=params.alias
     )
     if result is None:
         return None
@@ -71,7 +72,7 @@ def loader_api_func(params: ApiLoaderParams) -> Optional[tuple]:
     if not params.url:
         return None
 
-    lf = load_from_api(params.url)
+    lf = load_from_api(params.url, dataset_alias=params.alias)
     return (lf, {}) if lf is not None else None
 
 

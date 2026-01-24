@@ -3,7 +3,7 @@ import os
 import polars as pl
 from typing import Callable, Optional, Sequence, Union, Dict, List, Any
 from pyquery_polars.core.models import RecipeStep
-from pyquery_polars.backend.io.files import get_staging_dir
+from pyquery_polars.backend.io.files import create_unique_staging_folder
 
 
 class StorageManager:
@@ -37,8 +37,8 @@ class StorageManager:
             if lf is None:
                 raise ValueError(f"Dataset '{dataset_name}' not found")
 
-            # 2. Get Centralized Staging Dir
-            staging_dir = get_staging_dir()
+            # 2. Get Centralized Staging Dir (Unique Subfolder)
+            staging_dir = create_unique_staging_folder(new_name)
 
             # 3. Sanitize Name (Basic)
             safe_name = "".join(

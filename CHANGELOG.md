@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.6.2](https://github.com/tks18/pyquery/compare/v2.6.1...v2.6.2) (2026-01-24)
+
+
+### Features 🔥
+
+* **backend/io:** update staging dir to use a sub folder with dataset name for proper organization ([bb9717d](https://github.com/tks18/pyquery/commit/bb9717d83d2e7589f5ca0bda8fbc408f4e0a86ba))
+
+
+### Code Refactoring 🖌
+
+* **backend/io:** pass dataset name to load_lazy function ([55d109b](https://github.com/tks18/pyquery/commit/55d109b02f9c737ca9993521f3eb9483767988ee))
+* **backend/io:** refactor to use the new staging folder ([3675f24](https://github.com/tks18/pyquery/commit/3675f24af32436de09771a9743406291605fb9f5))
+* **backend/processing:** refactor to use the new staging function ([049f4f8](https://github.com/tks18/pyquery/commit/049f4f80ca6b86f2223c667a8bb103e2755cc53a))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 2.6.2 ([d7d8994](https://github.com/tks18/pyquery/commit/d7d8994bd77b601d8752de7742cc949eadba28d2))
+
 ### [2.6.1](https://github.com/tks18/pyquery/compare/v2.6.0...v2.6.1) (2026-01-18)
 
 
