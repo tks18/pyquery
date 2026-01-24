@@ -603,11 +603,24 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                                     st.caption(
                                         f"Selected {len(filtered_sheets)} filtered sheets.")
                                 else:
+                                    # Get pre-filled sheets from edit mode if available
+                                    prefill_key = f"dlg_{loader_name}_sel_sheet"
+                                    prefilled_sheets = st.session_state.get(prefill_key, [])
+                                    
+                                    # Determine default - use prefilled if valid, else fallback
+                                    if prefilled_sheets and all(s in filtered_sheets for s in prefilled_sheets):
+                                        default_sheets = prefilled_sheets
+                                    elif "Sheet1" in filtered_sheets:
+                                        default_sheets = ["Sheet1"]
+                                    elif filtered_sheets:
+                                        default_sheets = [filtered_sheets[0]]
+                                    else:
+                                        default_sheets = []
+                                    
                                     selected_sheets = st.multiselect(
                                         "Select Sheets",
                                         filtered_sheets,
-                                        default=["Sheet1"] if "Sheet1" in filtered_sheets else (
-                                            [filtered_sheets[0]] if filtered_sheets else []),
+                                        default=default_sheets,
                                         disabled=is_busy
                                     )
                             else:
