@@ -25,9 +25,17 @@ STAGING_DIR_NAME = "pyquery_staging"
 
 
 def get_staging_dir() -> str:
-    """Get or create the centralized staging directory."""
-    temp_dir = tempfile.gettempdir()
-    staging_path = os.path.join(temp_dir, STAGING_DIR_NAME)
+    """
+    Get or create the centralized staging directory.
+    Respects 'PYQUERY_STAGING_DIR' environment variable if set.
+    """
+    env_path = os.environ.get("PYQUERY_STAGING_DIR")
+    if env_path:
+        staging_path = os.path.abspath(env_path)
+    else:
+        temp_dir = tempfile.gettempdir()
+        staging_path = os.path.join(temp_dir, STAGING_DIR_NAME)
+    
     os.makedirs(staging_path, exist_ok=True)
     return staging_path
 
