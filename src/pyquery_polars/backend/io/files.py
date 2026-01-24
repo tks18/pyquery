@@ -429,7 +429,7 @@ def batch_detect_encodings(files: List[str]) -> Dict[str, str]:
     return results
 
 
-def convert_file_to_utf8(file_path: str, source_encoding: str) -> str:
+def convert_file_to_utf8(file_path: str, source_encoding: str, dataset_alias: Optional[str] = None) -> str:
     """
     Convert a file from source_encoding to UTF-8 using robust streaming.
     Features:
@@ -450,12 +450,17 @@ def convert_file_to_utf8(file_path: str, source_encoding: str) -> str:
 
     new_path = None
     try:
-        staging_dir = get_staging_dir()
+        # Use alias if provided, else filename
+        base_name = dataset_alias if dataset_alias else os.path.basename(file_path)
+        
+        # Create unique folder for this conversion
+        staging_dir = create_unique_staging_folder(base_name)
+        
         filename = os.path.basename(file_path)
-
-        # Sanitize filename to prevent issues
+        
+        # Sanitize filename
         safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
-        new_filename = f"utf8_{uuid.uuid4().hex[:6]}_{safe_name}"
+        new_filename = f"utf8_{safe_name}"
         new_path = os.path.join(staging_dir, new_filename)
 
         # 4MB Chunk Size for better IO throughput
@@ -491,7 +496,7 @@ def convert_file_to_utf8(file_path: str, source_encoding: str) -> str:
         raise e
 
 
-def load_lazy_frame(files: List[str], sheet_name: Optional[Union[str, List[str]]] = "Sheet1", sheet_filters: Optional[List[ItemFilter]] = None, table_name: Optional[Union[str, List[str]]] = None, table_filters: Optional[List[ItemFilter]] = None, process_individual: bool = False, include_source_info: bool = False, clean_headers: bool = False) -> Optional[tuple]:
+def load_lazy_frame(files: List[str], sheet_name: Optional[Union[str, List[str]]] = "Sheet1", sheet_filters: Optional[List[ItemFilter]] = None, table_name: Optional[Union[str, List[str]]] = None, table_filters: Optional[List[ItemFilter]] = None, process_individual: bool = False, include_source_info: bool = False, clean_headers: bool = False, dataset_alias: Optional[str] = None) -> Optional[tuple]:
     """
     Load files into LazyFrame(s).
 
@@ -550,6 +555,9 @@ def load_lazy_frame(files: List[str], sheet_name: Optional[Union[str, List[str]]
         except Exception as e:
             print(f"Bulk scan error, falling back to iterative: {e}")
 
+    # Staging folder cache to ensure all files in this batch go to same unique folder
+    batch_staging_dir = None
+
     # Fallback: Iterative
     lfs = []
     for f in files:
@@ -566,7 +574,13 @@ def load_lazy_frame(files: List[str], sheet_name: Optional[Union[str, List[str]]
                 current_lf = pl.scan_ipc(f)
             elif file_ext in [".xlsx", ".xls", ".xlsm", ".xlsb"]:
                 try:
-                    staging_path = get_staging_dir()
+                    # Initialize staging dir for this batch if needed
+                    if batch_staging_dir is None:
+                        # Use alias if provided, else first filename
+                        base_for_folder = dataset_alias if dataset_alias else os.path.basename(files[0])
+                        batch_staging_dir = create_unique_staging_folder(base_for_folder)
+                    
+                    staging_path = batch_staging_dir
 
                     # OPTIMIZATION: Single metadata extraction per file
                     excel_meta = _get_excel_metadata(f)
@@ -779,12 +793,14 @@ def load_from_sql(connection_string: str, query: str) -> Optional[pl.LazyFrame]:
         return None
 
 
-def load_from_api(url: str) -> Optional[pl.LazyFrame]:
+def load_from_api(url: str, dataset_alias: Optional[str] = None) -> Optional[pl.LazyFrame]:
     try:
         # Enterprise Staged Loading: Stream to disk first
-        staging_dir = get_staging_dir()
+        # Create unique folder for this API load
+        base_name = dataset_alias if dataset_alias else "api_dump"
+        staging_dir = create_unique_staging_folder(base_name)
 
-        file_name = f"api_dump_{uuid.uuid4()}.json"
+        file_name = "api_data.json"
         file_path = os.path.join(staging_dir, file_name)
 
         # Stream download (low memory usage)
