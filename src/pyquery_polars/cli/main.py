@@ -8,19 +8,21 @@ from pyquery_polars.cli.branding import show_banner, log_step, log_error, log_su
 
 
 def main():
-    # Default to HELP if no args
+    # Default to UI if no args
     if len(sys.argv) == 1:
-        sys.argv.append("--help")
+        sys.argv.append("ui")
+    elif len(sys.argv) == 2 and sys.argv[1] == "--dev":
+        sys.argv.insert(1, "ui")
 
     # Check for --dev flag early to skip banner
     dev_mode = "--dev" in sys.argv
-    
+
     # Show Banner for all commands (Console Appeal) IF NOT IN DEV MODE
     if not dev_mode:
         try:
             show_banner()
         except Exception:
-            pass # Fallback if rich fails or unicode issues
+            pass  # Fallback if rich fails or unicode issues
 
     parser = argparse.ArgumentParser(description="Shan's PyQuery Platform CLI")
     subparsers = parser.add_subparsers(
@@ -55,7 +57,7 @@ def main():
         "--step", "-t", action="append", help="Inline transformation step (JSON string)")
     run_parser.add_argument(
         "--save-recipe", action="store_true", help="Save the executed recipe to JSON")
-        
+
     # Advanced Loading Options
     run_parser.add_argument(
         "--file-filter", action="append", help="File Filter (type:value[:target]), e.g., 'glob:*.csv'")
@@ -73,7 +75,7 @@ def main():
         "--auto-infer", action="store_true", help="Automatically infer and cast data types")
     run_parser.add_argument(
         "--files", action="append", help="Explicitly add a file to the processing list (override source scan)")
-    
+
     # Project & Advanced Options
     run_parser.add_argument(
         "--project", "-p", help="Path to a .pyquery project file (Mutually exclusive with --source)")
@@ -85,10 +87,10 @@ def main():
         "--columns", "-c", action="append", help="Select specific columns to export")
     run_parser.add_argument(
         "--quiet", "-q", action="store_true", help="Suppress non-essential output (Strict Automation Mode)")
-    
+
     # Legacy / Granular Options
     run_parser.add_argument(
-        "--process-individual", action="store_true", 
+        "--process-individual", action="store_true",
         help="Process each file individually before concatenating (useful for folder inputs)")
     run_parser.add_argument(
         "--include-source-info", action="store_true",
@@ -108,29 +110,65 @@ def main():
     api_parser.add_argument(
         "--dev", action="store_true", help="Enable Dev Mode (No Banner, Verbose Logs)")
 
-    # 3. UI (Removed in Headless revamp)
-    # Interactive mode deprecated in favor of standardized Headless workflow.
+    # 3. UI
+    ui_parser = subparsers.add_parser("ui", help="Start the Streamlit Web App")
+    ui_parser.add_argument(
+        "--port", type=int, default=8501, help="Port to run on")
+    ui_parser.add_argument(
+        "--dev", action="store_true", help="Enable Dev Mode (No Banner, Verbose Logs)")
 
     args = parser.parse_args()
 
     if args.command == "run":
         if args.dev:
-             log_step("Dev Mode Enabled (Headless)", module="DEV-MODE", icon="🛠️")
+            log_step("Dev Mode Enabled (Headless)",
+                     module="DEV-MODE", icon="🛠️")
         run_headless(args)
+
+    elif args.command == "ui":
+        init_logging()
+        log_step(
+            f"Launching Streamlit on port {args.port}...", module="WEB-UI", icon="🌊")
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        app_path = os.path.join(os.path.dirname(
+            current_dir), "frontend", "app.py")
+
+        if not os.path.exists(app_path):
+            log_error("Frontend App Not Found", f"Path: {app_path}")
+            sys.exit(1)
+
+        cmd = ["streamlit", "run", app_path, "--server.port", str(args.port)]
+
+        if args.dev:
+            # Watch the entire package root using Streamlit's folderWatchList option
+            package_root = os.path.dirname(current_dir)
+            cmd.extend(["--server.folderWatchList", package_root])
+            log_step(
+                f"Watching Folders: {package_root}", module="DEV-MODE", icon="👀")
+            log_step("Dev Mode Enabled: Verbose Logging Active",
+                     module="DEV-MODE", icon="🛠️")
+        try:
+            subprocess.run(cmd)
+        except KeyboardInterrupt:
+            log_step("Streamlit Server stopped.", module="Shutdown", icon="🛑")
+            sys.exit(0)
 
     elif args.command == "api":
         init_logging()
-        log_step(f"Launching API on port {args.port}...", module="UVICORN", icon="🚀")
+        log_step(
+            f"Launching API on port {args.port}...", module="UVICORN", icon="🚀")
 
         target = "pyquery_polars.api.main:app"
         cmd = ["uvicorn", target, "--port", str(args.port)]
         if args.reload:
             cmd.append("--reload")
-        
+
         if args.dev:
             cmd.append("--log-level=debug")
-            log_step("Dev Mode Enabled: Verbose Logging Active", module="DEV-MODE", icon="🛠️")
-            
+            log_step("Dev Mode Enabled: Verbose Logging Active",
+                     module="DEV-MODE", icon="🛠️")
+
         try:
             subprocess.run(cmd)
         except KeyboardInterrupt:
