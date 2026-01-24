@@ -90,26 +90,27 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                     # Path might be a glob pattern - extract directory and pattern
                     folder_part = os.path.dirname(original_path)
                     pattern_part = os.path.basename(original_path)
-                    
+
                     # Handle recursive patterns like **/*.csv
                     if folder_part.endswith("**") or "**" in pattern_part:
                         # Recursive pattern detected
                         st.session_state[f"dlg_{loader_name}_recursive"] = True
                         # Extract actual folder (remove **/)
                         if folder_part.endswith("**"):
-                            folder_part = folder_part[:-3] if folder_part.endswith("/**") else folder_part[:-2]
+                            folder_part = folder_part[:-3] if folder_part.endswith(
+                                "/**") else folder_part[:-2]
                         # Clean pattern (remove **/ prefix if present)
                         if pattern_part.startswith("**/"):
                             pattern_part = pattern_part[3:]
                     else:
                         st.session_state[f"dlg_{loader_name}_recursive"] = False
-                    
+
                     # Set folder
                     if folder_part and os.path.isdir(folder_part):
                         st.session_state[folder_key] = folder_part
                     else:
                         st.session_state[folder_key] = original_path
-                    
+
                     # Detect pattern type from extension
                     PATTERN_REVERSE_MAP = {
                         "*.csv": "CSV (*.csv)",
@@ -141,7 +142,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
             # Check for Sheet Mode (either explicit selection or dynamic filters)
             elif params.get("sheet") or params.get("sheet_filters"):
                 st.session_state[f"dlg_{loader_name}_excel_target"] = "Sheet"
-                
+
                 if params.get("sheet_filters"):
                     st.session_state[f"dlg_{loader_name}_sheet_mode"] = "Dynamic Filter"
                 else:
@@ -156,8 +157,15 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                 "clean_headers", False)
             st.session_state[f"dlg_{loader_name}_auto_infer"] = params.get(
                 "auto_infer", False)
-            st.session_state[f"dlg_{loader_name}_split_sheets"] = params.get(
-                "split_sheets", False)
+            if edit_mode:
+                st.session_state[f"dlg_{loader_name}_split_sheets"] = False
+                st.session_state[f"dlg_{loader_name}_split_files"] = False
+            else:
+                st.session_state[f"dlg_{loader_name}_split_sheets"] = params.get(
+                    "split_sheets", False)
+                if "split_files" in params:
+                    st.session_state[f"dlg_{loader_name}_split_files"] = params.get(
+                        "split_files", False)
 
             # --- PRE-FILL FILTERS ---
             # Helper to convert ItemFilter objects (Pydantic) or dicts to display format
@@ -199,7 +207,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                 if params["sheet"] == "__ALL_SHEETS__":
                     st.session_state[f"dlg_{loader_name}_sht_all_g"] = True
                 elif isinstance(params["sheet"], list):
-                    # For manual selection, we default to the list. 
+                    # For manual selection, we default to the list.
                     # NOTE: This key is used in multiselect `default` param, BUT multiselect uses `key` for state
                     st.session_state[f"dlg_{loader_name}_sel_sheet"] = params["sheet"]
 
@@ -312,7 +320,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
 
             base_pattern = PATTERNS[sel_pat_label]
             is_custom = base_pattern == "custom"
-            
+
             if is_custom:
                 base_pattern = c2.text_input(
                     "Custom Pattern", value="*.csv", key=f"dlg_{loader_name}_pat_custom", disabled=is_busy)
@@ -323,18 +331,18 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
             else:
                 # Recursive checkbox first (so we can compute preview)
                 recursive = c_rec.checkbox(
-                    "🔄 Recursive", 
+                    "🔄 Recursive",
                     key=f"dlg_{loader_name}_recursive",
                     help="Search subdirectories (adds **/ prefix)",
                     disabled=is_busy
                 )
-                
+
                 # Build final pattern for preview
                 if recursive and not base_pattern.startswith("**/"):
                     final_pattern = f"**/{base_pattern}"
                 else:
                     final_pattern = base_pattern
-                
+
                 # Show final pattern in preview
                 c2.text_input("Pattern Preview",
                               value=final_pattern, disabled=True)
@@ -451,19 +459,19 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                     if sheet_source_file:
                         # --- EXCEL LOAD TARGET MODE ---
                         c_target, c_mode_sel = st.columns(2)
-                        
+
                         # LEFT: Toggle between Sheets and Tables
                         excel_load_target = c_target.radio("Load Target", [
-                                                     "Sheet", "Table"], horizontal=True, key=f"dlg_{loader_name}_excel_target", disabled=is_busy)
+                            "Sheet", "Table"], horizontal=True, key=f"dlg_{loader_name}_excel_target", disabled=is_busy)
 
                         if excel_load_target == "Table":
                             # TABLE MODE
                             # RIGHT: Selection Mode
                             table_mode = c_mode_sel.radio("Selection Mode", [
-                                                  "Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_table_mode", disabled=is_busy)
+                                "Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_table_mode", disabled=is_busy)
                             # Persist
                             st.session_state[f"dlg_{loader_name}_table_mode_selection"] = table_mode
-                            
+
                             st.divider()
 
                             if table_mode == "Manual Selection":
@@ -566,11 +574,11 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                             # SHEET MODE
                             # RIGHT: Selection Mode
                             sheet_mode = c_mode_sel.radio("Selection Mode", [
-                                                  "Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_sheet_mode", disabled=is_busy)
+                                "Manual Selection", "Dynamic Filter"], horizontal=True, key=f"dlg_{loader_name}_sheet_mode", disabled=is_busy)
                             st.session_state[f"dlg_{loader_name}_sheet_mode_selection"] = sheet_mode
-                            
+
                             st.divider()
-                            
+
                             # Reset
                             st.session_state[f"dlg_{loader_name}_final_table"] = None
 
@@ -605,8 +613,9 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                                 else:
                                     # Get pre-filled sheets from edit mode if available
                                     prefill_key = f"dlg_{loader_name}_sel_sheet"
-                                    prefilled_sheets = st.session_state.get(prefill_key, [])
-                                    
+                                    prefilled_sheets = st.session_state.get(
+                                        prefill_key, [])
+
                                     # Determine default - use prefilled if valid, else fallback
                                     if prefilled_sheets and all(s in filtered_sheets for s in prefilled_sheets):
                                         default_sheets = prefilled_sheets
@@ -616,7 +625,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                                         default_sheets = [filtered_sheets[0]]
                                     else:
                                         default_sheets = []
-                                    
+
                                     selected_sheets = st.multiselect(
                                         "Select Sheets",
                                         filtered_sheets,
@@ -895,19 +904,27 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                         help="Process each file as an individual unit rather than combining them.",
                         disabled=is_busy
                     )
+                    split_files = st.toggle(
+                        "Split Files",
+                        key=f"dlg_{loader_name}_split_files",
+                        help="Create a separate dataset for each file found.",
+                        disabled=is_busy or edit_mode
+                    )
                 else:
                     st.caption("Not applicable for single file.")
+                    # Reset if switching back to single file
+                    st.session_state[f"dlg_{loader_name}_split_files"] = False
 
-                if is_excel and mode == "Single File":
+                if is_excel:
                     split_sheets = st.toggle(
                         "Split Sheets",
                         key=f"dlg_{loader_name}_split_sheets",
-                        help="Create a separate dataset for each selected sheet.",
-                        disabled=is_busy
+                        help="Create a separate dataset for each selected sheet/table in every matching file.",
+                        disabled=is_busy or edit_mode
                     )
-                elif is_excel:
-                    st.caption(
-                        "Splitting sheets supported in Single File mode only.")
+                else:
+                    # Reset if not applicable
+                    st.session_state[f"dlg_{loader_name}_split_sheets"] = False
 
             with c_s2:
                 st.markdown("**Schema & Metadata**")
@@ -1010,6 +1027,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                 "clean_headers": clean_headers,
                 "auto_infer": auto_infer,
                 "split_sheets": split_sheets,
+                "split_files": st.session_state.get(f"dlg_{loader_name}_split_files", False)
             }
 
             st.session_state[job_params_key] = params
@@ -1060,6 +1078,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                         action = "convert_and_load"
                     else:
                         st.write("✅ Encodings are valid.")
+                        job_params["all_files"] = all_files
                         action = "load"
 
                 # --- STEP 2: CONVERT (If needed) ---
@@ -1092,131 +1111,221 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
 
                     alias_val = job_params["alias"]
                     split_sheets = job_params.get("split_sheets", False)
+                    split_files = job_params.get("split_files", False)
                     auto_infer = job_params.get("auto_infer", False)
 
-                    if split_sheets:
-                        # Multi-Dataset Load (Split Mode)
-                        target_items = []
-                        item_type = "Sheet"  # Default
+                    # --- SPLIT FILES LOGIC (Folder Mode) ---
+                    # Priority: Split Sheets > Split Files
+                    # If both are selected, we want Split Sheets logic (which is granular per file-sheet)
+                    if split_files and not split_sheets and job_params.get("all_files"):
+                        # We use 'all_files' from the 'check' phase
+                        target_files = job_params["all_files"]
 
-                        # --- RESOLVE TABLES ---
-                        if job_params.get("table") or job_params.get("table_filters"):
-                            item_type = "Table"
-                            if job_params.get("table"):
-                                t_val = job_params["table"]
-                                if isinstance(t_val, list):
-                                    target_items = t_val
-                                elif t_val == "__ALL_TABLES__":
-                                    try:
-                                        target_items = get_cached_table_names(
-                                            engine, job_params["path"])
-                                    except Exception as e:
-                                        st.error(
-                                            f"Error resolving tables: {e}")
-                            elif job_params.get("table_filters"):
-                                try:
-                                    base_file = job_params["path"]
-                                    all_tables = get_cached_table_names(
-                                        engine, base_file)
-                                    target_items = filter_sheet_names(
-                                        all_tables, job_params["table_filters"])
-                                    if not target_items:
+                        last_active_alias = alias_val
+                        progress_text = "Importing Files..."
+                        my_bar = st.progress(0, text=progress_text)
+
+                        total_files = len(target_files)
+
+                        for i, file_path in enumerate(target_files):
+                            fname = os.path.basename(file_path)
+                            my_bar.progress((i + 1) / total_files,
+                                            text=f"Importing {fname}...")
+
+                            # Clean filename for alias
+                            safe_name = re.sub(
+                                r'[^a-zA-Z0-9_]', '_', os.path.splitext(fname)[0])
+                            current_alias = f"{alias_val}_{safe_name}"
+
+                            curr_params = job_params.copy()
+                            # Point to specific file
+                            curr_params["path"] = file_path
+                            curr_params["alias"] = current_alias
+                            # Clear filters as we resolved specific file
+                            curr_params["filters"] = []
+                            # Single file now
+                            curr_params["process_individual"] = False
+
+                            # Load
+                            res_item = engine.run_loader("File", curr_params)
+                            if res_item:
+                                lf, meta = res_item
+                                engine.add_dataset(current_alias, lf, meta,
+                                                   loader_type="File",
+                                                   loader_params=curr_params)
+
+                                if current_alias not in st.session_state.all_recipes:
+                                    st.session_state.all_recipes[current_alias] = [
+                                    ]
+
+                                if auto_infer:
+                                    handle_auto_inference(
+                                        engine, current_alias)
+
+                                last_active_alias = current_alias
+
+                        st.session_state.active_base_dataset = last_active_alias
+                        st.session_state.recipe_steps = []
+                        my_bar.empty()
+
+                    elif split_sheets:
+                        # Multi-Dataset Load (Split Sheets Mode - Supports Single & Multi File)
+
+                        target_files = job_params.get(
+                            "all_files", [job_params["path"]])
+                        if not target_files:
+                            raise Exception(
+                                "No source files found for splitting.")
+
+                        last_active_alias = alias_val
+
+                        progress_text = "Splitting Sheets..."
+                        my_bar = st.progress(0, text=progress_text)
+
+                        # Total Progress Calculation (Approximate: Files * Avg Sheets? Or just files)
+                        # We'll stick to File Progress for simplicity in UI, or nested log
+                        total_files = len(target_files)
+
+                        for f_idx, current_file in enumerate(target_files):
+                            fname = os.path.basename(current_file)
+                            f_base = os.path.splitext(fname)[0]
+                            # Clean Base
+                            f_base_safe = re.sub(r'[^a-zA-Z0-9_]', '_', f_base)
+
+                            my_bar.progress((f_idx) / total_files,
+                                            text=f"Scanning {fname}...")
+
+                            target_items = []
+                            item_type = "Sheet"  # Default
+
+                            # --- 1. RESOLVE CONTENTS for THIS file ---
+                            try:
+                                tables_in_file = []
+                                sheets_in_file = []
+
+                                # Optimization: Only scan what's needed
+                                need_tables = bool(job_params.get(
+                                    "table") or job_params.get("table_filters"))
+                                need_sheets = bool(job_params.get(
+                                    "sheet") or job_params.get("sheet_filters"))
+                                if not need_tables and not need_sheets:
+                                    # Fallback to Sheet mode if nothing specified (Auto logic usually handled by params)
+                                    need_sheets = True
+
+                                if need_tables:
+                                    tables_in_file = get_cached_table_names(
+                                        engine, current_file)
+                                if need_sheets:
+                                    sheets_in_file = get_cached_sheet_names(
+                                        engine, current_file)
+
+                                # --- 2. FILTER CONTENTS ---
+
+                                # A. TABLES
+                                if job_params.get("table") or job_params.get("table_filters"):
+                                    item_type = "Table"
+                                    if job_params.get("table"):
+                                        t_val = job_params["table"]
+                                        if isinstance(t_val, list):
+                                            # If manual selection, we only take those that EXIST in this file
+                                            # (Assuming user wants specific table names across files)
+                                            target_items = [
+                                                t for t in t_val if t in tables_in_file]
+                                        elif t_val == "__ALL_TABLES__":
+                                            target_items = tables_in_file
+
+                                    elif job_params.get("table_filters"):
+                                        target_items = filter_sheet_names(
+                                            tables_in_file, job_params["table_filters"])
+
+                                # B. SHEETS (Else)
+                                elif job_params.get("sheet") or job_params.get("sheet_filters"):
+                                    item_type = "Sheet"
+
+                                    if job_params.get("sheet"):
+                                        s_val = job_params["sheet"]
+                                        if s_val == "__ALL_SHEETS__":
+                                            target_items = sheets_in_file
+                                        elif isinstance(s_val, list):
+                                            target_items = [
+                                                s for s in s_val if s in sheets_in_file]
+
+                                    elif job_params.get("sheet_filters"):
+                                        target_items = filter_sheet_names(
+                                            sheets_in_file, job_params["sheet_filters"])
+
+                                # Fallback (Implicit All Sheets if nothing selected but split requested?)
+                                # CLI logic does "Auto" mode (Tables -> Sheets).
+                                if not target_items and not (job_params.get("table_filters") or job_params.get("sheet_filters")):
+                                    # If manual selection was empty/invalid, maybe try auto?
+                                    # For now, strict: If params empty, maybe Sheets?
+                                    pass
+
+                            except Exception as e:
+                                st.warning(f"Could not scan {fname}: {e}")
+                                continue
+
+                            # --- 3. LOAD ITEMS ---
+                            if target_items:
+                                for item_name in target_items:
+                                    # Unique Alias: {File}_{Item}
+                                    # Clean Item Name
+                                    i_safe = re.sub(
+                                        r'[^a-zA-Z0-9_]', '_', item_name)
+
+                                    # If User provided alias "MyData", Result: "MyData_Sales2023_Sheet1"
+                                    # If Single File mode, maybe users prefer "MyData_Sheet1"?
+                                    # To be consistent: Always append File identifier if > 1 file?
+                                    # Use safe naming:
+                                    if len(target_files) > 1:
+                                        current_alias = f"{alias_val}_{f_base_safe}_{i_safe}"
+                                    else:
+                                        # Single File Mode - cleaner alias
+                                        current_alias = f"{alias_val}_{i_safe}"
+
+                                    curr_params = job_params.copy()
+                                    # POINT TO SPECIFIC FILE
+                                    curr_params["path"] = current_file
+
+                                    if item_type == "Table":
+                                        curr_params["table"] = [item_name]
+                                        curr_params.pop("table_filters", None)
+                                        curr_params["sheet"] = None
+                                        curr_params.pop("sheet_filters", None)
+                                    else:
+                                        curr_params["sheet"] = [item_name]
+                                        curr_params.pop("sheet_filters", None)
+                                        curr_params["table"] = None
+                                        curr_params.pop("table_filters", None)
+
+                                    curr_params["alias"] = current_alias
+
+                                    res_item = engine.run_loader(
+                                        "File", curr_params)
+                                    if res_item:
+                                        lf, meta = res_item
+                                        engine.add_dataset(current_alias, lf, meta,
+                                                           loader_type="File",
+                                                           loader_params=curr_params)
+
+                                        # Init Recipe
+                                        if current_alias not in st.session_state.all_recipes:
+                                            st.session_state.all_recipes[current_alias] = [
+                                            ]
+
+                                        # Auto Infer
+                                        if auto_infer:
+                                            handle_auto_inference(
+                                                engine, current_alias)
+
+                                        last_active_alias = current_alias
+                                    else:
                                         st.warning(
-                                            "No tables matched the dynamic filters.")
-                                except Exception as e:
-                                    st.error(
-                                        f"Error resolving tables for splitting: {e}")
+                                            f"Skipped {item_type}: {item_name} in {fname}")
 
-                        # --- RESOLVE SHEETS (If no tables selected) ---
-                        elif job_params.get("sheet") or job_params.get("sheet_filters"):
-                            item_type = "Sheet"
-                            # Case 1: Manual Selection
-                            if job_params.get("sheet"):
-                                target_items = job_params["sheet"]
-                                if target_items == "__ALL_SHEETS__":
-                                    try:
-                                        target_items = get_cached_sheet_names(
-                                            engine, job_params["path"])
-                                    except Exception as e:
-                                        st.error(
-                                            f"Error resolving sheets: {e}")
-
-                            # Case 2: Dynamic Filter (Resolving for Split)
-                            elif job_params.get("sheet_filters"):
-                                try:
-                                    # We need to resolve all sheets first
-                                    base_file = job_params["path"]
-                                    all_sheets = get_cached_sheet_names(
-                                        engine, base_file)
-                                    target_items = filter_sheet_names(
-                                        all_sheets, job_params["sheet_filters"])
-
-                                    if not target_items:
-                                        st.warning(
-                                            "No sheets matched the dynamic filters.")
-                                except Exception as e:
-                                    st.error(
-                                        f"Error resolving sheets for splitting: {e}")
-
-                        if target_items:
-                            # ... proceed with split logic ...
-                            last_active_alias = alias_val
-
-                            progress_text = f"Importing {item_type}s..."
-                            my_bar = st.progress(0, text=progress_text)
-
-                            total_items = len(target_items)
-
-                            for i, item_name in enumerate(target_items):
-                                my_bar.progress(
-                                    (i + 1) / total_items, text=f"Importing {item_name}...")
-
-                                current_alias = f"{alias_val}_{item_name}"
-
-                                curr_params = job_params.copy()
-
-                                if item_type == "Table":
-                                    curr_params["table"] = [item_name]
-                                    curr_params.pop("table_filters", None)
-                                    # Ensure we don't accidentally load sheets
-                                    curr_params["sheet"] = None
-                                    curr_params["sheet_filters"] = None
-                                else:
-                                    curr_params["sheet"] = [item_name]
-                                    curr_params.pop("sheet_filters", None)
-                                    curr_params["table"] = None
-                                    curr_params["table_filters"] = None
-
-                                curr_params["alias"] = current_alias
-
-                                res_item = engine.run_loader(
-                                    "File", curr_params)
-                                if res_item:
-                                    lf, meta = res_item
-                                    engine.add_dataset(current_alias, lf, meta,
-                                                       loader_type="File",
-                                                       loader_params=curr_params)
-
-                                    # Init Recipe
-                                    if current_alias not in st.session_state.all_recipes:
-                                        st.session_state.all_recipes[current_alias] = [
-                                        ]
-
-                                    # Auto Infer
-                                    if auto_infer:
-                                        st.write(
-                                            f"Inferring types for {current_alias}...")
-                                        handle_auto_inference(
-                                            engine, current_alias)
-
-                                    last_active_alias = current_alias
-                                else:
-                                    st.warning(
-                                        f"Skipped {item_type}: {item_name} (Load Failed)")
-
-                            st.session_state.active_base_dataset = last_active_alias
-                            st.session_state.recipe_steps = []
-                            my_bar.empty()
+                        st.session_state.active_base_dataset = last_active_alias
+                        st.session_state.recipe_steps = []
+                        my_bar.empty()
 
                     else:
                         # Single Buffer Load

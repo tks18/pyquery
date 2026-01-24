@@ -1,13 +1,15 @@
 from typing import Any, Dict, List, Literal, Optional, Union, Sequence, Tuple
 import polars as pl
 import os
+import uuid
 from pydantic import BaseModel
 
 # Import Utils
 from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep, DatasetMetadata
+from pyquery_polars.core.params import CleanCastParams, CastChange
 from pyquery_polars.core.registry import StepRegistry
-from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, get_excel_table_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
+from pyquery_polars.backend.io.files import get_excel_sheet_names, get_excel_table_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
 from pyquery_polars.core.io import FileFilter
 from pyquery_polars.core.project import (
     ProjectFile, ProjectMeta, PathConfig, DatasetProject, ProjectImportResult
@@ -30,7 +32,8 @@ from ..analysis.joins import JoinAnalyzer
 class PyQueryEngine:
     def __init__(self):
         self._datasets: Dict[str, DatasetMetadata] = {}  # Metadata storage
-        self._recipes: Dict[str, List[RecipeStep]] = {}  # Recipe storage (backend-centric)
+        # Recipe storage (backend-centric)
+        self._recipes: Dict[str, List[RecipeStep]] = {}
         self._sql_context = pl.SQLContext()
 
         # Analysis Engine
@@ -70,7 +73,8 @@ class PyQueryEngine:
     # ==========================
     def add_dataset(self, name: str, lf_or_lfs: Union[pl.LazyFrame, List[pl.LazyFrame]],
                     metadata: Optional[Dict[str, Any]] = None,
-                    loader_type: Optional[Literal["File", "SQL", "API"]] = None,
+                    loader_type: Optional[Literal["File",
+                                                  "SQL", "API"]] = None,
                     loader_params: Optional[Dict[str, Any]] = None):
         """Add a dataset with comprehensive metadata."""
         if metadata is None:
@@ -126,14 +130,14 @@ class PyQueryEngine:
         """Rename a dataset, updating all references."""
         if old_name not in self._datasets or new_name in self._datasets:
             return False
-        
+
         # Move metadata to new key
         self._datasets[new_name] = self._datasets.pop(old_name)
-        
+
         # Move recipe to new key
         if old_name in self._recipes:
             self._recipes[new_name] = self._recipes.pop(old_name)
-        
+
         # Update SQL context
         try:
             # Get the LazyFrame for re-registration
@@ -144,13 +148,13 @@ class PyQueryEngine:
                 lf = pl.concat(meta.base_lfs, how="diagonal")
             else:
                 lf = None
-            
+
             self._sql_context.unregister(old_name)
             if lf is not None:
                 self._sql_context.register(new_name, lf)
         except Exception as e:
             print(f"SQL Context Rename Warning: {e}")
-        
+
         return True
 
     def get_dataset(self, name: str) -> Optional[pl.LazyFrame]:
@@ -242,32 +246,32 @@ class PyQueryEngine:
     # PROJECT MANAGEMENT
     # ==========================
     def export_project(
-        self, 
+        self,
         path_mode: Literal["absolute", "relative"] = "absolute",
         base_dir: Optional[str] = None,
         description: Optional[str] = None
     ) -> ProjectFile:
         """
         Export complete project state to a ProjectFile object.
-        
+
         Args:
             path_mode: 'absolute' or 'relative' for file paths
             base_dir: Required if path_mode='relative'
             description: Optional project description
-            
+
         Returns:
             ProjectFile object ready for serialization
         """
         datasets = []
-        
+
         for name, meta in self._datasets.items():
             # Get loader params (stored in metadata)
             loader_params = meta.loader_params or {}
             loader_type = meta.loader_type or "File"
-            
+
             # Get recipe for this dataset
             recipe = self._recipes.get(name, [])
-            
+
             ds = DatasetProject(
                 alias=name,
                 loader_type=loader_type,
@@ -275,18 +279,18 @@ class PyQueryEngine:
                 recipe=recipe
             )
             datasets.append(ds)
-        
+
         # Build project file
         project = ProjectFile(
             meta=ProjectMeta(description=description),
             path_config=PathConfig(mode="absolute"),
             datasets=datasets
         )
-        
+
         # Convert paths if relative mode requested
         if path_mode == "relative" and base_dir:
             project = convert_paths_to_relative(project, base_dir)
-        
+
         return project
 
     def save_project_to_file(
@@ -298,7 +302,7 @@ class PyQueryEngine:
     ) -> str:
         """
         Export and save project to a .pyquery file.
-        
+
         Returns:
             Path to saved file
         """
@@ -314,34 +318,34 @@ class PyQueryEngine:
     ) -> ProjectImportResult:
         """
         Import a project, loading datasets and recipes.
-        
+
         Args:
             project: ProjectFile to import
             mode: 'replace' clears existing, 'merge' adds non-conflicting
             base_dir_override: Override base_dir for relative path resolution
-            
+
         Returns:
             ProjectImportResult with success status and warnings
         """
         result = ProjectImportResult()
-        
+
         # Resolve paths to absolute if needed
         resolved = resolve_paths(project, base_dir_override)
-        
+
         # Check for missing files
         missing = validate_dataset_files(resolved)
-        
+
         # Clear existing if replace mode
         if mode == "replace":
             self.clear_all()
-        
+
         for ds in resolved.datasets:
             # Skip if dataset exists in merge mode
             if mode == "merge" and ds.alias in self._datasets:
                 result.datasets_skipped.append(ds.alias)
                 result.warnings.append(f"Skipped '{ds.alias}': already exists")
                 continue
-            
+
             # Skip if files are missing
             if ds.alias in missing:
                 result.datasets_skipped.append(ds.alias)
@@ -349,11 +353,12 @@ class PyQueryEngine:
                     f"Skipped '{ds.alias}': missing files: {missing[ds.alias][:3]}"
                 )
                 continue
-            
+
             # Attempt to load dataset
             try:
-                loader_result = self.run_loader(ds.loader_type, ds.loader_params)
-                
+                loader_result = self.run_loader(
+                    ds.loader_type, ds.loader_params)
+
                 if loader_result:
                     lf, metadata = loader_result
                     self.add_dataset(
@@ -361,20 +366,21 @@ class PyQueryEngine:
                         loader_type=ds.loader_type,
                         loader_params=ds.loader_params
                     )
-                    
+
                     # Load recipe
                     if ds.recipe:
                         self._recipes[ds.alias] = ds.recipe
-                    
+
                     result.datasets_loaded.append(ds.alias)
                 else:
                     result.datasets_skipped.append(ds.alias)
-                    result.warnings.append(f"Failed to load '{ds.alias}': loader returned None")
-                    
+                    result.warnings.append(
+                        f"Failed to load '{ds.alias}': loader returned None")
+
             except Exception as e:
                 result.datasets_skipped.append(ds.alias)
                 result.errors.append(f"Error loading '{ds.alias}': {str(e)}")
-        
+
         result.success = len(result.errors) == 0
         return result
 
@@ -385,19 +391,19 @@ class PyQueryEngine:
     ) -> ProjectImportResult:
         """
         Load a project from a .pyquery file.
-        
+
         Args:
             file_path: Path to .pyquery file
             mode: 'replace' or 'merge'
-            
+
         Returns:
             ProjectImportResult
         """
         project = load_project(file_path)
-        
+
         # Use file's directory as base for relative path resolution
         file_dir = os.path.dirname(os.path.abspath(file_path))
-        
+
         return self.import_project(project, mode, base_dir_override=file_dir)
 
     def clear_all(self) -> None:
@@ -533,6 +539,78 @@ class PyQueryEngine:
             columns=columns,
             sample_size=sample_size
         )
+
+    def auto_infer_dataset(self, dataset_name: str) -> Optional[RecipeStep]:
+        """
+        [NEW] Centralized Auto-Inference Logic.
+        Detects type improvements and automatically updates the dataset's recipe 
+        with a 'clean_cast' step at the beginning.
+        """
+        try:
+            # 1. Run Inference
+            # We run it on the raw dataset (empty recipe)
+            raw_recipe = []
+            inferred = self.infer_types(
+                dataset_name, raw_recipe, sample_size=1000)
+
+            if not inferred:
+                return None
+
+            # 2. Map to Actions
+            TYPE_ACTION_MAP = {
+                "Int64": "To Int",
+                "Float64": "To Float",
+                "Date": "To Date",
+                "Datetime": "To Datetime",
+                "Boolean": "To Boolean"
+            }
+
+            p = CleanCastParams()
+            count = 0
+            for col, dtype in inferred.items():
+                action = TYPE_ACTION_MAP.get(dtype)
+                if action:
+                    p.changes.append(CastChange(col=col, action=action))
+                    count += 1
+
+            if count == 0:
+                return None
+
+            # 3. Create Step
+            new_step = RecipeStep(
+                id=str(uuid.uuid4()),
+                type="clean_cast",
+                label="Auto Clean Types",
+                params=p.model_dump()
+            )
+
+            # 4. Update Recipe (Idempotent Insert/Replace)
+            current_recipe = self.get_recipe(dataset_name)
+
+            # Check for existing Auto Clean Types step
+            existing_idx = None
+            for i, step in enumerate(current_recipe):
+                if isinstance(step, dict):  # Handle dict steps if any
+                    if step.get("type") == "clean_cast" and step.get("label") == "Auto Clean Types":
+                        existing_idx = i
+                        break
+                elif step.type == "clean_cast" and step.label == "Auto Clean Types":
+                    existing_idx = i
+                    break
+
+            if existing_idx is not None:
+                # Replace
+                current_recipe[existing_idx] = new_step
+            else:
+                # Insert at Start
+                current_recipe.insert(0, new_step)
+
+            self.update_recipe(dataset_name, current_recipe)
+            return new_step
+
+        except Exception as e:
+            print(f"Auto-Infer Logic Error: {e}")
+            return None
 
     def get_dataset_schema(self, name: str, project_recipes: Optional[Dict[str, List[RecipeStep]]] = None) -> Optional[pl.Schema]:
         lf = self.get_dataset(name)

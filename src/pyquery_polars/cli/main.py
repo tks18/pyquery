@@ -36,9 +36,13 @@ def main():
     run_parser.add_argument(
         "--type", default="file", choices=["file", "sql", "api"], help="Input type")
     run_parser.add_argument(
-        "--sql-query", help="Query for SQL input")
+        "--sql-query", help="Query for SQL input (Source Mode)")
+    run_parser.add_argument(
+        "--transform-sql", help="SQL Query to run ON the loaded dataset (Post-Load Transformation)")
     run_parser.add_argument(
         "--api-url", help="URL for API input (overrides source if provided)")
+    run_parser.add_argument(
+        "--alias", help="Alias for the loaded dataset (used in SQL context). Default: 'cli_data'")
     run_parser.add_argument(
         "--sheet-name", "-S", default="Sheet1", help="Sheet name for Excel files")
     run_parser.add_argument(
@@ -67,6 +71,8 @@ def main():
         "--table-filter", action="append", help="Table Filter (type:value), e.g., 'exact:Table1'")
     run_parser.add_argument(
         "--split-sheets", action="store_true", help="Excel: Load each sheet/table as a separate dataset")
+    run_parser.add_argument(
+        "--split-files", action="store_true", help="Folder: Load each resolved file as a separate dataset")
     run_parser.add_argument(
         "--excel-mode", default="auto", choices=["auto", "sheets", "tables"], help="Excel: Select target type when splitting (Auto/Sheets/Tables)")
     run_parser.add_argument(

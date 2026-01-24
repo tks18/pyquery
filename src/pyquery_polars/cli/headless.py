@@ -70,7 +70,8 @@ def build_item_filters(arg_list, default_target="sheet_name") -> Optional[List[I
         try:
             ft = FilterType(p["type"])
             filters.append(ItemFilter(
-                type=ft, value=p["value"], target=default_target))  # type: ignore
+                # type: ignore
+                type=ft, value=p["value"], target=default_target))
         except Exception:
             log_error(f"Invalid Filter Type: {p['type']}",
                       "Supported: glob, regex, contains, exact, is_not")
@@ -232,9 +233,38 @@ def run_headless(args):
     # MODE B: SOURCE MODE (Single File / SQL)
     # =========================================================================
     else:
-        base_ds_name = "cli_data"
+        # Resolve Alias
+        base_ds_name = getattr(args, 'alias', None) or "cli_data"
+
+        # Resolve SQL File if provided
+        if args.sql_query:
+            if os.path.exists(args.sql_query):
+                try:
+                    with open(args.sql_query, 'r', encoding='utf-8') as f:
+                        args.sql_query = f.read()
+                except Exception as e:
+                    log_error("SQL File Error",
+                              f"Failed to read SQL file: {e}")
+                    sys.exit(1)
+
+        # Resolve Transform SQL File if provided
+        if args.transform_sql:
+            if os.path.exists(args.transform_sql):
+                try:
+                    with open(args.transform_sql, 'r', encoding='utf-8') as f:
+                        args.transform_sql = f.read()
+                except Exception as e:
+                    log_error("SQL File Error",
+                              f"Failed to read Transform SQL file: {e}")
+                    sys.exit(1)
+
         if not args.quiet:
-            log_step(f"Loading Source: {args.source}", module="I/O", icon="📥")
+            if args.type == "sql":
+                log_step(f"Connecting to SQL Source...",
+                         module="SQL", icon="🔌")
+            else:
+                log_step(
+                    f"Loading Source: {args.source} as '{base_ds_name}'", module="I/O", icon="📥")
 
         try:
             # --- SPLIT SHEETS LOGIC ---
@@ -251,7 +281,7 @@ def run_headless(args):
 
                 with log_progress("Splitting Sheets & Tables...", module="SPLITTER") as p:
                     total_work = len(resolved_files)
-                    p.update(total=total_work)  # Fixed: Use wrapper method
+                    p.update(total=total_work)
 
                     for f_path in resolved_files:
                         ext = os.path.splitext(f_path)[1].lower()
@@ -361,7 +391,18 @@ def run_headless(args):
                                         res, tuple) else (res, {})
                                     engine.add_dataset(
                                         alias, flf, metadata=meta)
-                                    datasets_to_process.append((alias, []))
+
+                                    # AUTO-INFER LOGIC
+                                    recipe_steps = []
+                                    if getattr(args, 'auto_infer', False):
+                                        cast_step = engine.auto_infer_dataset(
+                                            alias)
+                                        if cast_step:
+                                            recipe_steps.append(
+                                                cast_step.model_dump())
+
+                                    datasets_to_process.append(
+                                        (alias, recipe_steps))
                                     loaded_count += 1
                             except Exception:
                                 pass
@@ -373,9 +414,83 @@ def run_headless(args):
                               "No datasets loaded via split-sheets.")
                     sys.exit(1)
 
+            # --- SPLIT FILES LOGIC ---
+            elif getattr(args, 'split_files', False) and args.type == "file":
+                # Resolve all files based on filters
+                resolved_files = engine.resolve_files(
+                    args.source, build_file_filters(args))
+
+                if not resolved_files:
+                    log_error("No Files Found", f"Pattern: {args.source}")
+                    sys.exit(1)
+
+                loaded_count = 0
+
+                with log_progress("Processing Files...", module="SPLITTER") as p:
+                    total_work = len(resolved_files)
+                    p.update(total=total_work)
+
+                    for f_path in resolved_files:
+                        fname = os.path.basename(f_path)
+                        # Clean Name
+                        safe_base = os.path.splitext(fname)[0]
+                        s_name = "".join([c if c.isalnum() or c in (
+                            '-', '_') else '_' for c in safe_base])
+                        alias = f"{base_ds_name}_{s_name}"
+
+                        # Create Single File Params
+                        l_params = FileLoaderParams(
+                            path=f_path,
+                            alias=alias,
+                            process_individual=False,  # Forced False for split mode
+                            clean_headers=getattr(
+                                args, 'clean_headers', False),
+                            include_source_info=getattr(
+                                args, 'include_source_info', False),
+                            # Clear filters as we are loading specific resolved file
+                            filters=[],
+                            sheet_filters=build_item_filters(
+                                args.sheet_filter, "sheet_name"),
+                            table_filters=build_item_filters(
+                                args.table_filter, "table_name")
+                        )
+
+                        try:
+                            # Load
+                            res = engine.run_loader("File", l_params)
+                            if res:
+                                flf, meta = res if isinstance(
+                                    res, tuple) else (res, {})
+                                engine.add_dataset(alias, flf, metadata=meta)
+
+                                # AUTO-INFER LOGIC
+                                recipe_steps = []
+                                if getattr(args, 'auto_infer', False):
+                                    cast_step = engine.auto_infer_dataset(
+                                        alias)
+                                    if cast_step:
+                                        recipe_steps.append(
+                                            cast_step.model_dump())
+
+                                datasets_to_process.append(
+                                    (alias, recipe_steps))
+                                loaded_count += 1
+                        except Exception as e:
+                            # Log but continue
+                            if not args.quiet:
+                                console.print(
+                                    f"[dim red]Failed to load {fname}: {e}[/dim red]")
+
+                        p.advance(1)
+
+                if loaded_count == 0:
+                    log_error("Split Logic",
+                              "No datasets loaded via split-files.")
+                    sys.exit(1)
+
             else:
                 # --- STANDARD (NO SPLIT) ---
-                result = None  # Fixed: Initialize result to prevent unbound variable error
+                result = None
 
                 if args.type == "file":
                     file_filters = build_file_filters(args)
@@ -451,6 +566,12 @@ def run_headless(args):
                             log_error("Invalid inline step", s_str)
                             sys.exit(1)
 
+                # AUTO-INFER LOGIC
+                if getattr(args, 'auto_infer', False):
+                    cast_step = engine.auto_infer_dataset(base_ds_name)
+                    if cast_step:
+                        recipe.insert(0, cast_step.model_dump())
+
                 datasets_to_process.append((base_ds_name, recipe))
 
         except Exception as e:
@@ -458,30 +579,25 @@ def run_headless(args):
             sys.exit(1)
 
         # --- POST-LOAD SQL TRANSFORMATION ---
-        # If user loaded files/API usually but wants to run SQL on them
-        if args.sql_query and args.type != "sql":
+        # If user provided a --transform-sql (distinct from --sql-query for source)
+        if args.transform_sql:
             if not args.quiet:
-                log_step("Executing SQL Transformation...", module="SQL-ENGINE", icon="⚙️")
-            
+                log_step("Executing SQL Transformation...",
+                         module="SQL-ENGINE", icon="⚙️")
+
             try:
-                # 1. Register Datasets (Happens automatically in add_dataset, but we verify we use them)
-                # The primary dataset alias is 'cli_data' (base_ds_name)
-                
-                # 2. Execute SQL
-                # The engine executes against all registered datasets
-                # We need to handle potential naming conflicts or ensure user knows to query 'cli_data'
-                # For single source, we can perhaps alias it strictly?
-                # Actually, add_dataset registered 'base_ds_name' (cli_data).
-                
-                sql_lf = engine.execute_sql(args.sql_query)
-                
-                # 3. Replace Execution Plan
-                # We want to export the RESULT of the SQL, not the original raw file
+                # Collect active recipes (including auto-infer steps)
+                active_recipes = {name: recipe for name,
+                                  recipe in datasets_to_process}
+
+                # Execute against registered context WITH recipes applied
+                sql_lf = engine.execute_sql(
+                    args.transform_sql, project_recipes=active_recipes)
+
+                # Replace Execution Plan with SQL Result
                 engine.add_dataset("SQL_RESULT", sql_lf)
-                
-                # Clear previous plan and set new one
                 datasets_to_process = [("SQL_RESULT", [])]
-                
+
             except Exception as e:
                 log_error("SQL Transformation Failed", str(e))
                 sys.exit(1)
@@ -588,9 +704,28 @@ def run_headless(args):
         has_extension = "." in os.path.basename(out_pattern)
         is_multi_dataset = len(datasets_to_process) > 1
 
-        if "*" in out_pattern or (is_multi_dataset and has_extension):
-            # User provided pattern like "dist/*.csv" or "dist/file.csv" (multi)
-            # Infer format from extension
+        if "*" in out_pattern:
+            # User provided pattern like "dist/*.csv"
+            ext = os.path.splitext(out_pattern)[1].lower()
+            # Infer format from pattern extension
+            if ext in [".csv", ".txt"]:
+                override_format = "csv"
+            elif ext in [".parquet"]:
+                override_format = "parquet"
+            elif ext in [".xlsx", ".xls"]:
+                override_format = "excel"
+            elif ext in [".json"]:
+                override_format = "json"
+            elif ext in [".jsonl", ".ndjson"]:
+                override_format = "ndjson"
+            elif ext in [".arrow", ".ipc"]:
+                override_format = "ipc"
+            elif ext in [".db", ".sqlite"]:
+                override_format = "sqlite"
+
+        elif has_extension:
+            # User provided specific file like "dist/output.xlsx"
+            # Infer format from file extension
             ext = os.path.splitext(out_pattern)[1].lower()
             if ext in [".csv", ".txt"]:
                 override_format = "csv"
@@ -607,6 +742,7 @@ def run_headless(args):
             elif ext in [".db", ".sqlite"]:
                 override_format = "sqlite"
 
+        if "*" in out_pattern or has_extension:
             # Prepare directory (Parent of the file)
             base_dir = os.path.dirname(out_pattern)
             if base_dir and not os.path.exists(base_dir):
