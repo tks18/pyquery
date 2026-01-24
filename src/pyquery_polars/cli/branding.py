@@ -8,10 +8,48 @@ from typing import Optional, Tuple, List, Dict, Any
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+from rich import box
 from rich.table import Table
 from importlib.metadata import version
 
-console = Console()
+console = Console(force_terminal=True)
+
+
+def log_table(items: List[Dict[str, Any]], title: str = "Details"):
+    """
+    Log a generic table of items. 
+    items: List of dicts, keys become columns.
+    """
+    if not items:
+        return
+
+    theme = get_current_theme()
+    header_style = f"bold {theme['border_style']}"
+
+    table = Table(
+        show_header=True,
+        header_style=header_style,
+        title=f"[bold]{title}[/bold]",
+        box=box.ROUNDED,
+        padding=(0, 2),
+        collapse_padding=True,
+        show_lines=False,
+        row_styles=["none", "dim"]
+    )
+
+    # Infer columns from first item
+    columns = list(items[0].keys())
+    for col in columns:
+        table.add_column(col.replace("_", " ").title(),
+                         style="cyan", no_wrap=True)
+
+    for item in items:
+        row = [str(item.get(col, "")) for col in columns]
+        table.add_row(*row)
+
+    console.print(table)
+    console.print("\n")
+
 
 TAGLINES = [
     "PyQuery by Shan.TK — born from Rust, powered by lazy execution, and built to replace Excel, Power Query, Pandas, and the era of waiting.",
@@ -251,31 +289,65 @@ def log_success(message: str):
         f"\n[bold green] ➤ {message} ({elapsed:.3f}s)[/bold green]\n")
 
 
-def log_table(items: List[Dict[str, Any]], title: str = "Details"):
+class log_progress:
     """
-    Log a generic table of items. 
-    items: List of dicts, keys become columns.
+    Context manager for a Rich Progress Bar.
+    Usage:
+    with log_progress("Processing...", total=100) as progress:
+        for i in range(100):
+            progress.advance(1)
     """
-    if not items:
-        return
 
-    theme = get_current_theme()
-    header_style = f"bold {theme['border_style']}"
+    def __init__(self, description: str, total: Optional[int] = None, module: str = "SYSTEM", icon: str = "⏳"):
+        self.description = description
+        self.total = total
+        self.module = module
+        self.icon = icon
+        # Use simple variable first to avoid "self.progress" possibly None inference confusion during init
+        progress_obj = None
+        self.task_id = None
 
-    table = Table(show_header=True, header_style=header_style, title=title)
+        # Import inside to avoid circular dependency issues if any, though rich is already top-level
+        from rich.progress import (
+            Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+        )
 
-    # Infer columns from first item
-    columns = list(items[0].keys())
-    for col in columns:
-        table.add_column(col.replace("_", " ").title(), style="cyan")
+        theme = get_current_theme()
+        style = theme['border_style']
 
-    for item in items:
-        row = [str(item.get(col, "")) for col in columns]
-        table.add_row(*row)
+        progress_obj = Progress(
+            SpinnerColumn(style=style),
+            TextColumn(f"[bold {style}][ {module.center(9)} ][/bold {style}]"),
+            TextColumn(f"{icon} [bold]{description}[/bold]"),
+            BarColumn(bar_width=None, style=style),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+            console=console,
+            transient=True  # Disappear when done for cleaner logs
+        )
+        self.progress = progress_obj
 
-    console.print(table)
+    def __enter__(self):
+        if self.progress:
+            self.progress.start()
+            self.task_id = self.progress.add_task(
+                self.description, total=self.total)
+        return self
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.progress:
+            self.progress.stop()
+        if exc_type is None:
+            # Optional: Log completion
+            pass
 
+    def update(self, completed: Optional[int] = None, advance: Optional[int] = None, description: Optional[str] = None, total: Optional[int] = None):
+        if self.progress and self.task_id is not None:
+            self.progress.update(self.task_id, completed=completed, advance=advance, description=description, total=total)
+
+    def advance(self, advance: int = 1):
+        if self.progress and self.task_id is not None:
+            self.progress.advance(self.task_id, advance=advance)
 def gradient_text(text: str, start_color: Tuple[int, int, int], end_color: Tuple[int, int, int]) -> Text:
     """Generate a text object with a linear gradient."""
     # Simple linear interpolation for MVP
