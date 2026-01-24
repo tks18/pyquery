@@ -19,7 +19,7 @@ from openpyxl import load_workbook
 from typing import List, Literal, Optional, Any, Dict, cast, Iterator, Union
 import fnmatch
 
-from ...core.io_params import FileFilter, ItemFilter, FilterType
+from ...core.io import FileFilter, ItemFilter, FilterType
 
 STAGING_DIR_NAME = "pyquery_staging"
 

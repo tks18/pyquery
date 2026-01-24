@@ -4,7 +4,7 @@ import streamlit as st
 from typing import List, Dict
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.params import CleanCastParams, CastChange
-from pyquery_polars.core.io_params import FileFilter, ItemFilter, FilterType
+from pyquery_polars.core.io import FileFilter, ItemFilter, FilterType
 from pyquery_polars.core.models import RecipeStep
 import fnmatch
 

@@ -8,7 +8,7 @@ from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.core.models import JobInfo, PluginDef, RecipeStep, DatasetMetadata
 from pyquery_polars.core.registry import StepRegistry
 from pyquery_polars.backend.io.files import get_staging_dir, get_excel_sheet_names, get_excel_table_names, cleanup_staging_files, resolve_file_paths, batch_detect_encodings, convert_file_to_utf8
-from pyquery_polars.core.io_params import FileFilter
+from pyquery_polars.core.io import FileFilter
 
 # Modules
 from .registry import register_all_steps

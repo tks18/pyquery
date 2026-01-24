@@ -8,10 +8,11 @@ from typing import List, Dict, Any
 
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.core.models import RecipeStep
-from pyquery_polars.core.io_params import (
+from pyquery_polars.core.io import (
     FileLoaderParams, SqlLoaderParams, ApiLoaderParams,
     ParquetExportParams, CsvExportParams, ExcelExportParams,
-    JsonExportParams, NdjsonExportParams, IpcExportParams, SqliteExportParams
+    JsonExportParams, NdjsonExportParams, IpcExportParams, SqliteExportParams,
+    FileFilter, ItemFilter, FilterType
 )
 from pyquery_polars.cli.branding import init_logging, log_step, log_error, log_success, log_table
 

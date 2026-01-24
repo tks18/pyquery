@@ -7,7 +7,7 @@ from typing import List, Optional
 from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.file_picker import pick_file, pick_folder
 from pyquery_polars.frontend.utils.cache_utils import get_cached_sheet_names, get_cached_resolved_files, get_cached_encoding_scan, get_cached_table_names
-from pyquery_polars.core.io_params import FileFilter, FilterType, ItemFilter
+from pyquery_polars.core.io import FileFilter, FilterType, ItemFilter
 from pyquery_polars.frontend.components.loaders.utils import filter_list_by_regex, handle_auto_inference, filter_sheet_names
 
 

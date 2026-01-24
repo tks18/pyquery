@@ -1,7 +1,7 @@
 import streamlit as st
 from typing import List, Dict, Any, Optional
 from pyquery_polars.backend.engine import PyQueryEngine
-from pyquery_polars.core.io_params import FileFilter
+from pyquery_polars.core.io import FileFilter
 import os
 
 # NOTE: We prefix engine with underscore to tell Streamlit NOT to hash it.

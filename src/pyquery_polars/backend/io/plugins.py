@@ -4,7 +4,7 @@ import polars as pl
 
 from pyquery_polars.backend.io.files import resolve_file_paths, load_lazy_frame, load_from_sql, load_from_api, export_worker
 from pyquery_polars.core.models import PluginDef
-from pyquery_polars.core.io_params import (
+from pyquery_polars.core.io import (
     FileLoaderParams, SqlLoaderParams, ApiLoaderParams,
     ParquetExportParams, CsvExportParams, ExcelExportParams, JsonExportParams,
     IpcExportParams, NdjsonExportParams, SqliteExportParams
