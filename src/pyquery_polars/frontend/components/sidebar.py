@@ -1,9 +1,11 @@
+from typing import cast
+
 import streamlit as st
 import json
-from typing import cast
 import hashlib
+
 from pyquery_polars.frontend.state_manager import add_step, load_recipe_from_json, undo, redo
-from pyquery_polars.backend.engine import PyQueryEngine
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.core.registry import StepRegistry
 from pyquery_polars.frontend.components.loaders import show_file_loader, show_sql_loader, show_api_loader
 
@@ -15,6 +17,7 @@ def _open_project_export():
     st.session_state.show_loader_api = False
     st.session_state.show_project_export = True
     st.session_state.show_project_import = False
+
 
 def _open_project_import():
     """Helper to open project import dialog."""
@@ -41,15 +44,19 @@ def render_sidebar():
             # Single line: Active dataset name with project action buttons
             col_ds, col_save, col_load = st.columns([0.6, 0.2, 0.2])
             col_ds.markdown(f"🎯 **{active_ds}**")
-            col_save.button("💾", help="Save Project", key="btn_proj_save", on_click=lambda: _open_project_export())
-            col_load.button("📂", help="Load Project", key="btn_proj_load", on_click=lambda: _open_project_import())
+            col_save.button("💾", help="Save Project", key="btn_proj_save",
+                            on_click=lambda: _open_project_export())
+            col_load.button("📂", help="Load Project", key="btn_proj_load",
+                            on_click=lambda: _open_project_import())
         else:
             # No active dataset - just show project buttons with label
             col_label, col_save, col_load = st.columns([0.6, 0.2, 0.2])
             col_label.caption("No dataset loaded")
-            col_save.button("💾", help="Save Project", key="btn_proj_save", on_click=lambda: _open_project_export())
-            col_load.button("📂", help="Load Project", key="btn_proj_load", on_click=lambda: _open_project_import())
-        
+            col_save.button("💾", help="Save Project", key="btn_proj_save",
+                            on_click=lambda: _open_project_export())
+            col_load.button("📂", help="Load Project", key="btn_proj_load",
+                            on_click=lambda: _open_project_import())
+
         st.divider()
 
         # --- 1. DATASET MANAGER ---
@@ -128,11 +135,11 @@ def render_sidebar():
         # Use list() to create a safe copy of keys to avoid KeyError during iteration
         try:
             current_dlg_values = {
-                k: st.session_state.get(k) for k in list(st.session_state.keys()) 
+                k: st.session_state.get(k) for k in list(st.session_state.keys())
                 if isinstance(k, str) and k.startswith("dlg_")}
         except:
             current_dlg_values = {}
-        
+
         # Exclude buttons from hash because they don't persist, but check them explicitly
         input_values_str = str(sorted(
             [(k, v) for k, v in current_dlg_values.items() if not k.startswith("dlg_btn")]))
@@ -162,7 +169,7 @@ def render_sidebar():
             st.session_state.show_loader_sql = False
             st.session_state.show_loader_api = False
             st.session_state.edit_mode_dataset = None  # Clear edit mode
-            
+
             # Reset all dialog inputs
             for key in list(st.session_state.keys()):
                 if isinstance(key, str) and key.startswith("dlg_"):
@@ -170,7 +177,7 @@ def render_sidebar():
 
         # --- RENDER DIALOGS IF ACTIVE ---
         edit_ds = st.session_state.get("edit_mode_dataset")
-        
+
         # Check project dialogs first (they reset loader states when opened)
         if st.session_state.get("show_project_export", False):
             from pyquery_polars.frontend.components.project_dialog import show_project_export_dialog
@@ -180,22 +187,25 @@ def render_sidebar():
             show_project_import_dialog(engine)
         elif st.session_state.show_loader_file:
             if edit_ds:
-                show_file_loader(engine, edit_mode=True, edit_dataset_name=edit_ds)
+                show_file_loader(engine, edit_mode=True,
+                                 edit_dataset_name=edit_ds)
             else:
                 show_file_loader(engine)
         elif st.session_state.show_loader_sql:
             if edit_ds:
-                show_sql_loader(engine, edit_mode=True, edit_dataset_name=edit_ds)
+                show_sql_loader(engine, edit_mode=True,
+                                edit_dataset_name=edit_ds)
             else:
                 show_sql_loader(engine)
         elif st.session_state.show_loader_api:
             if edit_ds:
-                show_api_loader(engine, edit_mode=True, edit_dataset_name=edit_ds)
+                show_api_loader(engine, edit_mode=True,
+                                edit_dataset_name=edit_ds)
             else:
                 show_api_loader(engine)
 
         # B. LIST EXISTING
-        dataset_names = engine.get_dataset_names()
+        dataset_names = engine.datasets.list_names()
         if dataset_names:
             st.divider()
 
@@ -212,15 +222,19 @@ def render_sidebar():
 
                 if c_settings.button("⚙️", key=f"settings_{name}", help="Edit dataset settings"):
                     # Get loader type from metadata
-                    meta = engine.get_dataset_metadata(name)
-                    loader_type = meta.get("loader_type", "File")
-                    
+                    meta = engine.datasets.get_metadata(name)
+                    if meta:
+                        loader_type = meta.loader_type if meta.loader_type else "File"
+                    else:
+                        loader_type = "File"
+                        st.warning(f"Could not load metadata for {name}")
+
                     # Reset dialog state before opening
                     reset_dialog_state()
-                    
+
                     # Set edit mode state
                     st.session_state.edit_mode_dataset = name
-                    
+
                     # Open appropriate loader
                     if loader_type == "File":
                         st.session_state.show_loader_file = True
@@ -231,12 +245,12 @@ def render_sidebar():
                     else:
                         # Default to File if unknown
                         st.session_state.show_loader_file = True
-                    
+
                     st.session_state.dlg_just_opened = True
                     st.rerun()
 
                 if c_delete.button("🗑️", key=f"del_{name}"):
-                    engine.remove_dataset(name)
+                    engine.datasets.remove(name)
                     if name in st.session_state.all_recipes:
                         del st.session_state.all_recipes[name]
                     if st.session_state.active_base_dataset == name:
@@ -292,7 +306,8 @@ def render_sidebar():
                         "Category", sorted_groups, key="sel_category")
 
                     steps = grouped_steps[selected_group]
-                    options_map = {label: step_type for step_type, label in steps}
+                    options_map = {
+                        label: step_type for step_type, label in steps}
 
                     selected_label = st.selectbox(
                         "Operation", list(options_map.keys()), key="sel_operation"
@@ -343,7 +358,7 @@ def render_sidebar():
         with st.expander("⚙️ Application Settings", expanded=False):
             if st.button("🧹 Clear Cache / Staging", help="Force delete all temporary files.", width="stretch"):
                 try:
-                    engine.cleanup_staging(0)  # Force clear
+                    engine.io.cleanup_staging(0)  # Force clear
                     st.toast("Cache cleared successfully!", icon="🧹")
                 except Exception as e:
                     st.error(f"Cleanup failed: {e}")
@@ -352,7 +367,8 @@ def render_sidebar():
         # We compute hash at the END to capture any programmatic state changes made during this run.
         # Use list() to snapshot keys to avoid iteration errors during rapid state changes
         try:
-            dlg_keys = [k for k in list(st.session_state.keys()) if isinstance(k, str) and k.startswith("dlg_")]
+            dlg_keys = [k for k in list(st.session_state.keys()) if isinstance(
+                k, str) and k.startswith("dlg_")]
             end_dlg_values = {k: st.session_state.get(k) for k in dlg_keys}
             # Filter buttons
             end_values_str = str(sorted(
