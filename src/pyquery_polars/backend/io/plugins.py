@@ -1,5 +1,7 @@
-import os
 from typing import Any, Dict, List, Optional, Union
+
+import os
+
 import polars as pl
 
 from pyquery_polars.backend.io.files import resolve_file_paths, load_lazy_frame, load_from_sql, load_from_api, export_worker
@@ -19,7 +21,7 @@ def loader_file_func(params: FileLoaderParams) -> Optional[tuple]:
         files = params.files
     else:
         files = resolve_file_paths(params.path, params.filters)
-    
+
     if not files:
         return None
 
