@@ -1,6 +1,8 @@
+from typing import Any, Optional, cast
+
 import streamlit as st
 import polars as pl
-from typing import Any, Optional, cast
+
 from pyquery_polars.core.params import (
     FillNullsParams, RegexExtractParams, StringCaseParams, StringReplaceParams,
     DropNullsParams, TextSliceParams, TextLengthParams, StringPadParams,

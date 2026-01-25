@@ -1,12 +1,14 @@
 
-import polars as pl
 from typing import List, Dict, Any, Optional
+
+import polars as pl
+
 
 class JoinAnalyzer:
     @staticmethod
-    def analyze_overlap(l_df: Optional[pl.DataFrame], 
-                        r_df: Optional[pl.DataFrame], 
-                        left_on: List[str], 
+    def analyze_overlap(l_df: Optional[pl.DataFrame],
+                        r_df: Optional[pl.DataFrame],
+                        left_on: List[str],
                         right_on: List[str],
                         left_name: str = "Left dataset",
                         right_name: str = "Right dataset") -> Dict[str, Any]:

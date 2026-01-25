@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
-from .core import EDAContext
+
+from pyquery_polars.frontend.components.eda.core import EDAContext
 
 
 def render_contrast(ctx: EDAContext):
@@ -63,7 +64,7 @@ def render_contrast(ctx: EDAContext):
         with st.spinner("Calculating Hypothesis Tests..."):
             engine = ctx.engine
             # Backend Call
-            stats = engine.analysis.stats.get_comparative_stats(
+            stats = engine.analytics.stats.get_comparative_stats(
                 df, group_col, val_a, val_b, ctx.num_cols, ctx.cat_cols
             )
             st.session_state[session_key] = stats

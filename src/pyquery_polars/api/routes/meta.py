@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from typing import List, Dict, Any
-from pyquery_polars.backend.engine import PyQueryEngine
+
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.api.dependencies import get_engine
 from pyquery_polars.core.registry import StepRegistry
 
@@ -34,7 +34,7 @@ def list_loaders(engine: PyQueryEngine = Depends(get_engine)):
     """
     List available data loaders.
     """
-    loaders = engine.get_loaders()
+    loaders = engine.io.get_loaders()
     result = []
 
     for l in loaders:
@@ -52,7 +52,7 @@ def list_exporters(engine: PyQueryEngine = Depends(get_engine)):
     """
     List available data exporters.
     """
-    exporters = engine.get_exporters()
+    exporters = engine.io.get_exporters()
     result = []
 
     for e in exporters:

@@ -1,7 +1,10 @@
+from typing import List, Dict, Any
+
 import pandas as pd
 import polars as pl
 import numpy as np
-from typing import List, Dict, Any, Tuple, Optional
+
+# Stats & Scipy Imports
 from statsmodels.tsa.seasonal import seasonal_decompose
 from scipy import stats as sp_stats
 from scipy.stats import pearsonr
@@ -143,8 +146,11 @@ class StatsEngine:
             # Try Statsmodels
             try:
                 res = seasonal_decompose(
-                    # type: ignore
-                    df_ts[val_col], period=period, model='additive', extrapolate_trend='freq')
+                    df_ts[val_col],
+                    period=period,
+                    model='additive',
+                    extrapolate_trend='freq'  # type: ignore[arg-type]
+                )
                 return {
                     "dates": df_ts.index,
                     "trend": res.trend,
@@ -537,8 +543,13 @@ class StatsEngine:
                 # Future Dates
                 last_date = ts.index[-1]
                 future_dates = pd.date_range(
-                    # type: ignore
-                    start=last_date + pd.Timedelta(1, unit=freq), periods=periods, freq=freq)
+                    start=last_date + pd.Timedelta(
+                        1,
+                        unit=freq  # type: ignore[arg-type]
+                    ),
+                    periods=periods,
+                    freq=freq
+                )
                 X_future = pd.DataFrame(
                     {'ordinal': future_dates.map(pd.Timestamp.toordinal)})
 
@@ -595,8 +606,9 @@ class StatsEngine:
             return {
                 "x_values": x_range.tolist() if isinstance(x_range, np.ndarray) else x_range,
                 "y_values": y_values.tolist() if isinstance(y_values, np.ndarray) else y_values,
-                # type: ignore
-                "bandwidth": float(kernel.factor) if hasattr(kernel, 'factor') else bandwidth
+                "bandwidth": float(
+                    kernel.factor  # type: ignore[arg-type]
+                ) if hasattr(kernel, 'factor') else bandwidth
             }
         except ImportError:
             return {"error": "Scipy required for KDE calculation"}
@@ -741,8 +753,11 @@ class StatsEngine:
 
             # Convert to dictionary
             if isinstance(quantiles, pd.Series):
-                # type: ignore
-                return {float(q): float(v) for q, v in quantiles.items()}
+                return {
+                    float(
+                        q  # type: ignore[arg-type]
+                    ): float(v) for q, v in quantiles.items()
+                }
             else:
                 # Single quantile
                 return {float(quantile_list[0]): float(quantiles)}

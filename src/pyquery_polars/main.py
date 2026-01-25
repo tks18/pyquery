@@ -1,10 +1,10 @@
-import argparse
-import sys
-import subprocess
 import os
+import sys
+import argparse
+import subprocess
 
 from pyquery_polars.cli.headless import run_headless
-from pyquery_polars.cli.branding import show_banner, log_step, log_error, log_success, init_logging
+from pyquery_polars.cli.branding import show_banner, log_step, log_error, init_logging
 
 
 def main():
@@ -137,8 +137,7 @@ def main():
             f"Launching Streamlit on port {args.port}...", module="WEB-UI", icon="🌊")
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        app_path = os.path.join(os.path.dirname(
-            current_dir), "frontend", "app.py")
+        app_path = os.path.join(current_dir, "frontend", "app.py")
 
         if not os.path.exists(app_path):
             log_error("Frontend App Not Found", f"Path: {app_path}")
@@ -146,12 +145,13 @@ def main():
 
         cmd = ["streamlit", "run", app_path, "--server.port", str(args.port)]
 
+        cmd.extend(["--client.toolbarMode", "viewer"])
+
         if args.dev:
             # Watch the entire package root using Streamlit's folderWatchList option
-            package_root = os.path.dirname(current_dir)
-            cmd.extend(["--server.folderWatchList", package_root])
+            cmd.extend(["--server.folderWatchList", current_dir])
             log_step(
-                f"Watching Folders: {package_root}", module="DEV-MODE", icon="👀")
+                f"Watching Folders: {current_dir}", module="DEV-MODE", icon="👀")
             log_step("Dev Mode Enabled: Verbose Logging Active",
                      module="DEV-MODE", icon="🛠️")
         try:

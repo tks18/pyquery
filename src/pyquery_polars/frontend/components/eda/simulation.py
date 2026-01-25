@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from .core import EDAContext
+
+from pyquery_polars.frontend.components.eda.core import EDAContext
 
 
 def render_simulation(ctx: EDAContext):
@@ -47,7 +48,7 @@ def render_simulation(ctx: EDAContext):
             else:
                 with st.spinner("Training Model..."):
                     # Delegate training to Backend
-                    res = engine.analysis.ml.train_simulator_model(
+                    res = engine.analytics.ml.train_simulator_model(
                         df, sim_target, sim_feats, model_type)
 
                     if res and "error" not in res:
@@ -62,7 +63,7 @@ def render_simulation(ctx: EDAContext):
                         st.session_state['sim_target'] = sim_target
 
                         # Train Explainer
-                        explainer = engine.analysis.ml.train_surrogate_explainer(
+                        explainer = engine.analytics.ml.train_surrogate_explainer(
                             res['model'], res['X_sample'])
                         st.session_state['sim_explainer'] = explainer
                         st.rerun()
@@ -212,7 +213,7 @@ def render_simulation(ctx: EDAContext):
                 if sim_mode == "Single Prediction":
                     explainer = st.session_state.get('sim_explainer')
                     if explainer and not is_cat:  # Waterfall makes most sense for Regression
-                        contribs = engine.analysis.ml.get_prediction_contribution(
+                        contribs = engine.analytics.ml.get_prediction_contribution(
                             explainer, user_inputs)
                         if contribs:
                             top_c = contribs[:8]
@@ -242,7 +243,7 @@ def render_simulation(ctx: EDAContext):
                         for c in X_orig.columns:
                             feat_stats[c] = {'std': X_orig[c].std()}
 
-                    sens_df = engine.analysis.ml.get_sensitivity(
+                    sens_df = engine.analytics.ml.get_sensitivity(
                         model, user_inputs, feat_stats)
 
                     if not sens_df.empty:
@@ -265,7 +266,7 @@ def render_simulation(ctx: EDAContext):
                         for c in X_orig.columns:
                             feat_stats[c] = {'std': X_orig[c].std()}
 
-                    mc_res = engine.analysis.ml.run_monte_carlo(
+                    mc_res = engine.analytics.ml.run_monte_carlo(
                         model, user_inputs, feat_stats)
                     preds = mc_res['predictions']
 
@@ -329,7 +330,7 @@ def render_target_analysis(ctx: EDAContext):
         if is_num:
             # 1. Correlation Ranking
             with st.spinner("Calculating Correlations..."):
-                corr_df = engine.analysis.stats.get_target_correlations(
+                corr_df = engine.analytics.stats.get_target_correlations(
                     df, target, ctx.num_cols
                 )
 
@@ -445,7 +446,7 @@ def render_target_analysis(ctx: EDAContext):
 
             if st.button("Run PDP Calculation"):
                 with st.spinner("Calculating PDP..."):
-                    res = engine.analysis.ml.get_partial_dependence(
+                    res = engine.analytics.ml.get_partial_dependence(
                         df, target, pdp_f)
                     if "x" in res:
                         fig_pdp = px.line(x=res['x'], y=res['y'], markers=True,

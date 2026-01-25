@@ -1,13 +1,15 @@
+from typing import Optional
+
 import streamlit as st
 import os
 import re
 import glob
 import pandas as pd
-from typing import List, Optional
-from pyquery_polars.backend.engine import PyQueryEngine
+
+from pyquery_polars.backend import PyQueryEngine
+from pyquery_polars.core.io import FileFilter, FilterType, ItemFilter
 from pyquery_polars.frontend.utils.file_picker import pick_file, pick_folder
 from pyquery_polars.frontend.utils.cache_utils import get_cached_sheet_names, get_cached_resolved_files, get_cached_encoding_scan, get_cached_table_names
-from pyquery_polars.core.io import FileFilter, FilterType, ItemFilter
 from pyquery_polars.frontend.components.loaders.utils import filter_list_by_regex, handle_auto_inference, filter_sheet_names
 
 
@@ -66,8 +68,11 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
     # --- PRE-FILL LOGIC FOR EDIT MODE ---
     edit_init_key = f"dlg_{loader_name}_edit_initialized"
     if edit_mode and edit_dataset_name and not st.session_state.get(edit_init_key):
-        meta = engine.get_dataset_metadata(edit_dataset_name)
-        params = meta.get("loader_params", {}) or {}
+        meta = engine.datasets.get_metadata(edit_dataset_name)
+        if meta:
+            params = meta.loader_params or {}
+        else:
+            params = {}
 
         if params:
             original_path = params.get("path", "")
@@ -79,7 +84,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
             has_filters = params.get("filters") and len(
                 params.get("filters", [])) > 0
             is_folder_mode = params.get(
-                "process_individual") or has_filters or os.path.isdir(original_path)
+                "process_individual") or has_filters or os.path.isdir(original_path) or glob.has_magic(original_path)
 
             if is_folder_mode:
                 st.session_state[mode_key] = "Folder Pattern"
@@ -1093,7 +1098,7 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                         if f in issues:
                             # st.write(f"Converting {os.path.basename(f)}...")
                             src_enc = issues[f]
-                            new_path = engine.convert_encoding(f, src_enc)
+                            new_path = engine.io.convert_encoding(f, src_enc)
                             new_file_list.append(new_path)
                         else:
                             new_file_list.append(f)
@@ -1147,12 +1152,13 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                             curr_params["process_individual"] = False
 
                             # Load
-                            res_item = engine.run_loader("File", curr_params)
+                            res_item = engine.io.run_loader(
+                                "File", curr_params)
                             if res_item:
                                 lf, meta = res_item
-                                engine.add_dataset(current_alias, lf, meta,
-                                                   loader_type="File",
-                                                   loader_params=curr_params)
+                                engine.datasets.add(current_alias, lf, meta,
+                                                    loader_type="File",
+                                                    loader_params=curr_params)
 
                                 if current_alias not in st.session_state.all_recipes:
                                     st.session_state.all_recipes[current_alias] = [
@@ -1300,13 +1306,13 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
 
                                     curr_params["alias"] = current_alias
 
-                                    res_item = engine.run_loader(
+                                    res_item = engine.io.run_loader(
                                         "File", curr_params)
                                     if res_item:
                                         lf, meta = res_item
-                                        engine.add_dataset(current_alias, lf, meta,
-                                                           loader_type="File",
-                                                           loader_params=curr_params)
+                                        engine.datasets.add(current_alias, lf, meta,
+                                                            loader_type="File",
+                                                            loader_params=curr_params)
 
                                         # Init Recipe
                                         if current_alias not in st.session_state.all_recipes:
@@ -1324,12 +1330,13 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                                             f"Skipped {item_type}: {item_name} in {fname}")
 
                         st.session_state.active_base_dataset = last_active_alias
-                        st.session_state.recipe_steps = []
+                        st.session_state.recipe_steps = engine.recipes.get(
+                            last_active_alias)
                         my_bar.empty()
 
                     else:
                         # Single Buffer Load
-                        res = engine.run_loader("File", job_params)
+                        res = engine.io.run_loader("File", job_params)
                         if res:
                             lf, meta = res
 
@@ -1340,25 +1347,33 @@ def show_file_loader(engine: PyQueryEngine, edit_mode: bool = False, edit_datase
                                     if edit_dataset_name in st.session_state.all_recipes:
                                         st.session_state.all_recipes[alias_val] = st.session_state.all_recipes.pop(
                                             edit_dataset_name)
-                                    engine.remove_dataset(edit_dataset_name)
+
+                                    # Backend Recipe Migration
+                                    engine.recipes.rename(
+                                        edit_dataset_name, alias_val)
+
+                                    engine.datasets.remove(edit_dataset_name)
                                 else:
                                     # Same name: Just remove to re-add with new data
-                                    engine.remove_dataset(alias_val)
+                                    engine.datasets.remove(alias_val)
 
-                            engine.add_dataset(alias_val, lf, meta,
-                                               loader_type="File",
-                                               loader_params=job_params)
+                            engine.datasets.add(alias_val, lf, meta,
+                                                loader_type="File",
+                                                loader_params=job_params)
 
                             if alias_val not in st.session_state.all_recipes:
                                 st.session_state.all_recipes[alias_val] = []
 
                             st.session_state.active_base_dataset = alias_val
-                            # LINK BY REFERENCE to ensure updates propagate
+                            # LINK BY REFERENCE to ensure updates propagate (initially)
                             st.session_state.recipe_steps = st.session_state.all_recipes[alias_val]
 
                             if auto_infer:
                                 st.info("🪄 Auto-detecting column types...")
                                 handle_auto_inference(engine, alias_val)
+                                # Explicit refresh to ensure step is visible
+                                st.session_state.recipe_steps = engine.recipes.get(
+                                    alias_val)
                         else:
                             raise Exception("Engine returned no data.")
 

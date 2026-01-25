@@ -1,5 +1,7 @@
-import streamlit as st
 from typing import List, Dict, Any, Optional
+
+import streamlit as st
+
 from pyquery_polars.core.models import IOSchemaField
 
 
@@ -21,7 +23,7 @@ def render_schema_fields(schema: List[IOSchemaField], key_prefix: str, columns: 
 
     for i, field in enumerate(schema):
         fname = field.name
-        
+
         # EXCLUDE CHECK
         if exclude and fname in exclude:
             continue

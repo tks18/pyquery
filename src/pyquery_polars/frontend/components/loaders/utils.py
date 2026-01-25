@@ -1,12 +1,11 @@
+from typing import List
+
 import re
-import uuid
 import streamlit as st
-from typing import List, Dict
-from pyquery_polars.backend.engine import PyQueryEngine
-from pyquery_polars.core.params import CleanCastParams, CastChange
-from pyquery_polars.core.io import FileFilter, ItemFilter, FilterType
-from pyquery_polars.core.models import RecipeStep
 import fnmatch
+
+from pyquery_polars.backend import PyQueryEngine
+from pyquery_polars.core.io import ItemFilter, FilterType
 
 
 def filter_list_by_regex(items: List[str], pattern: str) -> List[str]:
@@ -23,33 +22,42 @@ def handle_auto_inference(engine: PyQueryEngine, alias_val: str):
     """Runs type inference and adds/replaces a clean_cast step if needed."""
     try:
         with st.spinner("Auto-detecting types..."):
-            # Use centralized backend logic
-            new_step = engine.auto_infer_dataset(alias_val)
+            # Use analytics manager directly
+            lf = engine.datasets.get(alias_val)
+            if lf is None:
+                return
 
-            if new_step:
+            inferred = engine.analytics.infer_types(lf, [], sample_size=1000)
+
+            if inferred:
+                # Find existing step to update
+                target_id = None
+                try:
+                    current_recipe = engine.recipes.get(alias_val)
+                    for s in current_recipe:
+                        if s.type == "clean_cast" and s.label in ["Auto Clean Types", "Auto-Clean Types"]:
+                            target_id = s.id
+                            break
+                except:
+                    pass
+
+                # Apply via backend
+                # prepend=True ensures if new step created, it is first
+                engine.recipes.apply_inferred_types(
+                    alias_val,
+                    inferred,
+                    merge_step_id=target_id,
+                    prepend=True
+                )
+
                 # Sync frontend state
-                recipe = st.session_state.all_recipes.get(alias_val, [])
+                from pyquery_polars.frontend.state_manager import sync_all_from_backend
+                sync_all_from_backend()
 
-                # Check for existing Auto Clean Types step
-                existing_idx = None
-                for i, step in enumerate(recipe):
-                    if step.label == "Auto Clean Types" and step.type == "clean_cast":
-                        existing_idx = i
-                        break
-
-                if existing_idx is not None:
-                    # Replace existing step at the same position
-                    recipe[existing_idx] = new_step
-                    st.toast(f"✨ Updated cleaning step!", icon="🔄")
-                else:
-                    # Insert at the beginning (position 0)
-                    recipe.insert(0, new_step)
-                    st.toast(f"✨ Auto-added cleaning step!", icon="🪄")
-
-                # Update Session State
-                st.session_state.all_recipes[alias_val] = recipe
+                st.toast(f"✨ Auto-cleaning updated!", icon="🪄")
 
     except Exception as e:
+        st.warning(f"Auto infer error: {e}")
         print(f"Auto infer error: {e}")
 
 

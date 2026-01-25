@@ -1,7 +1,7 @@
-from typing import Type
-import polars as pl
+from typing import Type, List, Dict, Any, Optional, Union, Literal, Callable
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional, Union, Literal, Callable
+
+import polars as pl
 
 
 class StepMetadata(BaseModel):
@@ -17,7 +17,8 @@ class RecipeStep(BaseModel):
     params: Dict[str, Any] = Field(
         default_factory=dict)  # Generic params container
 
-    model_config = ConfigDict(extra='ignore')  # Allow extra fields if needed
+    # Allow extra fields/obj loading
+    model_config = ConfigDict(extra='ignore', from_attributes=True)
 
 
 class IOSchemaField(BaseModel):
@@ -42,24 +43,25 @@ class PluginDef(BaseModel):
 class DatasetMetadata(BaseModel):
     """Comprehensive metadata for a loaded dataset."""
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     # Core LazyFrame storage
     base_lf: Optional[pl.LazyFrame] = None  # For single file or concatenated
     base_lfs: Optional[List[pl.LazyFrame]] = None  # For individual processing
-    
+
     # Source information
     source_path: Optional[str] = None
     input_type: str = "file"  # 'file', 'folder', 'sql', 'api'
     input_format: Optional[str] = None  # File extension or source type
-    
+
     # Processing mode
     process_individual: bool = False
     file_list: Optional[List[str]] = None
     file_count: int = 1
-    
+
     # Loader Configuration Persistence (for Edit/Settings feature)
     loader_type: Optional[Literal["File", "SQL", "API"]] = None
-    loader_params: Optional[Dict[str, Any]] = None  # Full params dict from frontend
+    # Full params dict from frontend
+    loader_params: Optional[Dict[str, Any]] = None
 
 
 class JobInfo(BaseModel):

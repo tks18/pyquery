@@ -1,8 +1,10 @@
 from typing import cast
+
 import streamlit as st
 import polars as pl
 import pandas as pd  # Streamlit charts often work effectively with pandas or native lists
-from pyquery_polars.backend.engine import PyQueryEngine
+
+from pyquery_polars.backend import PyQueryEngine
 
 
 def render_profile_tab(dataset_name):  # Takes name
@@ -14,7 +16,11 @@ def render_profile_tab(dataset_name):  # Takes name
         recipe = st.session_state.recipe_steps
 
         with st.spinner("Analyzing data..."):
-            result = engine.get_profile(dataset_name, recipe)
+            lf = engine.datasets.get(dataset_name)
+            if lf is not None:
+                result = engine.processing.get_profile(lf, recipe)
+            else:
+                result = None
 
         if not result:
             st.error("Failed to generate profile.")

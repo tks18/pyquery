@@ -1,31 +1,60 @@
+"""
+JobManager
+
+Manages background export jobs (async file exports with progress tracking).
+"""
+from typing import Dict, Optional, List, Union, Callable, Any, Sequence, TYPE_CHECKING
+from pydantic import BaseModel
+
 import threading
 import uuid
 import time
 import os
-from typing import Dict, Optional, List, Union, Callable, Any, Sequence
-from pydantic import BaseModel
 import polars as pl
 
-from pyquery_polars.core.models import JobInfo, RecipeStep, PluginDef
+from pyquery_polars.core.models import JobInfo, RecipeStep
+from pyquery_polars.backend.processing import ProcessingManager
+from pyquery_polars.backend.io import IOManager
 
 
 class JobManager:
-    def __init__(self,
-                 get_dataset_func: Callable[[str], Optional[pl.LazyFrame]],
-                 apply_recipe_func: Callable[[pl.LazyFrame, Sequence[Any], Optional[Dict]], pl.LazyFrame],
-                 exporters: Dict[str, PluginDef]):
-        self._jobs: Dict[str, JobInfo] = {}
-        self._get_dataset = get_dataset_func
-        self._apply_recipe = apply_recipe_func
-        self._exporters = exporters
+    """
+    Manages export jobs.
 
-    def start_export_job(self, dataset_name: str, recipe: Sequence[Union[dict, RecipeStep]],
-                         exporter_name: str, params: Union[Dict[str, Any], BaseModel],
-                         project_recipes: Optional[Dict[str,
-                                                        List[RecipeStep]]] = None,
-                         precomputed_lf: Optional[Union[pl.LazyFrame, List[pl.LazyFrame]]] = None) -> str:
+    Dependencies:
+    - ProcessingManager: To prepare datasets/views
+    - IOManager: To get exporters
+
+    This class handles:
+    - Starting background export jobs
+    - Tracking job status (RUNNING, COMPLETED, FAILED)
+    - Reporting job progress and results
+    """
+
+    def __init__(
+        self,
+        processing_manager: "ProcessingManager",
+        io_manager: "IOManager"
+    ):
+        self._jobs: Dict[str, JobInfo] = {}
+        self._processing = processing_manager
+        self._io = io_manager
+
+    def start_export_job(
+        self,
+        dataset_name: str,
+        recipe: Sequence[Union[dict, RecipeStep]],
+        exporter_name: str,
+        params: Union[Dict[str, Any], BaseModel],
+        project_recipes: Optional[Dict[str, List[RecipeStep]]] = None,
+        precomputed_lf: Optional[Union[pl.LazyFrame,
+                                       List[pl.LazyFrame]]] = None
+    ) -> str:
+        """Start a background export job. Returns job_id."""
         job_id = str(uuid.uuid4())
-        exporter = self._exporters.get(exporter_name)
+
+        # Resolve exporter via IOManager
+        exporter = self._io.get_exporter(exporter_name)
         if not exporter:
             raise ValueError(f"Unknown exporter: {exporter_name}")
 
@@ -36,8 +65,10 @@ class JobManager:
         if exporter.params_model:
             try:
                 if not isinstance(params, BaseModel):
-                    validated_params = exporter.params_model.model_validate(
-                        params)
+                    # Try validation if model available
+                    if isinstance(params, dict):
+                        validated_params = exporter.params_model.model_validate(
+                            params)
             except Exception as e:
                 raise ValueError(f"Invalid export configuration: {e}")
 
@@ -55,25 +86,41 @@ class JobManager:
         )
         self._jobs[job_id] = job_info
 
-        t = threading.Thread(target=self._internal_export_worker, args=(
-            job_id, dataset_name, recipe, exporter_name, validated_params, project_recipes, precomputed_lf))
+        t = threading.Thread(
+            target=self._internal_export_worker,
+            args=(job_id, dataset_name, recipe, exporter_name,
+                  validated_params, project_recipes, precomputed_lf)
+        )
         t.start()
         return job_id
 
-    def _internal_export_worker(self, job_id, dataset_name, recipe, exporter_name, params, project_recipes=None, precomputed_lf=None):
+    def _internal_export_worker(
+        self,
+        job_id,
+        dataset_name,
+        recipe,
+        exporter_name,
+        params,
+        project_recipes=None,
+        precomputed_lf=None
+    ):
+        """Internal worker thread for export jobs."""
         start_time = time.time()
         try:
             if precomputed_lf is not None:
                 final_lf = precomputed_lf
             else:
-                base_lf = self._get_dataset(dataset_name)
-                if base_lf is None:
+                # Use ProcessingManager to get view
+                meta = self._processing._datasets.get_metadata(dataset_name)
+                if not meta:
                     raise ValueError("Dataset not found")
 
-                final_lf = self._apply_recipe(
-                    base_lf, recipe, project_recipes)
+                final_lf = self._processing.prepare_view(
+                    meta, recipe, mode="full"
+                )
 
-            exporter = self._exporters.get(exporter_name)
+            # Re-fetch exporter in worker (safe)
+            exporter = self._io.get_exporter(exporter_name)
             export_result = {}
             if exporter and exporter.func:
                 # Exporter returns Dict with status/size_str
@@ -122,4 +169,9 @@ class JobManager:
                 self._jobs[job_id].error = str(e)
 
     def get_job_status(self, job_id: str) -> Optional[JobInfo]:
+        """Get the status of a job by its ID."""
         return self._jobs.get(job_id)
+
+    def get_all_jobs(self) -> Dict[str, JobInfo]:
+        """Get all jobs (for monitoring)."""
+        return self._jobs.copy()

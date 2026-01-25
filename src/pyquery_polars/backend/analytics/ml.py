@@ -1,6 +1,7 @@
+from typing import List, Dict, Any, Tuple, Optional
+
 import pandas as pd
 import numpy as np
-from typing import List, Dict, Any, Tuple, Optional, Union
 
 # Sklearn Imports
 from sklearn.cluster import KMeans, DBSCAN
@@ -14,15 +15,13 @@ from sklearn.inspection import permutation_importance
 from sklearn.utils import resample
 from sklearn.inspection import partial_dependence
 
-HAS_SKLEARN = True
-
 
 class MLEngine:
     """Backend module for Machine Learning Operations."""
 
     @staticmethod
     def check_sklearn() -> bool:
-        return HAS_SKLEARN
+        return True
 
     @staticmethod
     def prepare_data(df: pd.DataFrame, features: List[str], target: Optional[str] = None) -> Tuple[pd.DataFrame, Any]:
@@ -48,8 +47,6 @@ class MLEngine:
         """
         Run a diagnostic model (Regression or Classification) with advanced diagnostics.
         """
-        if not HAS_SKLEARN:
-            return {"error": "Scikit-Learn not installed"}
 
         X, y = MLEngine.prepare_data(df, features, target)
         if y is None:
@@ -195,8 +192,6 @@ class MLEngine:
     @staticmethod
     def cluster_data(df: pd.DataFrame, features: List[str], n_clusters: int = 3, algo: str = "K-Means", optimize_k: bool = False) -> Dict[str, Any]:
         """Run Clustering (KMeans/DBSCAN) with support for Elbow Method Optimization."""
-        if not HAS_SKLEARN:
-            return {"error": "Sklearn missing"}
 
         try:
             X, _ = MLEngine.prepare_data(df, features)
@@ -259,8 +254,6 @@ class MLEngine:
     @staticmethod
     def detect_anomalies(df: pd.DataFrame, features: List[str], contamination: float = 0.05) -> Dict[str, Any]:
         """Run Isolation Forest for anomalies."""
-        if not HAS_SKLEARN:
-            return {"error": "Sklearn missing"}
 
         try:
             X, _ = MLEngine.prepare_data(df, features)
@@ -278,8 +271,7 @@ class MLEngine:
     @staticmethod
     def train_simulator_model(df: pd.DataFrame, target: str, features: List[str], model_type: str = "Random Forest") -> Any:
         """Train a predictive model for the decision simulator with detailed metrics."""
-        if not HAS_SKLEARN:
-            return None
+
         try:
             X, y = MLEngine.prepare_data(df, features, target)
             if y is None:
@@ -422,8 +414,6 @@ class MLEngine:
         Calculate Partial Dependence for a feature on target.
         Trains a temporary Random Forest to estimate the dependence.
         """
-        if not HAS_SKLEARN:
-            return {}
         try:
 
             # Use provided feature list or default to all numeric/categorical
@@ -448,8 +438,12 @@ class MLEngine:
                 return {"error": f"Feature {feature} not found in model input."}
 
             pdp_res = partial_dependence(
-                # type: ignore
-                model, X, [feature], grid_resolution=50, kind='average')
+                model,
+                X,
+                [feature],  # type: ignore[arg-type]
+                grid_resolution=50,
+                kind='average'
+            )
 
             return {
                 "x": pdp_res['grid_values'][0],
@@ -461,8 +455,7 @@ class MLEngine:
     @staticmethod
     def get_silhouette_samples(df: pd.DataFrame, features: List[str], labels: Any) -> Dict[str, Any]:
         """Calculate Silhouette Coefficient for each sample."""
-        if not HAS_SKLEARN:
-            return {}
+
         try:
             X, _ = MLEngine.prepare_data(df, features)
             scaler = StandardScaler()
@@ -483,8 +476,7 @@ class MLEngine:
     @staticmethod
     def get_clustering_optimization(df: pd.DataFrame, features: List[str], max_k: int = 8) -> Dict[str, Any]:
         """Run K-Means for K=2..max_k and return Inertia + Silhouette."""
-        if not HAS_SKLEARN:
-            return {}
+
         try:
             X, _ = MLEngine.prepare_data(df, features)
             scaler = StandardScaler()
@@ -521,8 +513,7 @@ class MLEngine:
     @staticmethod
     def get_classification_curves(model, X_test, y_test) -> Dict[str, Any]:
         """Compute ROC and PR Curve data."""
-        if not HAS_SKLEARN:
-            return {}
+
         try:
             res = {}
             # ROC requires probabilities

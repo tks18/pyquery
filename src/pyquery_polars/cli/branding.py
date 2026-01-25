@@ -1,15 +1,18 @@
-import sys
+from typing import Optional, Tuple, List, Dict, Any
+
 import time
 import random
 import platform
 import os
 import textwrap
-from typing import Optional, Tuple, List, Dict, Any
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich import box
 from rich.table import Table
+from rich.progress import (
+    Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+)
 from importlib.metadata import version
 
 console = Console(force_terminal=True)
@@ -303,14 +306,10 @@ class log_progress:
         self.total = total
         self.module = module
         self.icon = icon
+
         # Use simple variable first to avoid "self.progress" possibly None inference confusion during init
         progress_obj = None
         self.task_id = None
-
-        # Import inside to avoid circular dependency issues if any, though rich is already top-level
-        from rich.progress import (
-            Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
-        )
 
         theme = get_current_theme()
         style = theme['border_style']
@@ -343,11 +342,14 @@ class log_progress:
 
     def update(self, completed: Optional[int] = None, advance: Optional[int] = None, description: Optional[str] = None, total: Optional[int] = None):
         if self.progress and self.task_id is not None:
-            self.progress.update(self.task_id, completed=completed, advance=advance, description=description, total=total)
+            self.progress.update(self.task_id, completed=completed,
+                                 advance=advance, description=description, total=total)
 
     def advance(self, advance: int = 1):
         if self.progress and self.task_id is not None:
             self.progress.advance(self.task_id, advance=advance)
+
+
 def gradient_text(text: str, start_color: Tuple[int, int, int], end_color: Tuple[int, int, int]) -> Text:
     """Generate a text object with a linear gradient."""
     # Simple linear interpolation for MVP

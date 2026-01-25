@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
-from .core import EDAContext
+
+from pyquery_polars.frontend.components.eda.core import EDAContext
 
 
 def render_profiling(ctx: EDAContext):
@@ -58,7 +59,7 @@ def render_profiling(ctx: EDAContext):
     if run_clicked:
         with st.spinner(f"Profiling '{col}'..."):
             # CALL BACKEND (Advanced)
-            stats = engine.analysis.stats.get_advanced_profile(df, col)
+            stats = engine.analytics.stats.get_advanced_profile(df, col)
             if "error" in stats:
                 st.error(stats['error'])
                 return

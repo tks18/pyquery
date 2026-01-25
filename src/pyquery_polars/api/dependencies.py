@@ -1,5 +1,4 @@
-from functools import lru_cache
-from pyquery_polars.backend.engine import PyQueryEngine
+from pyquery_polars.backend import PyQueryEngine
 
 # Global singleton instance
 # In a real production app, this might be per-request or use a lifespan context

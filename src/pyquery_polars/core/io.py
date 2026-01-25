@@ -1,6 +1,7 @@
 from typing import List, Literal, Optional, Union
+from pydantic import BaseModel
+
 from enum import Enum
-from pydantic import BaseModel, Field
 
 # --- LOADERS ---
 
@@ -23,7 +24,7 @@ class FileFilter(BaseModel):
 class ItemFilter(BaseModel):
     type: FilterType
     value: str
-    target: Literal["sheet_name"] = "sheet_name"
+    target: Literal["sheet_name", "table_name"] = "sheet_name"
 
 
 class FileLoaderParams(BaseModel):

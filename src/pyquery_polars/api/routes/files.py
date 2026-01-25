@@ -1,12 +1,13 @@
-from typing import Optional, List
+from typing import Optional
+from pydantic import BaseModel
+
 import hashlib
 import uuid
-from pydantic import BaseModel
 import os
 import shutil
 from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 from fastapi.responses import FileResponse
-from typing import List
+
 import pyquery_polars.api.db as db
 
 router = APIRouter()

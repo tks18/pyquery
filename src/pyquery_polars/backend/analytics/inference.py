@@ -1,16 +1,19 @@
 
 from typing import List, Dict, Optional, Sequence, Any, Union
+
 import polars as pl
+
 from pyquery_polars.core.models import RecipeStep
 from pyquery_polars.backend.processing import executor as execution
 
+
 class TypeInferenceEngine:
     @staticmethod
-    def infer_types(base_lf: Optional[pl.LazyFrame], 
-                    recipe: Sequence[Union[dict, RecipeStep]], 
+    def infer_types(base_lf: Optional[pl.LazyFrame],
+                    recipe: Sequence[Union[dict, RecipeStep]],
                     datasets_dict: Dict[str, pl.LazyFrame],
                     project_recipes: Optional[Dict[str, List[Any]]] = None,
-                    columns: Optional[List[str]] = None, 
+                    columns: Optional[List[str]] = None,
                     sample_size: int = 1000) -> Dict[str, str]:
         """
         Infer data types for specific columns based on a sample of the transformed data.
@@ -36,7 +39,8 @@ class TypeInferenceEngine:
         # 3. Determine columns to check
         if not columns:
             # Default: Inspect all String columns
-            columns = [c for c, t in sample_df.schema.items() if t == pl.String]
+            columns = [c for c, t in sample_df.schema.items() if t ==
+                       pl.String]
 
         inferred = {}
 

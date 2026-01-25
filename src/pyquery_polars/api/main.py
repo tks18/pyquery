@@ -1,10 +1,9 @@
-from pyquery_polars.api.auth import get_api_key
 from fastapi import Depends
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from pyquery_polars.api.auth import get_api_key
 from pyquery_polars.api.routes import meta, datasets, recipes, files
-
 from pyquery_polars.api.db import init_db
 
 # Initialize DB on import/startup

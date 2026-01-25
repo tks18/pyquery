@@ -4,10 +4,10 @@ import polars as pl
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
-from .core import EDAContext
-
-from plotly.subplots import make_subplots
 import calendar
+from plotly.subplots import make_subplots
+
+from pyquery_polars.frontend.components.eda.core import EDAContext
 
 
 def render_time_series(ctx: EDAContext):
@@ -88,7 +88,7 @@ def render_time_series(ctx: EDAContext):
                     # Add Window Average option
                     roll_window = st.slider("Smoothing Window", 1, 30, 7)
                     # Use backend for rolling calculation
-                    smoothed = engine.analysis.stats.get_rolling_stats(
+                    smoothed = engine.analytics.stats.get_rolling_stats(
                         df_ts, 'ts_date', val_col, window=roll_window, stat_type='mean', center=True
                     )
                     df_ts['Smoothed'] = smoothed
@@ -116,7 +116,7 @@ def render_time_series(ctx: EDAContext):
                     f_shorts = {"D": "D", "W": "W",
                                 "ME": "ME", "QE": "Q", "YE": "Y"}
 
-                    res = engine.analysis.stats.perform_ts_decomposition(
+                    res = engine.analytics.stats.perform_ts_decomposition(
                         df_ts, "ts_date", val_col, freq_str=f_shorts.get(p_freq, "D")
                     )
 
@@ -173,7 +173,7 @@ def render_time_series(ctx: EDAContext):
                     # Run Forecast
                     f_shorts = {"D": "D", "W": "W",
                                 "ME": "M", "QE": "Q", "YE": "Y"}
-                    res = engine.analysis.stats.get_ts_forecast(
+                    res = engine.analytics.stats.get_ts_forecast(
                         df_ts, "ts_date", val_col, periods=periods, freq=f_shorts.get(p_freq, "D")
                     )
 
@@ -216,7 +216,7 @@ def render_time_series(ctx: EDAContext):
                 elif mode == "⚠️ Anomaly Detection":
                     # Z-Score Anomaly
                     sens = st.slider("Sensitivity (Sigma)", 1.0, 5.0, 2.5)
-                    outliers = engine.analysis.stats.detect_ts_outliers(
+                    outliers = engine.analytics.stats.detect_ts_outliers(
                         df_ts, "ts_date", val_col, sensitivity=sens)
 
                     fig = go.Figure()
@@ -342,7 +342,7 @@ def render_distributions(ctx: EDAContext):
 
                         if params.get('kde'):
                             # Use Engine
-                            kde_res = engine.analysis.stats.get_kde_curve(
+                            kde_res = engine.analytics.stats.get_kde_curve(
                                 series, x_axis)
                             if kde_res and "error" not in kde_res:
                                 fig.add_trace(go.Scatter(
@@ -354,7 +354,7 @@ def render_distributions(ctx: EDAContext):
 
                         if params.get('fit_norm'):
                             # Use Engine
-                            norm_res = engine.analysis.stats.get_normal_fit(
+                            norm_res = engine.analytics.stats.get_normal_fit(
                                 series, x_axis)
                             if norm_res and "error" not in norm_res:
                                 mu = norm_res['mu']
@@ -385,7 +385,7 @@ def render_distributions(ctx: EDAContext):
                 elif mode == "QQ Plot (Normality)":
                     series = df_dist[col]
                     # Use Engine
-                    qq_res = engine.analysis.stats.get_qq_plot_data(series)
+                    qq_res = engine.analytics.stats.get_qq_plot_data(series)
 
                     if qq_res and "error" not in qq_res:
                         qq_df = pd.DataFrame({
@@ -423,7 +423,7 @@ def render_distributions(ctx: EDAContext):
                 c_stat, c_quant = st.columns([1.5, 1])
 
                 with c_stat:
-                    stats_res = engine.analysis.stats.get_distribution_stats(
+                    stats_res = engine.analytics.stats.get_distribution_stats(
                         df_dist, col)
                     if "error" not in stats_res:
                         # 3-col metrics
@@ -453,7 +453,7 @@ def render_distributions(ctx: EDAContext):
                     st.caption("Quantiles")
                     qs = [0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99]
                     # Use backend
-                    q_res = engine.analysis.stats.get_quantiles(
+                    q_res = engine.analytics.stats.get_quantiles(
                         df_dist[col], qs)
                     if q_res:
                         q_df = pd.DataFrame(
@@ -461,7 +461,8 @@ def render_distributions(ctx: EDAContext):
                         st.dataframe(q_df, hide_index=True)
 
                 # Outliers backend
-                outliers = engine.analysis.stats.get_outliers_iqr(df_dist, col)
+                outliers = engine.analytics.stats.get_outliers_iqr(
+                    df_dist, col)
                 if not outliers.empty:
                     with st.expander(f"⚠️ Extreme Outliers Detected ({len(outliers)})"):
                         st.dataframe(outliers.head(20))
@@ -545,7 +546,7 @@ def render_hierarchy(ctx: EDAContext):
                 ).reset_index().sort_values(metric_col, ascending=False)
 
                 # Compute Stats via Backend
-                conc_stats = engine.analysis.stats.get_concentration_metrics(
+                conc_stats = engine.analytics.stats.get_concentration_metrics(
                     df_level, drill_col, metric_col)
 
                 if conc_stats and "error" not in conc_stats:
@@ -634,7 +635,7 @@ def render_relationships(ctx: EDAContext):
                 st.divider()
                 st.write("###### 🔗 Association Metrics")
                 # Use Backend
-                assoc = ctx.engine.analysis.stats.get_pairwise_association(
+                assoc = ctx.engine.analytics.stats.get_pairwise_association(
                     df_rel, x, y)
                 if assoc and "error" not in assoc:
                     c_s1, c_s2 = st.columns(2)

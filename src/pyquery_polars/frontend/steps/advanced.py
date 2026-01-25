@@ -1,28 +1,21 @@
 from typing import Any, Optional
+
 import streamlit as st
 import polars as pl
-from pyquery_polars.core.params import CustomScriptParams
-from pyquery_polars.frontend.components.editor import python_editor
-from pyquery_polars.frontend.utils.completions import generate_module_completions, get_common_completions
 import numpy as np
 import datetime
 import math
-import re
-import json
-import collections
-import itertools
-import random
-import statistics
-import scipy
-import sklearn
-import statsmodels.api as sm
+
+from pyquery_polars.core.params import CustomScriptParams
+from pyquery_polars.frontend.components.editor import python_editor
+from pyquery_polars.frontend.utils.completions import generate_module_completions, get_common_completions
 
 
 def render_custom_script(step_id: str, params: CustomScriptParams, schema: Optional[pl.Schema] = None) -> CustomScriptParams:
     st.markdown("### Custom Python Script")
-    
+
     st.warning("⚠️ **Security Warning**: Standard security protocols are active. External imports (os, sys) are blocked. Use the provided modules.")
-    
+
     with st.expander("Available Variables & Modules", expanded=True):
         st.markdown("""
         **Instructions**:
@@ -31,9 +24,10 @@ def render_custom_script(step_id: str, params: CustomScriptParams, schema: Optio
         - **Input**: `lf` (LazyFrame)
         - **Modules**: `pl` (polars), `np` (numpy), `scipy`, `sklearn`, `sm` (statsmodels), `math`, `datetime`, `re`, `json`, `collections`, `itertools`, `random`, `statistics`
         """)
-        
+
     with st.expander("Import Script", expanded=False):
-        uploaded_file = st.file_uploader("Upload .py file", type=["py"], key=f"{step_id}_upload")
+        uploaded_file = st.file_uploader("Upload .py file", type=[
+                                         "py"], key=f"{step_id}_upload")
         if uploaded_file is not None:
             if st.button("Load File Content", key=f"{step_id}_load_file"):
                 string_data = uploaded_file.getvalue().decode("utf-8")
@@ -65,5 +59,5 @@ def render_custom_script(step_id: str, params: CustomScriptParams, schema: Optio
         params.script = new_code
         st.success("Script updated successfully!")
         return params
-        
+
     return params

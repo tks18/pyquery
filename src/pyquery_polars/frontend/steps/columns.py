@@ -1,6 +1,11 @@
+from typing import Optional, cast
+
 import streamlit as st
 import polars as pl
-from typing import Optional, cast
+import numpy as np
+import math
+import datetime
+
 from pyquery_polars.core.params import (
     CastChange, SelectColsParams, DropColsParams, RenameColParams,
     KeepColsParams, AddColParams, CleanCastParams, PromoteHeaderParams,
@@ -9,17 +14,15 @@ from pyquery_polars.core.params import (
 )
 from pyquery_polars.frontend.utils.completions import generate_module_completions
 from pyquery_polars.frontend.utils.completions import get_common_completions
-import numpy as np
-import math
-import datetime
 from pyquery_polars.frontend.components.editor import python_editor
 
 
 def render_sanitize_cols(step_id: str, params: SanitizeColsParams, schema: Optional[pl.Schema]) -> SanitizeColsParams:
     current_cols = schema.names() if schema else []
     default = [c for c in params.cols if c in current_cols]
-    
-    st.caption("Standardizes header names by trimming whitespace and replacing multiple spaces with single space.")
+
+    st.caption(
+        "Standardizes header names by trimming whitespace and replacing multiple spaces with single space.")
     selected = st.multiselect(
         "Select columns to sanitize:", current_cols, default=default, key=f"sntz_{step_id}")
     params.cols = selected
@@ -92,6 +95,7 @@ def render_add_col(step_id: str, params: AddColParams, schema: Optional[pl.Schem
 
     new_col = c1.text_input(
         "New Col Name", value=params.name, key=f"fe_n_{step_id}", on_change=_update_cb)
+
     @st.cache_data
     def get_all_completions():
         all_comps = get_common_completions()
@@ -148,7 +152,7 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
                 "Sample Size", 100, 1000, 500, step=50, key=f"ad_sz_{step_id}")
 
             if st.button("🔍 Analyze", key=f"btn_ad_{step_id}", help="Infer types from sample data"):
-                from pyquery_polars.backend.engine import PyQueryEngine
+                from pyquery_polars.backend import PyQueryEngine
                 engine = cast(PyQueryEngine, st.session_state.get('engine'))
                 active_ds = st.session_state.get("active_base_dataset")
                 steps = st.session_state.get("recipe_steps", [])
@@ -162,14 +166,18 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
 
                 if engine and active_ds:
                     with st.spinner("Analyzing..."):
-                        inferred = engine.infer_types(
-                            active_ds,
-                            partial_recipe,
-                            project_recipes=st.session_state.get(
-                                "all_recipes"),
-                            columns=ad_cols,
-                            sample_size=sample_sz
-                        )
+                        lf = engine.datasets.get(active_ds)
+                        if lf is not None:
+                            inferred = engine.analytics.infer_types(
+                                base_lf=lf,
+                                recipe=partial_recipe,
+                                project_recipes=st.session_state.get(
+                                    "all_recipes"),
+                                columns=ad_cols,
+                                sample_size=sample_sz
+                            )
+                        else:
+                            inferred = None
 
                     if inferred:
                         st.session_state[res_key] = inferred
@@ -240,16 +248,25 @@ def render_clean_cast(step_id: str, params: CleanCastParams, schema: Optional[pl
                     if col and action and action != "Unknown":
                         new_changes.append(CastChange(col=col, action=action))
 
-                # Merge logic
-                changing_cols = {c.col for c in new_changes}
-                kept_changes = [
-                    c for c in params.changes if c.col not in changing_cols]
-                params.changes = kept_changes + new_changes
+                # Use Backend Logic involved creating recipe step/updating it
+                if new_changes:
+                    from pyquery_polars.backend import PyQueryEngine
+                    engine = st.session_state.get('engine')
+                    active_ds = st.session_state.get('active_base_dataset')
 
-                # Cleanup
-                del st.session_state[res_key]
-                st.success("Applied!")
-                # Rerun implicitly via return params
+                    if engine and active_ds:
+                        engine.recipes.apply_cast_changes(
+                            active_ds, new_changes, merge_step_id=step_id)
+
+                    # Sync frontend state
+                    from pyquery_polars.frontend.state_manager import sync_all_from_backend
+                    sync_all_from_backend()
+
+                    # Cleanup
+                    if res_key in st.session_state:
+                        del st.session_state[res_key]
+
+                    st.rerun()
 
             if c_no.button("❌ Discard", key=f"ad_n_{step_id}"):
                 del st.session_state[res_key]

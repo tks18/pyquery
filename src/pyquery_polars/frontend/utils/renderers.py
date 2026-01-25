@@ -1,5 +1,7 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
+
 import polars as pl
+
 from pyquery_polars.core.registry import StepRegistry
 
 

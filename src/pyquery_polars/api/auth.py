@@ -1,7 +1,6 @@
+import os
 from fastapi import Security, HTTPException, status
 from fastapi.security import APIKeyHeader
-import os
-from typing import Optional
 
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)

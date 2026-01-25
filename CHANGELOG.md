@@ -2,6 +2,106 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.0.0](https://github.com/tks18/pyquery/compare/v2.8.0...v3.0.0) (2026-01-25)
+
+
+### Styling 🎨
+
+* **api/routes:** files: linter refactor ([e2c027a](https://github.com/tks18/pyquery/commit/e2c027a44c8ac8cc6bf1fdfc80a08ad9e120d28b))
+* **api:** auth: linter refactor ([de7a65c](https://github.com/tks18/pyquery/commit/de7a65cb770b19e87c584070a59021f6ad7d750d))
+* **api:** db: linter refactor ([3e01bd9](https://github.com/tks18/pyquery/commit/3e01bd98aa84268770718ba97806e26e00d18def))
+* **backend/analytics:** import refactor for consistency ([7f9fda7](https://github.com/tks18/pyquery/commit/7f9fda79fea7a7029c3edde7a688fc5527fcf729))
+* **backend/datasets:** export dataset manager ([d6bfdfd](https://github.com/tks18/pyquery/commit/d6bfdfd9b8d3f20c998ad6e523d41905addb4f22))
+* **backend/datasets:** import refactor for consistency ([aac5fff](https://github.com/tks18/pyquery/commit/aac5fff6cf1b4360507de4babbfa4ecf9a79f691))
+* **backend/io:** import refactor for consistency ([98d32ca](https://github.com/tks18/pyquery/commit/98d32ca7b63122483f62840d286d1a55e4d06daf))
+* **backend/io:** plugins: linting refactor ([ae7c253](https://github.com/tks18/pyquery/commit/ae7c253861c6e6ebb6406d4b4be3972f72b0365c))
+* **backend/jobs:** export job manager ([10b4ce3](https://github.com/tks18/pyquery/commit/10b4ce351ef0457464e894a40d35c94e81d19db3))
+* **backend/jobs:** import refactor for consistency ([48b8395](https://github.com/tks18/pyquery/commit/48b83959978ade86a08e75543e516c74bb067b98))
+* **backend/processing:** executor: linting changes ([31efafd](https://github.com/tks18/pyquery/commit/31efafd59cebc1fb8a7d080e33787fb4bc2b50c4))
+* **backend/processing:** export processing manager ([4a76309](https://github.com/tks18/pyquery/commit/4a76309b369d60ce5fb9585263ebdc1282cafb8a))
+* **backend/processing:** import refactor for consistency ([355e4b5](https://github.com/tks18/pyquery/commit/355e4b5a4892ff4f8dc9dd24c434ff1371706cbd))
+* **backend/projects:** import refactor for consistency ([3d9853e](https://github.com/tks18/pyquery/commit/3d9853ed89b6920d16de3947ac111faa656bcfa6))
+* **backend/recipes:** export recipe manager ([89faebc](https://github.com/tks18/pyquery/commit/89faebcc0586a669dd7d67b602eba1cd3b530889))
+* **backend/recipes:** import refactor for consistency ([fecddfc](https://github.com/tks18/pyquery/commit/fecddfc98a942a5b3583efd11823c26aeffbf442))
+* **backend/transforms:** export transform registry ([8776b8f](https://github.com/tks18/pyquery/commit/8776b8f65f2f35bcc4089292e1890d13d8bfcbb7))
+* **backend/transforms:** import refactor for consistency ([3cb2d9b](https://github.com/tks18/pyquery/commit/3cb2d9be656d0511f20d9e338f56a3e4016e8edd))
+* **backend/utils:** parsing: linter changes ([382aec3](https://github.com/tks18/pyquery/commit/382aec3dd4827aecbf619f87873ecd05637254a4))
+* **cli/branding:** linter changes ([3d4a639](https://github.com/tks18/pyquery/commit/3d4a639e41d7c320db4b31b7676ef1d4bba32e3d))
+* **core/io:** linter changes ([ab2b0b7](https://github.com/tks18/pyquery/commit/ab2b0b7e8dd503bc7df99a883e0f1daa91243777))
+* **core/models:** linter changes ([d2f8cb1](https://github.com/tks18/pyquery/commit/d2f8cb13388e69548c7cb3936caf7373a9268ec0))
+* **core/params:** linter changes ([cd9baaa](https://github.com/tks18/pyquery/commit/cd9baaa8cba5f21cb92bb0d1328caecd8c4477c6))
+* **core/project:** linter changes ([7e6a6b9](https://github.com/tks18/pyquery/commit/7e6a6b9f9cd967e9493227090385aaa2d569896b))
+* **core/registry:** linter changes ([2f6844e](https://github.com/tks18/pyquery/commit/2f6844e03c344d5ac9315878e3f190013e4e144d))
+* **frontend/components:** eda: core - linter changes ([2882581](https://github.com/tks18/pyquery/commit/288258110b268c932a595b940091d03ca48a479d))
+* **frontend/components:** editor: linter changes ([203d05e](https://github.com/tks18/pyquery/commit/203d05ea2a0f184621ad98030e51c97629aae193))
+
+
+### Features 🔥
+
+* **backend/analytics:** create a new analytics manager that will takeover all analytical ops ([163e10c](https://github.com/tks18/pyquery/commit/163e10cee3b8af24f43a07ee569ff26265edf3d8))
+* **backend/core:** now new core engine will act as a true orchestrator for all sub modules ([f8fab36](https://github.com/tks18/pyquery/commit/f8fab36f7053bb87cf21603d6c580bb6bd772a5c))
+* **backend/datasets:** dataset manager for doing all CRUD operations related to datasets ([b1cdbb7](https://github.com/tks18/pyquery/commit/b1cdbb719e7db8d9ddd98c95625827399991b4bc))
+* **backend/io:** create iomanager that will focus on all IO operations now ([88de35f](https://github.com/tks18/pyquery/commit/88de35ff81c1bf29fce584f6dcab5a88550a8a57))
+* **backend/jobs:** create job manager that will perform all Job related ops ([ab33317](https://github.com/tks18/pyquery/commit/ab333175a3efa81a1150757eb765a4d1efda2b69))
+* **backend/processing:** create processing manager that will handle all execution related ops ([b809f12](https://github.com/tks18/pyquery/commit/b809f126dac4417a8ab8caf496a5df033f594e13))
+* **backend/projects:** create a project manager for handling project import / export ([611c20a](https://github.com/tks18/pyquery/commit/611c20ad4a8f64e06f11f9acecadd14810fe0d38))
+* **backend/recipes:** create recipe manager for all CRUD related to recipes ([6dbfc19](https://github.com/tks18/pyquery/commit/6dbfc1964fbd720d346e22f57676b909f3a6d8b5))
+* **backend/transforms:** create transform registry for all registration and operations of t'ions ([028de67](https://github.com/tks18/pyquery/commit/028de67cead47be8de28522fab38a5c685b3828d))
+* **main:** add runcliapp method to the main exports ([1691e04](https://github.com/tks18/pyquery/commit/1691e04794ed761a03b40a9b0dd70345a222c242))
+
+
+### Code Refactoring 🖌
+
+* **api/routes:** datasets: engine refactor to new api ([4b38188](https://github.com/tks18/pyquery/commit/4b3818828fac29bbd2fad3d13a40a88717dfd3af))
+* **api/routes:** meta: engine refactor to new api ([d2f501f](https://github.com/tks18/pyquery/commit/d2f501f3ab82f3c04663d6c4636582bce0c5f515))
+* **api/routes:** recipes: engine refactor to new api ([69b3b2d](https://github.com/tks18/pyquery/commit/69b3b2d85aa8841dd2ab4a612409fbde17acdb3f))
+* **api:** dependencies: engine refactor to new api ([fc1e2b6](https://github.com/tks18/pyquery/commit/fc1e2b6207175fc8f4b05d653561a022dff4c60c))
+* **api:** engine refactor to new api ([71c91b1](https://github.com/tks18/pyquery/commit/71c91b17f05e8485e9ccfd7ee2943360c84f3f65))
+* **app:** refactor to the new entry point ([07cb4b6](https://github.com/tks18/pyquery/commit/07cb4b63e790ecfe89a29ae2075780265fe07058))
+* **backend/analysis:** remove old analysis folder ([2813515](https://github.com/tks18/pyquery/commit/28135150a59e1b2ff9ac61e1be7f82bb5cc60c8a))
+* **backend/analytics:** inference: move analysis to analytics folder ([d93504c](https://github.com/tks18/pyquery/commit/d93504c9b1d3b2a2ec312b17a005813a3155b3ba))
+* **backend/analytics:** joins: move analysis to analytics folder ([05f4c15](https://github.com/tks18/pyquery/commit/05f4c158626a4d438a6f79a24dc3a7ab803584d9))
+* **backend/analytics:** ml: move analysis to analytics folder ([0540a77](https://github.com/tks18/pyquery/commit/0540a770c40d202929b3c2593aece999e6dbba91))
+* **backend/analytics:** stats: move analysis to analytics folder ([b3b25b9](https://github.com/tks18/pyquery/commit/b3b25b91e428f5ec1761121757a7ee690b919783))
+* **backend/core:** now export the correct core backend engine ([d1f1ed5](https://github.com/tks18/pyquery/commit/d1f1ed5f9cfc10a22dd8708b657eddae9e95f9cc))
+* **backend/core:** remove all unwanted / legacy code ([c81e8c0](https://github.com/tks18/pyquery/commit/c81e8c0479dfe0d67d3bcfa7e69a2a9808b70a0d))
+* **backend/io:** files - style refactors & preparation for manager ([0b9702c](https://github.com/tks18/pyquery/commit/0b9702cee6ed70c94005b71899b5e570df7b46df))
+* **backend/processing:** materializer: rename for appropriate function ([48c85d8](https://github.com/tks18/pyquery/commit/48c85d87467d9bad7e257e571a72f637cfc5bd39))
+* **backend/projects:** now export the project manager ([422c61d](https://github.com/tks18/pyquery/commit/422c61d05b940053a106ea8a158977acd6b611b6))
+* **backend/projects:** serializer: move from project to projects ([4f75202](https://github.com/tks18/pyquery/commit/4f752028ed2075129d91d941761cc019e0c4e30e))
+* **backend/transforms:** move the transform functions to its own transform folder -> pipeline ([a8fa4fb](https://github.com/tks18/pyquery/commit/a8fa4fb0f28b1c7f7295f5aa76a1ddbb1ed89f9e))
+* **cli/headless:** engine refactor to new api ([1fb9aaa](https://github.com/tks18/pyquery/commit/1fb9aaace361d50ded48c385ae185c4ad1844c5d))
+* **cli/main:** move cli/main to main folder as this is the entrypoint ([87b3ed9](https://github.com/tks18/pyquery/commit/87b3ed9617a272b272d087a2e0153769dbe5e06f))
+* **frontend/app:** refactor app main entrypoint ([0e5577e](https://github.com/tks18/pyquery/commit/0e5577eb56baadbb3f2c48707c039e2b5de4648b))
+* **frontend/components:** api-loader: engine refactor to new api ([28978a2](https://github.com/tks18/pyquery/commit/28978a20147227b69bdb48321fe9ae1138abb886))
+* **frontend/components:** eda: contrast - engine refactor to new api ([9659266](https://github.com/tks18/pyquery/commit/9659266b4ae37d6bcf4393e3d83cfdf02b99d68d))
+* **frontend/components:** eda: engine refactor to new api ([2388465](https://github.com/tks18/pyquery/commit/2388465b8c3a8760459ee4906c46d2ecc2e67785))
+* **frontend/components:** eda: ml - engine refactor to new api ([04aa248](https://github.com/tks18/pyquery/commit/04aa24866f87243b8c9e4684bb75cd606f01c024))
+* **frontend/components:** eda: overview - engine refactor to new api ([ef7318a](https://github.com/tks18/pyquery/commit/ef7318a6c4a0c31a1c853e6295613518465e05fc))
+* **frontend/components:** eda: overview - engine refactor to new api ([7b6cfd6](https://github.com/tks18/pyquery/commit/7b6cfd6b2f0338d2565576870e8b04f5b4e7e472))
+* **frontend/components:** eda: plots - engine refactor to new api ([0a5650f](https://github.com/tks18/pyquery/commit/0a5650f5fc84067a3a1c55231fb9c7e2daa311c7))
+* **frontend/components:** eda: profiling - engine refactor to new api ([eca5922](https://github.com/tks18/pyquery/commit/eca59229cf281e882ca244dcea907f8e18d3b565))
+* **frontend/components:** eda: simulation - engine refactor to new api ([46ea5ca](https://github.com/tks18/pyquery/commit/46ea5ca95d8980da4c4b8d474e7f046c13474f15))
+* **frontend/components:** export - engine refactor to new api ([bf74784](https://github.com/tks18/pyquery/commit/bf747847c09d2213109a9897c6658593e9aa152b))
+* **frontend/components:** file-loader: complete refactor to new api ([6102d78](https://github.com/tks18/pyquery/commit/6102d7845b58940736b9fc89b4f1b4779f7ef140))
+* **frontend/components:** profile - new api refactor ([a57587f](https://github.com/tks18/pyquery/commit/a57587fba750ef3c097be250cab3a248e3e7994e))
+* **frontend/components:** project-dialog: complete refactor to new api ([846d4f5](https://github.com/tks18/pyquery/commit/846d4f55e48824d8c37d7e3d2fe3ab876ea7848c))
+* **frontend/components:** recipe-editor: complete refactor ([49219ad](https://github.com/tks18/pyquery/commit/49219ade914e603a284a1b9b61424b2ba661493b))
+* **frontend/components:** sidebar: refactor for new backend api ([f95987c](https://github.com/tks18/pyquery/commit/f95987cd550eb4ed7dcda48ba6857972b39dbc55))
+* **frontend/components:** sql-loader: engine refactor to new api ([9287dca](https://github.com/tks18/pyquery/commit/9287dca22161b7afa756e34fd105385f8d200326))
+* **frontend/components:** sql-tab: new api refactor ([77c3d48](https://github.com/tks18/pyquery/commit/77c3d4868bad1e6c119761976f88ee97f97c1079))
+* **frontend/state:** new apis to sync from the backend recipes ([c54b7a8](https://github.com/tks18/pyquery/commit/c54b7a837af27a1f829a4ac01ef5a7f23572a760))
+* **frontend/steps:** linter + new api refactor ([85f4216](https://github.com/tks18/pyquery/commit/85f4216e742db4c4427a7571bc342e58f7acea91))
+* **frontend/utils:** cache: new engine refactor ([5c370d5](https://github.com/tks18/pyquery/commit/5c370d57eefc1806904e7bc356a7210cfed6facf))
+* **frontend/utils:** linter refactor ([95bd03b](https://github.com/tks18/pyquery/commit/95bd03b11c7be5aff1b63de76d93aa0529d4dfd1))
+* **frontend/utils:** use the new auto inference api ([c815d77](https://github.com/tks18/pyquery/commit/c815d770432d15136d20d81c48ac0a0db4bda187))
+* **pyproject/script:** update entry point in script to refer new main.py ([6557c1c](https://github.com/tks18/pyquery/commit/6557c1c56213e287169f92cc7114c57b2b5c6ac2))
+
+
+### Build System 🏗
+
+* **pyproject:** update app to 3.0.0 Major version ([98fdf15](https://github.com/tks18/pyquery/commit/98fdf150fcc97e6d15c62fca08a9d42ac8894074))
+
 ## [2.8.0](https://github.com/tks18/pyquery/compare/v2.7.0...v2.8.0) (2026-01-24)
 
 

@@ -4,14 +4,15 @@ import os
 import mimetypes
 from pyquery_polars.frontend.utils.styles import inject_custom_css
 from pyquery_polars.frontend.registry_init import register_frontend
-from pyquery_polars.backend.engine import PyQueryEngine
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.frontend.components.export import render_export_section
 from pyquery_polars.frontend.components.profile import render_profile_tab
 from pyquery_polars.frontend.components.recipe_editor import render_recipe_editor
 from pyquery_polars.frontend.components.eda import render_eda_tab
 from pyquery_polars.frontend.components.sql_tab import render_sql_tab
 from pyquery_polars.frontend.components.sidebar import render_sidebar
-from pyquery_polars.frontend.state_manager import init_session_state
+from pyquery_polars.frontend.state_manager import init_session_state, sync_all_from_backend
+
 
 # Fix MIME types on Windows to prevent 403/Content-Type errors with custom components
 mimetypes.add_type("application/javascript", ".js")
@@ -41,12 +42,12 @@ st.session_state.engine = get_engine()
 
 # --- FRONTEND REGISTRY INIT ---
 register_frontend()
-
 init_session_state()
+sync_all_from_backend()
 
 # AUTO CLEANUP (Once per session)
 if "cleanup_done" not in st.session_state:
-    st.session_state.engine.cleanup_staging(24)
+    st.session_state.engine.io.cleanup_staging(24)
     st.session_state["cleanup_done"] = True
 
 # ==========================================

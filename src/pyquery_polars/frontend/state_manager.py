@@ -1,13 +1,13 @@
+from typing import List, Optional
+
 import streamlit as st
 import json
 import copy
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
+
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.core.models import RecipeStep
 from pyquery_polars.core.registry import StepRegistry
-
-if TYPE_CHECKING:
-    from pyquery_polars.backend.engine import PyQueryEngine
 
 
 def _get_engine() -> Optional["PyQueryEngine"]:
@@ -20,7 +20,7 @@ def _sync_to_backend(dataset_name: str, recipe: List[RecipeStep]) -> None:
     engine = _get_engine()
     if engine and dataset_name:
         try:
-            engine.update_recipe(dataset_name, recipe)
+            engine.recipes.update(dataset_name, recipe)
         except Exception as e:
             print(f"Backend sync warning: {e}")
 
@@ -33,7 +33,7 @@ def sync_from_backend(dataset_name: str) -> List[RecipeStep]:
     engine = _get_engine()
     if engine and dataset_name:
         try:
-            backend_recipe = engine.get_recipe(dataset_name)
+            backend_recipe = engine.recipes.get(dataset_name)
             st.session_state.all_recipes[dataset_name] = backend_recipe
             if st.session_state.active_base_dataset == dataset_name:
                 st.session_state.recipe_steps = backend_recipe
@@ -51,14 +51,15 @@ def sync_all_from_backend() -> None:
     engine = _get_engine()
     if engine:
         try:
-            all_backend_recipes = engine.get_all_recipes()
+            all_backend_recipes = engine.recipes.get_all()
             st.session_state.all_recipes = all_backend_recipes
-            
+
             # Update active recipe_steps if applicable
             active_ds = st.session_state.active_base_dataset
             if active_ds and active_ds in all_backend_recipes:
                 st.session_state.recipe_steps = all_backend_recipes[active_ds]
         except Exception as e:
+            st.toast(f"Backend sync warning: {e}", icon="⚠️")
             print(f"Backend sync all warning: {e}")
 
 
@@ -68,7 +69,7 @@ def init_session_state():
 
     if 'recipe_steps' not in st.session_state:
         st.session_state.recipe_steps = []
-        
+
     if 'history_stack' not in st.session_state:
         st.session_state.history_stack = []
     if 'redo_stack' not in st.session_state:
@@ -85,13 +86,14 @@ def init_session_state():
 
     init_eda_state()
 
+
 def init_eda_state():
     """Initialize EDA-specific session state variables."""
     if 'eda_ready' not in st.session_state:
         st.session_state.eda_ready = False
     if 'eda_show_labels' not in st.session_state:
         st.session_state.eda_show_labels = False
-    
+
     # Simulation State
     if 'sim_model' not in st.session_state:
         st.session_state.sim_model = None
@@ -117,11 +119,11 @@ def save_checkpoint():
     active_ds = st.session_state.active_base_dataset
     if not active_ds:
         return
-    
+
     current_steps = st.session_state.all_recipes.get(active_ds, [])
     # Deep copy needed because mutation happens in place
     snapshot = copy.deepcopy(current_steps)
-    
+
     # Cap history stack to 20?
     if len(st.session_state.history_stack) > 20:
         st.session_state.history_stack.pop(0)
@@ -135,7 +137,7 @@ def cleanup_widget_state(steps: List[RecipeStep]):
     """Clears Streamlit widget state for given steps to force UI refresh from params."""
     # Collect IDs
     step_ids = {s.id for s in steps}
-    
+
     # Identify keys to remove
     keys_to_remove = []
     for key in st.session_state.keys():
@@ -146,11 +148,11 @@ def cleanup_widget_state(steps: List[RecipeStep]):
             if sid in key_str:
                 keys_to_remove.append(key)
                 break
-                
+
     # Remove
     for k in keys_to_remove:
         del st.session_state[k]
-        
+
     st.toast(f"Undo/Redo: Cleared {len(keys_to_remove)} widget states.")
 
 
@@ -158,27 +160,27 @@ def undo():
     active_ds = st.session_state.active_base_dataset
     if not active_ds or not st.session_state.history_stack:
         return
-    
+
     # 1. Push current to Redo
     current = st.session_state.all_recipes.get(active_ds, [])
     st.session_state.redo_stack.append(copy.deepcopy(current))
-    
+
     # 2. Pop from History
     prev_state = st.session_state.history_stack.pop()
-    
+
     # 3. Regenerate IDs to force Widget Reset (Nuclear option for syncing)
     # This prevents stale widget state by ensuring all keys are fresh
     ts = int(datetime.now().timestamp() * 10000)
     for i, step in enumerate(prev_state):
         step.id = f"{ts}_{i}"
-    
+
     # 4. Apply
     st.session_state.all_recipes[active_ds] = prev_state
     st.session_state.recipe_steps = prev_state
-    
+
     # Sync to backend
     _sync_to_backend(active_ds, prev_state)
-    
+
     # Cleanup call removed as ID regeneration handles it
     # cleanup_widget_state(prev_state + current)
 
@@ -203,10 +205,10 @@ def redo():
     # 4. Apply
     st.session_state.all_recipes[active_ds] = next_state
     st.session_state.recipe_steps = next_state
-    
+
     # Sync to backend
     _sync_to_backend(active_ds, next_state)
-    
+
     # Cleanup call removed
     # cleanup_widget_state(next_state + current)
 
@@ -225,7 +227,7 @@ def move_step(index, direction):
     st.session_state.last_added_id = steps[index if direction == -
                                            1 else index+1].id
     st.session_state.recipe_steps = steps
-    
+
     # Sync to backend
     _sync_to_backend(active_ds, steps)
 
@@ -236,7 +238,7 @@ def delete_step(index):
     if active_ds:
         st.session_state.all_recipes[active_ds].pop(index)
         st.session_state.recipe_steps = st.session_state.all_recipes[active_ds]
-        
+
         # Sync to backend
         _sync_to_backend(active_ds, st.session_state.all_recipes[active_ds])
 
@@ -287,7 +289,7 @@ def add_step(step_type: str, default_label: str):
     st.session_state.recipe_steps = st.session_state.all_recipes[active_ds]
     # Flag to suppress checkpoint on immediate sync
     st.session_state.just_added_step = True
-    
+
     # Sync to backend
     _sync_to_backend(active_ds, st.session_state.all_recipes[active_ds])
 
@@ -296,7 +298,7 @@ def update_step_params(step_id: str, new_params: dict, create_checkpoint: bool =
     active_ds = st.session_state.active_base_dataset
     if not active_ds:
         return
-        
+
     if create_checkpoint:
         save_checkpoint()
 
@@ -306,7 +308,7 @@ def update_step_params(step_id: str, new_params: dict, create_checkpoint: bool =
             step.params = new_params
             st.session_state.recipe_steps = steps
             st.session_state.all_recipes[active_ds] = steps  # Force write
-            
+
             # Sync to backend
             _sync_to_backend(active_ds, steps)
             return
@@ -323,15 +325,15 @@ def load_recipe_from_json(uploaded_file):
         steps = []
         for s in data:
             steps.append(RecipeStep(**s))
-        
+
         save_checkpoint()
 
         st.session_state.all_recipes[active_ds] = steps
         st.session_state.recipe_steps = steps
-        
+
         # Sync to backend
         _sync_to_backend(active_ds, steps)
-        
+
         st.success("Recipe loaded!")
     except Exception as e:
         st.error(f"Invalid JSON or Schema Mismatch: {e}")

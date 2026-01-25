@@ -1,4 +1,4 @@
-from pyquery_polars.cli.main import main
+from pyquery_polars import RunPyQueryCLIApp
 
 if __name__ == "__main__":
-    main()
+    RunPyQueryCLIApp()

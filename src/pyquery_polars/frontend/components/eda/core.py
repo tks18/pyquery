@@ -1,9 +1,11 @@
+from typing import List, Optional
+
 import streamlit as st
 import pandas as pd
 import polars as pl
 from dataclasses import dataclass
-from typing import List, Optional
-from pyquery_polars.backend.engine import PyQueryEngine
+
+from pyquery_polars.backend import PyQueryEngine
 
 
 @st.cache_data(show_spinner=False, max_entries=5)
