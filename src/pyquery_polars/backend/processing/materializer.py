@@ -1,14 +1,25 @@
+from typing import Callable, Optional, Sequence, Union, Dict, List
 
 import os
 import polars as pl
-from typing import Callable, Optional, Sequence, Union, Dict, List, Any
+
 from pyquery_polars.core.models import RecipeStep
-from pyquery_polars.backend.io.files import create_unique_staging_folder
+from pyquery_polars.backend.io import IOManager
 
 
-class StorageManager:
-    @staticmethod
+class Materializer:
+    """
+    Handles materialization of datasets
+
+    Dependencies:
+    - IOManager - To stage data
+    """
+
+    def __init__(self, io_manager: IOManager):
+        self._io = io_manager
+
     def materialize_dataset(
+        self,
         get_lf_func: Callable[..., Optional[pl.LazyFrame]],
         add_dataset_func: Callable[[str, pl.LazyFrame, Optional[Dict]], None],
         dataset_name: str,
@@ -38,7 +49,7 @@ class StorageManager:
                 raise ValueError(f"Dataset '{dataset_name}' not found")
 
             # 2. Get Centralized Staging Dir (Unique Subfolder)
-            staging_dir = create_unique_staging_folder(new_name)
+            staging_dir = self._io.create_unique_staging_folder(new_name)
 
             # 3. Sanitize Name (Basic)
             safe_name = "".join(
