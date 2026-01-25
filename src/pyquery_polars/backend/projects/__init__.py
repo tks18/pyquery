@@ -1,4 +1,4 @@
 # Projects Manager
-from .manager import ProjectManager
+from pyquery_polars.backend.projects.manager import ProjectManager
 
 __all__ = ["ProjectManager"]
