@@ -1,7 +1,8 @@
-import typing
+from typing import Any, Optional, cast, Literal
+
 import streamlit as st
 import polars as pl
-from typing import Any, Optional, cast, Literal
+
 from pyquery_polars.core.params import (
     FilterCondition, FilterRowsParams, SortRowsParams,
     DeduplicateParams, SampleParams, SliceRowsParams,
@@ -153,7 +154,7 @@ def render_slice_rows(step_id: str, params: "SliceRowsParams", schema: Optional[
     n = c2.number_input("N Rows", min_value=1, value=params.n,
                         step=1, key=f"sl_n_{step_id}")
 
-    params.mode = typing.cast(Any, mode)
+    params.mode = cast(Any, mode)
     params.n = int(n)
     return params
 
@@ -201,7 +202,7 @@ def render_drop_empty_rows(step_id: str, params: DropEmptyRowsParams, schema: Op
     subset = st.multiselect("Subset Columns (Empty=Check All)",
                             current_cols, default=default_sub, key=f"de_s_{step_id}")
 
-    params.how = typing.cast(Any, how)
+    params.how = cast(Any, how)
     params.subset = subset
     return params
 

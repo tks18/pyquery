@@ -1,7 +1,8 @@
+from typing import Optional, Any, cast
+
 import streamlit as st
 import polars as pl
-import typing
-from typing import Optional, Any
+
 from pyquery_polars.core.params import (
     MathSciParams, ClipParams, DateOffsetParams, DateDiffParams
 )
@@ -29,7 +30,7 @@ def render_math_sci(step_id: str, params: MathSciParams, schema: Optional[pl.Sch
         idx = 0
 
     # safe cast for literal
-    params.op = typing.cast(Any, c2.selectbox(
+    params.op = cast(Any, c2.selectbox(
         "Operation", ops, index=idx, key=f"ms_o_{step_id}"))
 
     if params.op in ["pow", "mod"]:

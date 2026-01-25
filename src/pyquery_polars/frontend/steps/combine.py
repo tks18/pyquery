@@ -1,6 +1,8 @@
+from typing import Optional, cast, Literal
+
 import streamlit as st
 import polars as pl
-from typing import Optional, cast, Literal
+
 from pyquery_polars.core.params import JoinDatasetParams, AggregateParams, WindowFuncParams, ReshapeParams, AggDef, ConcatParams
 from pyquery_polars.frontend.state_manager import update_step_params, get_active_recipe
 
@@ -11,7 +13,7 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
     dataset_names = []
     if engine:
         # Or public method if available
-        dataset_names = list(engine._datasets.keys())
+        dataset_names = engine.datasets.list_names()
 
     # Select dataset to join
     default_idx = 0
@@ -25,13 +27,15 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
 
     params.alias = join_alias if join_alias else ""
 
-    if engine and join_alias in engine._datasets:
+    if engine and engine.datasets.exists(join_alias):
         current_cols = schema.names() if schema else []
 
         # Get recipe for the other dataset
         other_recipe = st.session_state.all_recipes.get(join_alias, [])
         # Get schema of the transformed other dataset
-        other_schema = engine.get_transformed_schema(join_alias, other_recipe)
+        lf_other = engine.datasets.get(join_alias)
+        other_schema = engine.processing.get_transformed_schema(
+            lf_other, other_recipe)
         other_cols = other_schema.names() if other_schema else []
 
         c1, c2, c3 = st.columns(3)
@@ -58,18 +62,18 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
         # Fix: Cast to Literal
         params.how = cast(
             Literal["left", "inner", "outer", "cross", "anti", "semi"], how)
-            
+
         # --- VISUAL JOIN ANALYSIS ---
         st.markdown("---")
-        if st.header("📊 Analyze Overlap (Preview)"): 
-             # Use header/subheader or just a button? The user clicked a button?
-             # No, the previous code had `if st.button(...)`. 
-             # I should keep the button but make the output persistent?
-             # Streamlit buttons reset on rerun.
-             # If I want it persistent, I need session state.
-             # For now, I'll stick to the button and just fix the logic.
-             pass
-             
+        if st.header("📊 Analyze Overlap (Preview)"):
+            # Use header/subheader or just a button? The user clicked a button?
+            # No, the previous code had `if st.button(...)`.
+            # I should keep the button but make the output persistent?
+            # Streamlit buttons reset on rerun.
+            # If I want it persistent, I need session state.
+            # For now, I'll stick to the button and just fix the logic.
+            pass
+
         if st.button("📊 Analyze Overlap", key=f"btn_venn_{step_id}"):
             if not (params.left_on and params.right_on):
                 st.error("Please select join columns first.")
@@ -77,45 +81,61 @@ def render_join_dataset(step_id: str, params: JoinDatasetParams, schema: Optiona
                 try:
                     with st.spinner("Sampling & Analyzing..."):
                         active_ds = st.session_state.active_base_dataset
-                        
+
                         all_steps = get_active_recipe()
-                        curr_idx = next((i for i, s in enumerate(all_steps) if s.id == step_id), -1)
-                        
+                        curr_idx = next((i for i, s in enumerate(
+                            all_steps) if s.id == step_id), -1)
+
                         left_recipe = all_steps[:curr_idx] if curr_idx != -1 else []
-                        right_recipe = st.session_state.all_recipes.get(join_alias, [])
-                        
+                        right_recipe = st.session_state.all_recipes.get(
+                            join_alias, [])
+
+                        # Prepare Views
+                        left_meta = engine.datasets.get_metadata(active_ds)
+                        left_view = engine.processing.prepare_view(
+                            left_meta, left_recipe, project_recipes=st.session_state.all_recipes)
+
+                        right_meta = engine.datasets.get_metadata(join_alias)
+                        right_view = engine.processing.prepare_view(
+                            right_meta, right_recipe, project_recipes=st.session_state.all_recipes)
+
                         # Call Backend to perform analysis
-                        results = engine.analyze_join_overlap(
-                            left_dataset=active_ds,
-                            left_recipe=left_recipe,
-                            right_dataset=join_alias,
-                            right_recipe=right_recipe,
+                        results = engine.analytics.analyze_join_overlap(
+                            left_lf=left_view,
+                            right_lf=right_view,
                             left_on=params.left_on,
                             right_on=params.right_on,
                             limit=5000
                         )
-                        
+
                         if "error" in results:
                             st.error(results["error"])
                         else:
                             l_count = results["l_count"]
                             r_count = results["r_count"]
                             match_count = results["match_count"]
-                            
-                            st.caption(f"⚠️ **Approximation:** Based on top 5000 rows of each dataset.")
-                            
+
+                            st.caption(
+                                f"⚠️ **Approximation:** Based on top 5000 rows of each dataset.")
+
                             m1, m2, m3 = st.columns(3)
-                            m1.metric("Left (Sample)", l_count, delta=f"-{l_count - match_count}", delta_color="inverse")
+                            m1.metric(
+                                "Left (Sample)", l_count, delta=f"-{l_count - match_count}", delta_color="inverse")
                             m2.metric("Matches", match_count)
-                            m3.metric("Right (Sample)", r_count, delta=f"-{r_count - match_count}", delta_color="inverse")
-                            
+                            m3.metric(
+                                "Right (Sample)", r_count, delta=f"-{r_count - match_count}", delta_color="inverse")
+
                             # Safe Percentages (Capped at 1.0)
-                            l_pct = min((match_count / l_count), 1.0) if l_count > 0 else 0.0
-                            r_pct = min((match_count / r_count), 1.0) if r_count > 0 else 0.0
-                            
+                            l_pct = min((match_count / l_count),
+                                        1.0) if l_count > 0 else 0.0
+                            r_pct = min((match_count / r_count),
+                                        1.0) if r_count > 0 else 0.0
+
                             c_bar1, c_bar2 = st.columns(2)
-                            c_bar1.progress(l_pct, text=f"Left Retention: {l_pct:.1%}")
-                            c_bar2.progress(r_pct, text=f"Right Retention: {r_pct:.1%}")
+                            c_bar1.progress(
+                                l_pct, text=f"Left Retention: {l_pct:.1%}")
+                            c_bar2.progress(
+                                r_pct, text=f"Right Retention: {r_pct:.1%}")
 
                 except Exception as e:
                     st.error(f"Analysis Failed: {e}")
@@ -248,12 +268,13 @@ def render_reshape(step_id: str, params: ReshapeParams, schema: Optional[pl.Sche
         valid_ids = [c for c in params.id_vars if c in current_cols]
         id_vars = c1.multiselect(
             "ID Variables (Keep)", current_cols, default=valid_ids, key=f"rs_i_{step_id}")
-        
+
         remaining_cols = [c for c in current_cols if c not in id_vars]
         valid_vals = [c for c in params.val_vars if c in remaining_cols]
         # logic: if val_vars has cols that are now id_vars, drop them from default
-        
-        val_vars = c2.multiselect("Value Variables (To Rows)", remaining_cols, default=valid_vals, key=f"rs_v_{step_id}")
+
+        val_vars = c2.multiselect(
+            "Value Variables (To Rows)", remaining_cols, default=valid_vals, key=f"rs_v_{step_id}")
         params.id_vars = id_vars
         params.val_vars = val_vars
 
@@ -293,7 +314,7 @@ def render_concat_datasets(step_id: str, params: ConcatParams, schema: Optional[
     engine = st.session_state.get('engine')
     dataset_names = []
     if engine:
-        dataset_names = list(engine._datasets.keys())
+        dataset_names = engine.datasets.list_names()
 
     st.info("ℹ️ Vertically stacks another dataset below this one (Union). Columns are matched by name.")
 

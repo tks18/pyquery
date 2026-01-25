@@ -1,6 +1,8 @@
+from typing import Optional
+
 import streamlit as st
 import polars as pl
-from typing import Optional
+
 from pyquery_polars.core.params import (
     TimeBinParams, RollingAggParams, NumericBinParams, MathOpParams, DateExtractParams,
     CumulativeParams, RankParams, DiffParams, ZScoreParams, SkewKurtParams
