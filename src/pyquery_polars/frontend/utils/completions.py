@@ -1,7 +1,7 @@
-import inspect
 from types import ModuleType
-from typing import Dict
-from typing import List
+from typing import Dict, List
+
+import inspect
 import polars as pl
 import numpy as np
 import datetime

@@ -1,5 +1,6 @@
-from pyquery_polars.core.models import IOSchemaField
 from typing import List, Dict
+
+from pyquery_polars.core.models import IOSchemaField
 
 # --- LOADERS ---
 
