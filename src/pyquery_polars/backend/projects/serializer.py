@@ -1,6 +1,6 @@
+from typing import Optional, List, Dict
+
 import os
-import json
-from typing import Optional, List, Dict, Any
 from pathlib import Path
 
 from pyquery_polars.core.project import (
