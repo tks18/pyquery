@@ -1,10 +1,11 @@
-import streamlit as st
 from typing import cast
-import copy
+
+import streamlit as st
 import pandas as pd
 import time
 import os
-from pyquery_polars.backend.engine import PyQueryEngine
+
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
 from pyquery_polars.frontend.utils.io_schemas import get_exporter_schema
 from pyquery_polars.frontend.utils.file_picker import pick_folder
@@ -22,7 +23,7 @@ def render_sql_tab():
     # 1. Available Tables
     # 1. Schema Explorer
     with st.expander("📚 Schema Explorer (Tables & Columns)", expanded=False):
-        tables = engine.get_dataset_names()
+        tables = engine.datasets.list_names()
         if not tables:
             st.warning("No datasets loaded.")
         else:
@@ -30,10 +31,13 @@ def render_sql_tab():
             selected_table_schema = st.selectbox(
                 "Select Table to Inspect:", tables, key="schema_table_selector")
             if selected_table_schema:
-                schema = engine.get_dataset_schema(
-                    selected_table_schema,
-                    project_recipes=st.session_state.get('all_recipes')
-                )
+                lf_temp = engine.datasets.get(selected_table_schema)
+                if lf_temp is not None:
+                    recipe_temp = engine.recipes.get(selected_table_schema)
+                    schema = engine.processing.get_transformed_schema(
+                        lf_temp, recipe_temp)
+                else:
+                    schema = None
                 if schema:
                     # Render as Dataframe for easy scanning/sorting
                     schema_df = pd.DataFrame([
@@ -107,15 +111,19 @@ def render_sql_tab():
         try:
             with st.spinner("Executing SQL (Preview)..."):
                 # Use optimized preview (Eager DF) with Context
-                preview_df = engine.execute_sql_preview(
+                preview_lf = engine.processing.execute_sql(
                     st.session_state.sql_query,
-                    limit=1000,
-                    project_recipes=st.session_state.get('all_recipes')
+                    preview=True,
+                    preview_limit=1000
                 )
+                preview_df = preview_lf.collect() if preview_lf is not None else pd.DataFrame()
 
                 # Check for folder mode
-                any_folder = any(engine.get_dataset_metadata(t).get(
-                    "process_individual") for t in engine.get_dataset_names())
+                any_folder = any(
+                    (meta := engine.datasets.get_metadata(
+                        t)) and meta.process_individual
+                    for t in engine.datasets.list_names()
+                )
 
                 warn_msg = "⚠️ **Preview Mode**: Results based on top 1,000 rows only."
                 if any_folder:
@@ -153,30 +161,28 @@ def render_sql_tab():
                         try:
                             with st.spinner("Materializing..."):
                                 # Execute SQL to get LazyFrame
-                                lf = engine.execute_sql(
-                                    st.session_state.sql_query,
-                                    project_recipes=st.session_state.get(
-                                        'all_recipes')
+                                lf = engine.processing.execute_sql(
+                                    st.session_state.sql_query
                                 )
 
                                 # Add as temporary dataset
                                 temp_name = f"___temp_sql_{new_ds_name}"
-                                engine.add_dataset(temp_name, lf, metadata={
+                                engine.datasets.add(temp_name, lf, metadata={
                                     "input_type": "sql",
                                     "source_path": None
                                 })
 
                                 # Materialize it (no recipe needed since SQL already transformed)
-                                if engine.materialize_dataset(temp_name, new_ds_name, recipe=[]):
+                                if engine.processing.materialize_dataset(temp_name, new_ds_name, recipe=[]):
                                     # Remove temporary dataset
-                                    engine.remove_dataset(temp_name)
+                                    engine.datasets.remove(temp_name)
 
                                     st.success(
                                         f"Saved '{new_ds_name}'! It is now available in the main tab.")
                                     time.sleep(1)
                                     st.rerun()
                                 else:
-                                    engine.remove_dataset(temp_name)
+                                    engine.datasets.remove(temp_name)
                                     st.error("Failed to save dataset.")
                         except Exception as e:
                             st.error(f"Error: {e}")
@@ -190,7 +196,7 @@ def render_sql_tab():
     st.subheader("📤 Export SQL Results")
 
     with st.expander("Export Options", expanded=False):
-        exporters = engine.get_exporters()
+        exporters = engine.io.get_exporters()
         if not exporters:
             st.warning("No exporters available.")
             return
@@ -213,8 +219,9 @@ def render_sql_tab():
         filename_key = f"sql_exp_{selected_exporter_name}_filename"
 
         # Default Folder
-        dataset_meta = engine.get_dataset_metadata(tables[0])
-        source_path = dataset_meta.get("source_path")
+        dataset_meta = engine.datasets.get_metadata(
+            tables[0]) if tables else None
+        source_path = dataset_meta.source_path if dataset_meta else None
         default_folder = os.path.join(os.getcwd(), "exports")
 
         if source_path and isinstance(source_path, str):
@@ -294,11 +301,15 @@ def render_sql_tab():
 
             # Start Job
             try:
-                job_id = engine.start_sql_export_job(
-                    st.session_state.sql_query,
-                    selected_exporter_name,
-                    final_params,
-                    project_recipes=st.session_state.get('all_recipes')
+                job_id = engine.jobs.start_export_job(
+                    dataset_name="SQL_RESULT",
+                    recipe=[],
+                    exporter_name=selected_exporter_name,
+                    params=final_params,
+                    project_recipes=st.session_state.get('all_recipes'),
+                    precomputed_lf=engine.processing.execute_sql(
+                        st.session_state.sql_query, preview=False
+                    )
                 )
 
                 # Polling UI (Duplicated logic, could be refactored but safe for now)
@@ -311,7 +322,7 @@ def render_sql_tab():
                         status_placeholder.info(
                             f"⏳ Exporting... ({elapsed:.2f}s)")
 
-                        job_info = engine.get_job_status(job_id)
+                        job_info = engine.jobs.get_job_status(job_id)
                         if not job_info:
                             time.sleep(0.5)
                             continue
