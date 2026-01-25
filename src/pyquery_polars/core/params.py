@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Union, Any
+from pydantic import BaseModel, Field
 
 
 class FilterCondition(BaseModel):
