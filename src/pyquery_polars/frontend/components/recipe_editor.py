@@ -1,10 +1,13 @@
+from typing import cast
+
 import streamlit as st
 import polars as pl
 import time
-from typing import cast
+
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.frontend.state_manager import move_step, delete_step, update_step_params
-from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.renderers import render_step_ui
+from pyquery_polars.backend.processing.executor import apply_step as core_apply_step
 
 
 def render_recipe_editor(dataset_name):
@@ -21,16 +24,16 @@ def render_recipe_editor(dataset_name):
     # Use Engine to check active columns (Schema)
     # Strategy: We maintain a running LazyFrame state to propagate schema correctly
     # even for data-dependent steps like "Promote Headers".
-    current_lf = engine.get_dataset(dataset_name)
+    current_lf = engine.datasets.get(dataset_name)
     current_schema = None
-    
+
     # Callback for View Inspection
     def _set_view_step(sid):
         if st.session_state.get('view_at_step_id') == sid:
             st.session_state.view_at_step_id = None
         else:
             st.session_state.view_at_step_id = sid
-    
+
     # Callback for Raw Source View
     def _set_view_raw():
         if st.session_state.get('view_at_step_id') == "__RAW_SOURCE__":
@@ -42,28 +45,30 @@ def render_recipe_editor(dataset_name):
     if st.session_state.recipe_steps:
         with st.expander("🗺️ Recipe Overview", expanded=False):
             steps = st.session_state.recipe_steps
-            
+
             # Show steps as numbered list with columns
             for i, s in enumerate(steps):
                 c_num, c_label = st.columns([0.08, 0.92])
                 c_num.markdown(f"**{i+1}.**")
                 c_label.markdown(f"`{s.type}` → {s.label}")
-            
-            st.caption(f"📊 Total: {len(steps)} step{'s' if len(steps) != 1 else ''}")
+
+            st.caption(
+                f"📊 Total: {len(steps)} step{'s' if len(steps) != 1 else ''}")
 
     # --- VIEW SOURCE (Step 0 - Before recipe steps) ---
-    is_viewing_raw = st.session_state.get("view_at_step_id") == "__RAW_SOURCE__"
-    
+    is_viewing_raw = st.session_state.get(
+        "view_at_step_id") == "__RAW_SOURCE__"
+
     with st.expander("📄 Source Data", expanded=False):
         c_lbl, c_actions = st.columns([0.65, 0.35])
         with c_lbl:
             st.caption("Preview Original data before any transformations")
-        
+
         with c_actions:
             btn_type_raw = "primary" if is_viewing_raw else "secondary"
-            st.button("👁️ Preview", key="view_raw_source", 
-                     help="Inspect raw source data",
-                     type=btn_type_raw, on_click=_set_view_raw)
+            st.button("👁️ Preview", key="view_raw_source",
+                      help="Inspect raw source data",
+                      type=btn_type_raw, on_click=_set_view_raw)
 
     # --- RECIPE UI LOOP ---
     for i, step in enumerate(st.session_state.recipe_steps):
@@ -91,13 +96,14 @@ def render_recipe_editor(dataset_name):
 
             with c_actions:
                 b1, b2, b3, b4 = st.columns([1, 1, 1, 1])
-                
-                is_viewing = (st.session_state.get("view_at_step_id") == step.id)
+
+                is_viewing = (st.session_state.get(
+                    "view_at_step_id") == step.id)
                 btn_type = "primary" if is_viewing else "secondary"
 
-                b1.button("👁️", key=f"vw{i}", help="Inspect Data at this step", 
+                b1.button("👁️", key=f"vw{i}", help="Inspect Data at this step",
                           type=btn_type, on_click=_set_view_step, args=(step.id,))
-                
+
                 b2.button("⬆️", key=f"u{i}", help="Move Up",
                           on_click=move_step, args=(i, -1))
                 b3.button("⬇️", key=f"d{i}", help="Move Down",
@@ -117,8 +123,9 @@ def render_recipe_editor(dataset_name):
                 if st.session_state.get("just_added_step") and step.id == st.session_state.last_added_id:
                     create_cp = False
                     st.session_state.just_added_step = False
-                
-                update_step_params(step.id, updated_params, create_checkpoint=create_cp)
+
+                update_step_params(step.id, updated_params,
+                                   create_checkpoint=create_cp)
                 st.rerun()
 
         # --- UPDATE STATE FOR NEXT STEP ---
@@ -126,7 +133,8 @@ def render_recipe_editor(dataset_name):
             try:
                 # Apply this step to the running LF
                 # We use internal engine logic which handles params conversion
-                current_lf = engine.apply_step(current_lf, step)
+                current_lf = core_apply_step(
+                    current_lf, step, engine.datasets.get_context())
             except Exception as e:
                 # If step fails (e.g. invalid params while typing), we invalidate LF
                 # This prevents cascading errors but stops schema propagation
@@ -137,7 +145,7 @@ def render_recipe_editor(dataset_name):
     # Logic for Preview Slicing
     target_steps = st.session_state.recipe_steps
     title_suffix = ""
-    
+
     view_id = st.session_state.get('view_at_step_id')
     if view_id:
         if view_id == "__RAW_SOURCE__":
@@ -145,7 +153,8 @@ def render_recipe_editor(dataset_name):
             target_steps = []
             title_suffix = " (Raw Source)"
         else:
-            idx = next((i for i, s in enumerate(target_steps) if s.id == view_id), -1)
+            idx = next((i for i, s in enumerate(
+                target_steps) if s.id == view_id), -1)
             if idx != -1:
                 target_steps = target_steps[:idx+1]
                 title_suffix = f" (Step #{idx+1})"
@@ -153,52 +162,61 @@ def render_recipe_editor(dataset_name):
                 st.session_state.view_at_step_id = None
 
     st.subheader(f"📊 Live Preview (Top 1k){title_suffix}")
-    
+
+    # Show indicator if processing individually
     # Show indicator if processing individually
     if dataset_name:
-        metadata = engine.get_dataset_metadata(dataset_name)
-        if metadata.get("process_individual", False):
-            file_count = metadata.get("file_count", 1)
-            lf_count = metadata.get("lazyframe_count", 0)
-            
-            st.info(
-                f"📁 **Folder Mode** ({file_count} files, {lf_count} lazyframes): Preview shows **first file only**. "
-                f"Export will process all files individually."
-            )
+        metadata = engine.datasets.get_metadata(dataset_name)
 
-    try:
-        preview_df = engine.get_preview(
-            dataset_name, target_steps, limit=1000, project_recipes=st.session_state.all_recipes)
-        if preview_df is not None:
-            st.dataframe(preview_df, width="stretch")
-            st.caption(f"Shape: {preview_df.shape} (Rows shown are limited)")
+        if metadata:
+            if metadata.process_individual:
+                file_count = len(metadata.base_lfs) if metadata.base_lfs else 1
+                lf_count = len(metadata.base_lfs) if metadata.base_lfs else 0
+
+                st.info(
+                    f"📁 **Folder Mode** ({file_count} files, {lf_count} lazyframes): Preview shows **first file only**. "
+                    f"Export will process all files individually."
+                )
+
+            try:
+                # Reuse metadata
+                preview_df = engine.processing.get_preview(
+                    metadata, target_steps, limit=1000)
+                if preview_df is not None:
+                    st.dataframe(preview_df, width="stretch")
+                    st.caption(
+                        f"Shape: {preview_df.shape} (Rows shown are limited)")
+                else:
+                    st.warning("No preview returned.")
+            except Exception as e:
+                st.error(f"Pipeline Error: {e}")
         else:
-            st.warning("No preview returned.")
-    except Exception as e:
-        st.error(f"Pipeline Error: {e}")
+            st.error(
+                f"Dataset '{dataset_name}' not found. It may have been unloaded.")
 
     # Snapshot UI
     with st.expander("📸 Snapshot Pipeline", expanded=False):
-         st.caption("Save the current transformed state as a new dataset.")
-         snap_name = st.text_input("Snapshot Name", placeholder="e.g. clean_v1")
-         
-         if st.button("Save Snapshot", width="stretch", disabled=not snap_name or not dataset_name):
-               try:
-                   with st.spinner("Snapshotting..."):
-                        # Get current recipe
-                        current_recipe = st.session_state.all_recipes.get(dataset_name, [])
-                         
-                        # Materialize with recipe (backend handles everything)
-                        if engine.materialize_dataset(
-                            dataset_name, 
-                            snap_name, 
-                            recipe=current_recipe,
-                            project_recipes=st.session_state.all_recipes
-                        ):
-                            st.success(f"Snapshot '{snap_name}' saved! It's now in your Datasets list.")
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error("Snapshot failed.")
-               except Exception as e:
-                   st.error(f"Error: {e}")
+        st.caption("Save the current transformed state as a new dataset.")
+        snap_name = st.text_input("Snapshot Name", placeholder="e.g. clean_v1")
+
+        if st.button("Save Snapshot", width="stretch", disabled=not snap_name or not dataset_name):
+            try:
+                with st.spinner("Snapshotting..."):
+                    # Get current recipe
+                    current_recipe = st.session_state.all_recipes.get(
+                        dataset_name, [])
+
+                    # Materialize with recipe (backend handles everything)
+                    if engine.processing.materialize_dataset(
+                        dataset_name,
+                        snap_name,
+                        recipe=current_recipe
+                    ):
+                        st.success(
+                            f"Snapshot '{snap_name}' saved! It's now in your Datasets list.")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("Snapshot failed.")
+            except Exception as e:
+                st.error(f"Error: {e}")
