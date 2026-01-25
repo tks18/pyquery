@@ -3,4 +3,4 @@ from pyquery_polars.main import main as RunPyQueryCLIApp
 
 __all__ = ["PyQueryEngine", "RunPyQueryCLIApp"]
 
-__version__ = "2.8.0"
+__version__ = "3.0.0"
