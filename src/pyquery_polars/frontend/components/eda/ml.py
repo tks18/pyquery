@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import cast, Any
-from .core import EDAContext
+
+from pyquery_polars.frontend.components.eda.core import EDAContext
 
 HAS_SKLEARN = True
 
@@ -82,7 +82,7 @@ def render_ml(ctx: EDAContext):
             else:
                 with st.spinner("Training & Calibrating Model..."):
                     # --- BACKEND CALL ---
-                    res = engine.analysis.ml.run_diagnostic_model(
+                    res = engine.analytics.ml.run_diagnostic_model(
                         df, target, feats, model_type, is_cat, use_poly)
 
                     # Cache Results
@@ -196,7 +196,7 @@ def render_ml(ctx: EDAContext):
                 st.caption("Understand HOW features affect the prediction.")
 
                 # 1. Permutation Importance
-                imp_vals = engine.analysis.ml.get_permutation_importance(
+                imp_vals = engine.analytics.ml.get_permutation_importance(
                     best_model, X_test, y_test)
                 feat_names = res.get('train_cols', feats)
                 df_imp = pd.DataFrame({'Feature': feat_names, 'Importance': imp_vals}).sort_values(
@@ -213,7 +213,7 @@ def render_ml(ctx: EDAContext):
                     pdp_feat = st.selectbox(
                         "View Effect of Feature:", feats, key="pdp_sel")
                     if pdp_feat:
-                        pdp_data = engine.analysis.ml.get_partial_dependence(
+                        pdp_data = engine.analytics.ml.get_partial_dependence(
                             df, target, pdp_feat, feats)
                         if 'x' in pdp_data:
                             fig_pdp = px.line(x=pdp_data['x'], y=pdp_data['y'], markers=True,
@@ -276,7 +276,7 @@ def render_ml(ctx: EDAContext):
 
         if find_optimal and c_feats:
             with st.spinner("Scanning ideal cluster count..."):
-                res = engine.analysis.ml.cluster_data(
+                res = engine.analytics.ml.cluster_data(
                     df, c_feats, n_k, algo, optimize_k=True)
                 elbow = res.get('elbow_data')
                 if elbow:
@@ -289,7 +289,7 @@ def render_ml(ctx: EDAContext):
 
         if run_clustering and c_feats:
             with st.spinner("Clustering..."):
-                res = engine.analysis.ml.cluster_data(
+                res = engine.analytics.ml.cluster_data(
                     df, c_feats, n_k, algo, optimize_k=False)
                 if "error" in res:
                     st.error(res["error"])
@@ -336,7 +336,7 @@ def render_ml(ctx: EDAContext):
 
                 # Tab 3: Silhouette Analysis
                 with tabs[2]:
-                    sil_data = engine.analysis.ml.get_silhouette_samples(
+                    sil_data = engine.analytics.ml.get_silhouette_samples(
                         df, c_feats, labels)
                     if sil_data and 'scores' in sil_data:
                         scores = sil_data['scores']
@@ -374,7 +374,7 @@ def render_ml(ctx: EDAContext):
                 st.error("Select features.")
                 return
 
-            res = engine.analysis.ml.detect_anomalies(df, anom_feats, contam)
+            res = engine.analytics.ml.detect_anomalies(df, anom_feats, contam)
             if "error" in res:
                 st.error(res['error'])
                 return
