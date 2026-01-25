@@ -55,7 +55,7 @@ requires = ["uv_build>=0.8.15,<0.9.0"]
 build-backend = "uv_build"
 
 [project.scripts]
-pyquery = "pyquery_polars.cli.main:main"
+pyquery = "pyquery_polars.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
