@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import polars as pl
 import plotly.express as px
-from .core import EDAContext
+
+from pyquery_polars.frontend.components.eda.core import EDAContext
 
 
 def render_overview(ctx: EDAContext):
@@ -23,7 +24,7 @@ def render_overview(ctx: EDAContext):
         st.write("#### 🧬 Dataset DNA")
 
         # Compute Health
-        health = engine.analysis.stats.get_dataset_health(df)
+        health = engine.analytics.stats.get_dataset_health(df)
         if "error" in health:
             st.error(health['error'])
             return
@@ -68,9 +69,9 @@ def render_overview(ctx: EDAContext):
 
         insights = []
         insights.extend(
-            ctx.engine.analysis.stats.analyze_correlations(df, ctx.num_cols))
+            ctx.engine.analytics.stats.analyze_correlations(df, ctx.num_cols))
         if ctx.date_cols:
-            insights.extend(ctx.engine.analysis.stats.analyze_trends(
+            insights.extend(ctx.engine.analytics.stats.analyze_trends(
                 df, ctx.date_cols, ctx.num_cols))
 
         insights.sort(key=lambda x: x['score'], reverse=True)
@@ -89,7 +90,7 @@ def render_overview(ctx: EDAContext):
 
     # --- C. FEATURE SNAPSHOT ---
     with st.expander("📸 Feature Snapshot (Detailed Stats)", expanded=False):
-        summ = engine.analysis.stats.get_feature_summary(df)
+        summ = engine.analytics.stats.get_feature_summary(df)
         if not summ.empty:
             st.dataframe(summ, hide_index=True, column_config={
                 "Missing %": st.column_config.ProgressColumn(
