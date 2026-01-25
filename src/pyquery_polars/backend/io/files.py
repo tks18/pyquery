@@ -1,3 +1,5 @@
+from typing import List, Literal, Optional, Any, Dict, cast, Iterator, Union
+
 import re
 import os
 import glob
@@ -6,7 +8,6 @@ import shutil
 import uuid
 import polars as pl
 import connectorx as cx
-import chardet
 import fastexcel
 import tempfile
 import time
@@ -14,12 +15,12 @@ import copy
 import io
 import codecs
 import gc
+import fnmatch
+from chardet.universaldetector import UniversalDetector
 from itertools import islice
 from openpyxl import load_workbook
-from typing import List, Literal, Optional, Any, Dict, cast, Iterator, Union
-import fnmatch
 
-from ...core.io import FileFilter, ItemFilter, FilterType
+from pyquery_polars.core.io import FileFilter, ItemFilter, FilterType
 
 STAGING_DIR_NAME = "pyquery_staging"
 
@@ -35,7 +36,7 @@ def get_staging_dir() -> str:
     else:
         temp_dir = tempfile.gettempdir()
         staging_path = os.path.join(temp_dir, STAGING_DIR_NAME)
-    
+
     os.makedirs(staging_path, exist_ok=True)
     return staging_path
 
@@ -46,17 +47,17 @@ def create_unique_staging_folder(base_name: str) -> str:
     Format: timestamp_uuid_basename
     """
     staging_root = get_staging_dir()
-    
+
     # Generate unique identifier components
     ts = int(time.time())
     unique_id = uuid.uuid4().hex[:8]
-    
+
     # Sanitize base name
     safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', base_name)
-    
+
     folder_name = f"{ts}_{unique_id}_{safe_name}"
     folder_path = os.path.join(staging_root, folder_name)
-    
+
     os.makedirs(folder_path, exist_ok=True)
     return folder_path
 
@@ -377,7 +378,6 @@ def detect_encoding(file_path: str, limit_bytes: int = 200_000) -> str:
     Scans up to `limit_bytes` (default 200KB) or until high confidence is reached.
     """
     try:
-        from chardet.universaldetector import UniversalDetector
         detector = UniversalDetector()
 
         # Read in binary mode, 16KB chunks
@@ -459,13 +459,14 @@ def convert_file_to_utf8(file_path: str, source_encoding: str, dataset_alias: Op
     new_path = None
     try:
         # Use alias if provided, else filename
-        base_name = dataset_alias if dataset_alias else os.path.basename(file_path)
-        
+        base_name = dataset_alias if dataset_alias else os.path.basename(
+            file_path)
+
         # Create unique folder for this conversion
         staging_dir = create_unique_staging_folder(base_name)
-        
+
         filename = os.path.basename(file_path)
-        
+
         # Sanitize filename
         safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
         new_filename = f"utf8_{safe_name}"
@@ -585,9 +586,11 @@ def load_lazy_frame(files: List[str], sheet_name: Optional[Union[str, List[str]]
                     # Initialize staging dir for this batch if needed
                     if batch_staging_dir is None:
                         # Use alias if provided, else first filename
-                        base_for_folder = dataset_alias if dataset_alias else os.path.basename(files[0])
-                        batch_staging_dir = create_unique_staging_folder(base_for_folder)
-                    
+                        base_for_folder = dataset_alias if dataset_alias else os.path.basename(
+                            files[0])
+                        batch_staging_dir = create_unique_staging_folder(
+                            base_for_folder)
+
                     staging_path = batch_staging_dir
 
                     # OPTIMIZATION: Single metadata extraction per file
@@ -775,7 +778,7 @@ def load_lazy_frame(files: List[str], sheet_name: Optional[Union[str, List[str]]
     }
 
     # Decision: Return list or concatenated
-    if process_individual and len(lfs) > 1:
+    if process_individual:
         return lfs, metadata
     else:
         combined = lfs[0]
@@ -833,7 +836,9 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
             raise ValueError("Output path not specified")
 
         # Ensure directory exists
-        os.makedirs(os.path.dirname(base_path), exist_ok=True)
+        dir_name = os.path.dirname(base_path)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
 
         # --- RECURSIVE HANDLE LIST (Individual Files) ---
         if isinstance(lazy_frame, list):
@@ -951,11 +956,11 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
         result_container['status'] = f"Error: {e}"
 
 
-def export_direct(df: pl.DataFrame, fmt: str, params: Any):
+def export_direct(df: pl.DataFrame, fmt: str, params: Any) -> Dict[str, Any]:
     """
     Direct export of a DataFrame (for CLI merge mode).
     No background thread - synchronous export.
-    
+
     Args:
         df: DataFrame to export
         fmt: Exporter name (Parquet, CSV, etc.)
@@ -964,6 +969,8 @@ def export_direct(df: pl.DataFrame, fmt: str, params: Any):
     result_container = {}
     lf = df.lazy()
     export_worker(lf, params, fmt, result_container)
-    
+
     if str(result_container.get('status', '')).startswith("Error"):
         raise RuntimeError(result_container['status'])
+
+    return result_container
