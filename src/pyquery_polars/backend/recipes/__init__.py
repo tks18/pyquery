@@ -1,4 +1,4 @@
 # Recipe Manager
-from .manager import RecipeManager
+from pyquery_polars.backend.recipes.manager import RecipeManager
 
 __all__ = ["RecipeManager"]
