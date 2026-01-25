@@ -1,12 +1,14 @@
+from typing import List, Dict, Any, Literal, Optional
+
 import json
 import sys
 import os
 import time
-import uuid
 import polars as pl
-from typing import List, Dict, Any, Optional
+from rich.tree import Tree
+from rich.panel import Panel
 
-from pyquery_polars.backend.engine import PyQueryEngine
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.core.models import RecipeStep
 from pyquery_polars.core.io import (
     FileLoaderParams, SqlLoaderParams, ApiLoaderParams,
@@ -18,8 +20,6 @@ from pyquery_polars.cli.branding import (
     init_logging, log_step, log_error, log_success,
     log_table, log_progress, console
 )
-from rich.tree import Tree
-from rich.panel import Panel
 
 # Constants
 FMT_EXT_MAP = {
@@ -61,7 +61,7 @@ def build_file_filters(args) -> Optional[List[FileFilter]]:
     return filters
 
 
-def build_item_filters(arg_list, default_target="sheet_name") -> Optional[List[ItemFilter]]:
+def build_item_filters(arg_list, default_target: Literal["sheet_name", "table_name"] = "sheet_name") -> Optional[List[ItemFilter]]:
     if not arg_list:
         return None
     filters = []
@@ -70,7 +70,6 @@ def build_item_filters(arg_list, default_target="sheet_name") -> Optional[List[I
         try:
             ft = FilterType(p["type"])
             filters.append(ItemFilter(
-                # type: ignore
                 type=ft, value=p["value"], target=default_target))
         except Exception:
             log_error(f"Invalid Filter Type: {p['type']}",
@@ -194,7 +193,7 @@ def run_headless(args):
 
         try:
             with log_progress("Hydrating Project State...", module="LOADER") as p:
-                result = engine.load_project_from_file(
+                result = engine.projects.load_from_file(
                     project_path, mode="replace")
                 p.update(completed=100)
 
@@ -210,7 +209,7 @@ def run_headless(args):
             log_error("Critical Project Load Error", str(e))
             sys.exit(1)
 
-        available_datasets = engine.get_dataset_names()
+        available_datasets = engine.datasets.list_names()
         target_datasets = available_datasets
 
         if args.dataset:
@@ -270,7 +269,7 @@ def run_headless(args):
             # --- SPLIT SHEETS LOGIC ---
             if getattr(args, 'split_sheets', False) and args.type == "file":
                 # Only valid for Excel initially
-                resolved_files = engine.resolve_files(
+                resolved_files = engine.io.resolve_files(
                     args.source, build_file_filters(args))
 
                 if not resolved_files:
@@ -290,8 +289,8 @@ def run_headless(args):
                             pass
 
                         # Get Sheets and Tables
-                        tables = engine.get_file_table_names(f_path)
-                        sheets = engine.get_file_sheet_names(f_path)
+                        tables = engine.io.get_table_names(f_path)
+                        sheets = engine.io.get_sheet_names(f_path)
 
                         # Filter Sheets/Tables if filters exist
                         sheet_filters = build_item_filters(
@@ -310,9 +309,7 @@ def run_headless(args):
                             # Explicit Mode
                             if table_filters:
                                 for t in tables:
-                                    # Simple filter check for now (Assume matched if filter logic was consistent,
-                                    # here we just iterate. To match strictly we'd need match logic.
-                                    # Users rely on CLI to say what they want.
+                                    # Simple filter check for now
                                     targets.append(("table", t))
 
                             if sheet_filters:
@@ -385,21 +382,28 @@ def run_headless(args):
                             )
 
                             try:
-                                res = engine.run_loader("File", l_params)
+                                res = engine.io.run_loader("File", l_params)
                                 if res:
                                     flf, meta = res if isinstance(
                                         res, tuple) else (res, {})
-                                    engine.add_dataset(
+                                    engine.datasets.add(
                                         alias, flf, metadata=meta)
+                                    # Ensure recipe exists
+                                    engine.recipes.ensure_exists(alias)
 
                                     # AUTO-INFER LOGIC
-                                    recipe_steps = []
                                     if getattr(args, 'auto_infer', False):
-                                        cast_step = engine.auto_infer_dataset(
-                                            alias)
-                                        if cast_step:
-                                            recipe_steps.append(
-                                                cast_step.model_dump())
+                                        lf_infer = flf[0] if isinstance(flf, list) and flf else (
+                                            flf if not isinstance(flf, list) and flf is not None else None)
+                                        if lf_infer is not None:
+                                            inferred = engine.analytics.infer_types(
+                                                lf_infer, [], sample_size=1000)
+                                            if inferred:
+                                                engine.recipes.apply_inferred_types(
+                                                    alias, inferred, prepend=True)
+
+                                    recipe_steps = [s.model_dump()
+                                                    for s in engine.recipes.get(alias)]
 
                                     datasets_to_process.append(
                                         (alias, recipe_steps))
@@ -417,7 +421,7 @@ def run_headless(args):
             # --- SPLIT FILES LOGIC ---
             elif getattr(args, 'split_files', False) and args.type == "file":
                 # Resolve all files based on filters
-                resolved_files = engine.resolve_files(
+                resolved_files = engine.io.resolve_files(
                     args.source, build_file_filters(args))
 
                 if not resolved_files:
@@ -457,20 +461,27 @@ def run_headless(args):
 
                         try:
                             # Load
-                            res = engine.run_loader("File", l_params)
+                            res = engine.io.run_loader("File", l_params)
                             if res:
                                 flf, meta = res if isinstance(
                                     res, tuple) else (res, {})
-                                engine.add_dataset(alias, flf, metadata=meta)
+                                engine.datasets.add(alias, flf, metadata=meta)
+                                # Ensure recipe exists
+                                engine.recipes.ensure_exists(alias)
 
                                 # AUTO-INFER LOGIC
-                                recipe_steps = []
                                 if getattr(args, 'auto_infer', False):
-                                    cast_step = engine.auto_infer_dataset(
-                                        alias)
-                                    if cast_step:
-                                        recipe_steps.append(
-                                            cast_step.model_dump())
+                                    lf_infer = flf[0] if isinstance(flf, list) and flf else (
+                                        flf if not isinstance(flf, list) and flf is not None else None)
+                                    if lf_infer is not None:
+                                        inferred = engine.analytics.infer_types(
+                                            lf_infer, [], sample_size=1000)
+                                        if inferred:
+                                            engine.recipes.apply_inferred_types(
+                                                alias, inferred, prepend=True)
+
+                                recipe_steps = [s.model_dump()
+                                                for s in engine.recipes.get(alias)]
 
                                 datasets_to_process.append(
                                     (alias, recipe_steps))
@@ -515,7 +526,7 @@ def run_headless(args):
                         files=getattr(args, 'files', None)
                     )
                     with log_progress("Reading File Stream...", module="READER") as p:
-                        result = engine.run_loader("File", loader_params)
+                        result = engine.io.run_loader("File", loader_params)
                         p.update(completed=100)
 
                 elif args.type == "sql":
@@ -530,7 +541,7 @@ def run_headless(args):
                         alias=base_ds_name
                     )
                     with log_progress("Connecting to Database...", module="CONNECT") as p:
-                        result = engine.run_loader("Sql", loader_params)
+                        result = engine.io.run_loader("Sql", loader_params)
                         p.update(completed=100)
 
                 elif args.type == "api":
@@ -538,7 +549,7 @@ def run_headless(args):
                     loader_params = ApiLoaderParams(
                         url=url, alias=base_ds_name)
                     with log_progress("Fetching API Data...", module="NETWORK") as p:
-                        result = engine.run_loader("Api", loader_params)
+                        result = engine.io.run_loader("Api", loader_params)
                         p.update(completed=100)
 
                 if result is None:
@@ -547,7 +558,9 @@ def run_headless(args):
 
                 lf_or_lfs, metadata = result if isinstance(
                     result, tuple) else (result, {})
-                engine.add_dataset(base_ds_name, lf_or_lfs, metadata=metadata)
+                engine.datasets.add(base_ds_name, lf_or_lfs, metadata=metadata)
+                # Ensure recipe exists
+                engine.recipes.ensure_exists(base_ds_name)
 
                 recipe = []
                 if args.recipe:
@@ -567,10 +580,23 @@ def run_headless(args):
                             sys.exit(1)
 
                 # AUTO-INFER LOGIC
+                # Add loaded recipe to manager first (source of truth)
+                engine.recipes.add(base_ds_name, recipe)
+
                 if getattr(args, 'auto_infer', False):
-                    cast_step = engine.auto_infer_dataset(base_ds_name)
-                    if cast_step:
-                        recipe.insert(0, cast_step.model_dump())
+                    # Prepend auto-clean step
+                    lf_infer = lf_or_lfs[0] if isinstance(lf_or_lfs, list) and lf_or_lfs else (
+                        lf_or_lfs if not isinstance(lf_or_lfs, list) and lf_or_lfs is not None else None)
+                    if lf_infer is not None:
+                        inferred = engine.analytics.infer_types(
+                            lf_infer, [], sample_size=1000)
+                        if inferred:
+                            engine.recipes.apply_inferred_types(
+                                base_ds_name, inferred, prepend=True)
+
+                # Sync back to local recipe list
+                recipe = [s.model_dump()
+                          for s in engine.recipes.get(base_ds_name)]
 
                 datasets_to_process.append((base_ds_name, recipe))
 
@@ -586,16 +612,21 @@ def run_headless(args):
                          module="SQL-ENGINE", icon="⚙️")
 
             try:
-                # Collect active recipes (including auto-infer steps)
-                active_recipes = {name: recipe for name,
-                                  recipe in datasets_to_process}
+                # Execute against registered context
+                # Note: We need to update recipes in manager first because processing uses manager state
+                current_recipes = engine.recipes.get_all()
+                for name, recipe in datasets_to_process:
+                    if recipe:
+                        engine.recipes.add(name, recipe)
 
-                # Execute against registered context WITH recipes applied
-                sql_lf = engine.execute_sql(
-                    args.transform_sql, project_recipes=active_recipes)
+                # Execute using processing manager
+                # Using preview=False for full calculation
+                sql_lf = engine.processing.execute_sql(
+                    args.transform_sql, preview=False)
 
                 # Replace Execution Plan with SQL Result
-                engine.add_dataset("SQL_RESULT", sql_lf)
+                engine.datasets.add("SQL_RESULT", sql_lf)
+                engine.recipes.ensure_exists("SQL_RESULT")
                 datasets_to_process = [("SQL_RESULT", [])]
 
             except Exception as e:
@@ -623,7 +654,7 @@ def run_headless(args):
     # =========================================================================
 
     final_reports = []
-    project_recipes = engine.get_all_recipes()
+    project_recipes = engine.recipes.get_all()
 
     if args.merge and len(datasets_to_process) > 1:
         # --- MERGE MODE ---
@@ -661,10 +692,17 @@ def run_headless(args):
             lfs = []
             with log_progress("Processing & Merging...", total=len(datasets_to_process), module="COMPUTE") as p:
                 for name, recipe in datasets_to_process:
+                    # Update recipe logic handled above or implicitly by manager state
                     eff_recipe = recipe if recipe else project_recipes.get(
                         name, [])
-                    lf = engine.get_dataset_for_export(
-                        name, eff_recipe, project_recipes)
+
+                    # Prepare view using processing manager
+                    meta = engine.datasets.get_metadata(name)
+                    lf = None
+                    if meta:
+                        lf = engine.processing.prepare_view(
+                            meta, eff_recipe, mode="full")
+
                     if lf is not None:
                         lfs.append(lf)
                     p.advance(1)
@@ -677,7 +715,7 @@ def run_headless(args):
 
             params = get_export_params(output_fmt, output_path, args)
 
-            job_id = engine._job_manager.start_export_job(
+            job_id = engine.jobs.start_export_job(
                 dataset_name="MERGED_RESULT",
                 recipe=[],
                 exporter_name=exporter_key,
@@ -790,7 +828,7 @@ def run_headless(args):
             try:
                 params = get_export_params(output_fmt, current_output, args)
 
-                job_id = engine.start_export_job(
+                job_id = engine.jobs.start_export_job(
                     dataset_name=name,
                     recipe=eff_recipe,
                     exporter_name=exporter_key,
@@ -820,7 +858,7 @@ def run_headless(args):
 def wait_for_job(engine, job_id, label, quiet):
     """Wait for job and return summary dict."""
     while True:
-        info = engine.get_job_status(job_id)
+        info = engine.jobs.get_job_status(job_id)
         if info is None:
             time.sleep(0.5)
             continue
