@@ -1,23 +1,25 @@
+from typing import Dict, cast, Optional
+
 import streamlit as st
 import pandas as pd
 import polars as pl
-from typing import Dict, cast, Optional
-from pyquery_polars.backend.engine import PyQueryEngine
+
+from pyquery_polars.backend import PyQueryEngine
+from pyquery_polars.frontend.components.editor import sql_editor
 
 # Import Sub-Modules
-from .core import EDAContext
-from .overview import render_overview
-from .ml import render_ml
-from .simulation import render_simulation, render_target_analysis
-from .plots import (
+from pyquery_polars.frontend.components.eda.core import EDAContext
+from pyquery_polars.frontend.components.eda.overview import render_overview
+from pyquery_polars.frontend.components.eda.ml import render_ml
+from pyquery_polars.frontend.components.eda.simulation import render_simulation, render_target_analysis
+from pyquery_polars.frontend.components.eda.plots import (
     render_time_series,
     render_distributions,
     render_hierarchy,
     render_relationships
 )
-from .contrast import render_contrast
-from .profiling import render_profiling
-from pyquery_polars.frontend.components.editor import sql_editor
+from pyquery_polars.frontend.components.eda.contrast import render_contrast
+from pyquery_polars.frontend.components.eda.profiling import render_profiling
 
 
 def render_eda_tab(dataset_name: str):
@@ -59,8 +61,8 @@ def render_eda_tab(dataset_name: str):
             "🎲 Full Dataset (Random Sample)": "full_sample"
         }
         selected_strat_label = c2.selectbox(
-            "Data Strategy", 
-            list(strat_map.keys()), 
+            "Data Strategy",
+            list(strat_map.keys()),
             index=0,
             key="eda_strategy_select",
             help="Choose how to fetch data. 'Full' modes process all files (slower)."
@@ -75,26 +77,34 @@ def render_eda_tab(dataset_name: str):
         show_labels = st.checkbox("Show Data Labels", value=st.session_state.get(
             'eda_show_labels', False), key="eda_show_labels_chk")
         st.session_state['eda_show_labels'] = show_labels
-        
+
         if selected_strategy != "preview":
-            st.warning("⚠️ Full Processing Enabled: Reading entire dataset before limiting. This may be slow for large files.")
-        
+            st.warning(
+                "⚠️ Full Processing Enabled: Reading entire dataset before limiting. This may be slow for large files.")
+
         # Context Info based on Strategy & Metadata
-        metadata = engine.get_dataset_metadata(dataset_name)
-        process_individual = metadata.get("process_individual", False)
-        file_count = metadata.get("file_count", 1)
+        metadata = engine.datasets.get_metadata(dataset_name)
+        process_individual = metadata.process_individual if metadata else False
+        file_count = (len(metadata.base_lfs)
+                      if metadata and metadata.base_lfs else 1)
 
         info_msgs = []
         if process_individual:
             if selected_strategy == "preview":
-                info_msgs.append(f"**Dataset Mode:** Folder ({file_count} files).")
-                info_msgs.append(f"**Generic Strategy:** Only the **First File** is analyzed (Limit: {limit}).")
+                info_msgs.append(
+                    f"**Dataset Mode:** Folder ({file_count} files).")
+                info_msgs.append(
+                    f"**Generic Strategy:** Only the **First File** is analyzed (Limit: {limit}).")
             elif selected_strategy == "full_head":
-                info_msgs.append(f"**Dataset Mode:** Folder ({file_count} files).") 
-                info_msgs.append(f"**Generic Strategy:** **ALL Files** are concatenated, then top {limit} rows are used.")
+                info_msgs.append(
+                    f"**Dataset Mode:** Folder ({file_count} files).")
+                info_msgs.append(
+                    f"**Generic Strategy:** **ALL Files** are concatenated, then top {limit} rows are used.")
             elif selected_strategy == "full_sample":
-                info_msgs.append(f"**Dataset Mode:** Folder ({file_count} files).")
-                info_msgs.append(f"**Generic Strategy:** **ALL Files** are concatenated (up to 100k rows), then {limit} samples drawn.")
+                info_msgs.append(
+                    f"**Dataset Mode:** Folder ({file_count} files).")
+                info_msgs.append(
+                    f"**Generic Strategy:** **ALL Files** are concatenated (up to 100k rows), then {limit} samples drawn.")
         else:
             # Single File Mode
             if selected_strategy == "preview":
@@ -102,7 +112,8 @@ def render_eda_tab(dataset_name: str):
             elif selected_strategy == "full_head":
                 info_msgs.append(f"**Strategy:** Analyzing top {limit} rows.")
             elif selected_strategy == "full_sample":
-                 info_msgs.append(f"**Strategy:** Random sample of {limit} rows (from max 100k source).")
+                info_msgs.append(
+                    f"**Strategy:** Random sample of {limit} rows (from max 100k source).")
 
         st.info("\n\n".join(info_msgs))
 
@@ -115,7 +126,7 @@ def render_eda_tab(dataset_name: str):
         if use_sql:
             # 1. Schema Explorer (Requested Feature)
             with st.expander("📚 Schema Explorer (Tables & Columns)", expanded=False):
-                tables = engine.get_dataset_names()
+                tables = engine.datasets.list_names()
                 if not tables:
                     st.warning("No datasets loaded.")
                 else:
@@ -124,11 +135,16 @@ def render_eda_tab(dataset_name: str):
                         "Select Table to Inspect:", tables, key="eda_schema_table_selector")
                     if selected_table_schema:
                         try:
-                            schema = engine.get_dataset_schema(
-                                selected_table_schema,
-                                project_recipes=st.session_state.get(
-                                    'all_recipes')
-                            )
+                            lf_temp = engine.datasets.get(
+                                selected_table_schema)
+                            if lf_temp is not None:
+                                recipe_temp = engine.recipes.get(
+                                    selected_table_schema)
+                                schema = engine.processing.get_transformed_schema(
+                                    lf_temp, recipe_temp)
+                            else:
+                                schema = None
+
                             if schema:
                                 # Render as Dataframe for easy scanning/sorting
                                 schema_df = pd.DataFrame([
@@ -150,22 +166,22 @@ def render_eda_tab(dataset_name: str):
             st.caption(
                 f"Write a SQL query to select data. The active dataset is available as **`{dataset_name}`**.")
             default_query = f"SELECT * FROM {dataset_name}"
-            
+
             # Use SQL Editor
             # Need to initialize state if not present to avoid reset on rerun
             if "eda_sql_query" not in st.session_state:
                 st.session_state["eda_sql_query"] = default_query
-                
+
             sql_res = sql_editor(
                 code=st.session_state.get("eda_sql_query", default_query),
                 key="eda_sql_editor",
                 height=[7, 15]
             )
-            
+
             if sql_res is not None:
                 st.session_state["eda_sql_query"] = sql_res
                 st.rerun()
-                
+
             custom_sql = st.session_state.get("eda_sql_query", default_query)
 
         # Exclude Cols (Only show if NOT using SQL, or show generic?)
@@ -176,9 +192,13 @@ def render_eda_tab(dataset_name: str):
         if not use_sql:
             try:
                 # Metadata fetch for default path
-                all_recipes = st.session_state.get('all_recipes', {})
-                schema = engine.get_dataset_schema(
-                    dataset_name, project_recipes=all_recipes)
+                lf_temp = engine.datasets.get(dataset_name)
+                recipe_temp = engine.recipes.get(dataset_name)
+                if lf_temp is not None:
+                    schema = engine.processing.get_transformed_schema(
+                        lf_temp, recipe_temp)
+                else:
+                    schema = None
                 if schema:
                     all_cols_display = schema.names()
             except:
@@ -200,7 +220,6 @@ def render_eda_tab(dataset_name: str):
         lf_eda = None
         current_recipe = []
 
-
         if use_sql and custom_sql.strip():
             # SQL PATH - Integrate Strategy
             all_recipes = st.session_state.get('all_recipes', {})
@@ -212,15 +231,14 @@ def render_eda_tab(dataset_name: str):
                     coll_limit = limit
                 elif selected_strategy == "full_sample":
                     coll_limit = 100000
-                
-                lf_sql = engine.execute_sql(
-                    custom_sql, 
-                    project_recipes=all_recipes,
+
+                lf_sql = engine.processing.execute_sql(
+                    custom_sql,
                     preview=is_preview,
                     preview_limit=limit,
                     collection_limit=coll_limit
                 )
-                
+
                 if lf_sql is None:
                     lf_eda = None
                 elif selected_strategy == "full_sample":
@@ -234,7 +252,7 @@ def render_eda_tab(dataset_name: str):
                 else:
                     # full_head or preview (limit already applied at source)
                     lf_eda = lf_sql
-                    
+
             except Exception as e:
                 st.error(f"SQL Error: {e}")
                 return
@@ -242,16 +260,18 @@ def render_eda_tab(dataset_name: str):
             # DEFAULT RECIPE PATH
             current_recipe = st.session_state.get(
                 'all_recipes', {}).get(dataset_name, [])
-            
+
             # Use new specialized EDA View getter
-            lf_eda = engine.get_eda_view(
-                dataset_name=dataset_name,
-                recipe=current_recipe,
-                project_recipes=st.session_state.get('all_recipes', {}),
-                strategy=selected_strategy,
-                limit=limit
-            )
-            
+            # Must pass metadata
+            meta = engine.datasets.get_metadata(dataset_name)
+            if meta:
+                lf_eda = engine.processing.get_eda_view(
+                    meta=meta,
+                    recipe=current_recipe,
+                    strategy=selected_strategy,
+                    limit=limit
+                )
+
             if lf_eda is not None and excluded_cols:
                 lf_eda = lf_eda.drop(excluded_cols)
 
@@ -273,7 +293,7 @@ def render_eda_tab(dataset_name: str):
         # Key components: Dataset, Applied Recipe, Limit, SQL (if used), Excluded Cols
         import hashlib
         import json
-        
+
         # Helper to make recipe hashable
         def serialize(obj):
             if hasattr(obj, 'model_dump'):
@@ -282,14 +302,15 @@ def render_eda_tab(dataset_name: str):
                 return obj.dict()
             return str(obj)
 
-        recipe_str = json.dumps(current_recipe if not use_sql else "SQL_MODE", default=serialize)
+        recipe_str = json.dumps(
+            current_recipe if not use_sql else "SQL_MODE", default=serialize)
         sql_str = custom_sql if use_sql else "NO_SQL"
         excl_str = ",".join(excluded_cols) if excluded_cols else "None"
-        
+
         # Include LazyFrame plan in fingerprint to detect reloaded data (different staging files)
         # str(lf_eda) usually contains the query plan or at least the scan paths
         plan_str = str(lf_eda)
-        
+
         raw_key = f"{dataset_name}|{limit}|{recipe_str}|{sql_str}|{excl_str}|{plan_str}"
         fingerprint = hashlib.md5(raw_key.encode()).hexdigest()
 
@@ -313,15 +334,15 @@ def render_eda_tab(dataset_name: str):
 
     # 4. RENDER TABS
     tabs = st.tabs([
-        "Overview", 
-        "Data Profiling", 
-        "Distributions", 
-        "Target Analysis", 
-        "Relationships", 
+        "Overview",
+        "Data Profiling",
+        "Distributions",
+        "Target Analysis",
+        "Relationships",
         "Hierarchy",
-        "Comparative", 
-        "Time Series", 
-        "Model Simulator", 
+        "Comparative",
+        "Time Series",
+        "Model Simulator",
         "Decision ML"
     ])
 
@@ -331,7 +352,7 @@ def render_eda_tab(dataset_name: str):
     # Each module now responsible for its own execution via button
     with tab_overview:
         render_overview(ctx)
-        
+
     with tab_profile:
         render_profiling(ctx)
 
@@ -349,7 +370,7 @@ def render_eda_tab(dataset_name: str):
 
     with tab_time:
         render_time_series(ctx)
-        
+
     with tab_sim:
         render_simulation(ctx)
 
@@ -358,5 +379,3 @@ def render_eda_tab(dataset_name: str):
 
     with tab_hier:
         render_hierarchy(ctx)
-
-
