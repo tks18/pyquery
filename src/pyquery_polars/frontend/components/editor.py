@@ -1,5 +1,7 @@
 from typing import List, Optional, Dict, Any, Union
+
 import streamlit as st
+
 from pyquery_polars.frontend.custom_components import code_editor
 from pyquery_polars.frontend.utils.completions import get_standard_pyquery_completions, get_sql_completions
 
