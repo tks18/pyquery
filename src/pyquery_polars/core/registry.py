@@ -1,6 +1,8 @@
 from typing import Any, Dict, Optional, Callable, Type
 from pydantic import BaseModel
+
 import polars as pl
+
 from pyquery_polars.core.models import StepMetadata, TransformContext
 
 # Type definitions
