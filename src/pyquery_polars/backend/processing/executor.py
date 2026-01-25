@@ -1,6 +1,7 @@
-import polars as pl
 from typing import List, Union, Dict, Optional, Any, Tuple, Sequence
 from pydantic import BaseModel
+
+import polars as pl
 
 from pyquery_polars.core.models import RecipeStep, TransformContext, DatasetMetadata
 from pyquery_polars.core.registry import StepRegistry
