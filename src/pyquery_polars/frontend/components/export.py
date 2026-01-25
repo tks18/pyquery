@@ -1,11 +1,13 @@
 from typing import cast
+
 import streamlit as st
 import pandas as pd
+import os
+
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.frontend.utils.dynamic_ui import render_schema_fields
-from pyquery_polars.backend.engine import PyQueryEngine
 from pyquery_polars.frontend.utils.io_schemas import get_exporter_schema
 from pyquery_polars.frontend.utils.file_picker import pick_folder
-import os
 
 
 def render_export_section(dataset_name):  # Takes name
@@ -18,7 +20,7 @@ def render_export_section(dataset_name):  # Takes name
         return
 
     with st.expander("Export Options"):
-        exporters = engine.get_exporters()
+        exporters = engine.io.get_exporters()
         if not exporters:
             st.warning("No exporters registered.")
             return
@@ -41,8 +43,8 @@ def render_export_section(dataset_name):  # Takes name
         filename_key = f"exp_{selected_exporter_name}_filename"
 
         # Default Folder
-        dataset_meta = engine.get_dataset_metadata(dataset_name)
-        source_path = dataset_meta.get("source_path")
+        dataset_meta = engine.datasets.get_metadata(dataset_name)
+        source_path = dataset_meta.source_path if dataset_meta else None
         default_folder = os.getcwd()
         if source_path:
             if os.path.isfile(source_path):
@@ -78,8 +80,8 @@ def render_export_section(dataset_name):  # Takes name
 
         # CHECKBOX: Export Individual (Prominent Placement)
         exp_ind = False
-        meta = engine.get_dataset_metadata(dataset_name)
-        if meta and meta.get("process_individual") and meta.get("input_type") == "folder":
+        meta = engine.datasets.get_metadata(dataset_name)
+        if meta and meta.process_individual and meta.input_type == "folder":
             exp_ind = st.checkbox(
                 "📂 Export as Separate Files",
                 value=False,
@@ -138,7 +140,7 @@ def render_export_section(dataset_name):  # Takes name
                     return
 
             # Start Backend Job (using typed params)
-            job_id = engine.start_export_job(
+            job_id = engine.jobs.start_export_job(
                 dataset_name,
                 st.session_state.recipe_steps,
                 selected_exporter_name,
@@ -159,7 +161,7 @@ def render_export_section(dataset_name):  # Takes name
                         f"⏳ Exporting in background... ({elapsed:.2f}s)")
 
                     # Status Check
-                    job_info = engine.get_job_status(job_id)
+                    job_info = engine.jobs.get_job_status(job_id)
                     if not job_info:
                         time.sleep(0.5)
                         continue
