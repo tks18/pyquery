@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from typing import List, Dict, Any, Union, cast
 from pydantic import BaseModel
-from pyquery_polars.backend.engine import PyQueryEngine
+
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+
+import pyquery_polars.api.db as db
+from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.api.dependencies import get_engine
 from pyquery_polars.core.models import RecipeStep
-import pyquery_polars.api.db as db
+from pyquery_polars.core.registry import StepRegistry
 
 router = APIRouter()
 
@@ -26,17 +29,13 @@ class ExportRequest(BaseModel):
 def preview_recipe(req: PreviewRequest, engine: PyQueryEngine = Depends(get_engine)):
     """Apply a recipe and return the first N rows."""
     try:
-        # validate steps
-        # Engine.apply_recipe handles dict->RecipeStep conversion,
-        # but passing dicts is risky if keys mismatch.
-        # Let's trust the engine's parsing logic for now to keep API thin.
-
-        # Cast to satisfy list invariance
-        from typing import cast, Union
-        from pyquery_polars.core.models import RecipeStep
 
         steps = cast(List[Union[Dict[str, Any], RecipeStep]], req.steps)
-        df = engine.get_preview(req.dataset, steps, req.limit)
+        meta = engine.datasets.get_metadata(req.dataset)
+        if meta is None:
+            raise HTTPException(
+                status_code=404, detail="Dataset not found")
+        df = engine.processing.get_preview(meta, steps, req.limit)
         if df is None:
             raise HTTPException(
                 status_code=404, detail="Dataset not found or error")
@@ -57,7 +56,7 @@ def start_export(req: ExportRequest,
         steps = cast(List[Union[Dict[str, Any], RecipeStep]], req.steps)
 
         # 1. Start on Engine
-        job_id = engine.start_export_job(
+        job_id = engine.jobs.start_export_job(
             dataset_name=req.dataset,
             recipe=steps,
             exporter_name=req.exporter,
@@ -87,7 +86,7 @@ def monitor_job(job_id: str, engine: PyQueryEngine):
     """Poll engine job status and update API DB on completion."""
     import time
     while True:
-        info = engine.get_job_status(job_id)
+        info = engine.jobs.get_job_status(job_id)
         if not info:
             # Job vanished from engine? Mark failed or unknown
             # If engine restarted, this loop wouldn't be running anyway.
@@ -112,7 +111,7 @@ def get_job_status(job_id: str, engine: PyQueryEngine = Depends(get_engine)):
     Check status using Engine (Real-time) + DB (History).
     """
     # 1. Ask Engine (Real-time truth)
-    eng_info = engine.get_job_status(job_id)
+    eng_info = engine.jobs.get_job_status(job_id)
 
     if eng_info:
         # Sync latest generic status to DB (optional optimization to keep DB fresh)
@@ -151,13 +150,6 @@ def validate_recipe(req: PreviewRequest, engine: PyQueryEngine = Depends(get_eng
         from pyquery_polars.core.models import RecipeStep
 
         steps = cast(List[Union[Dict[str, Any], RecipeStep]], req.steps)
-        # We rely on Pydantic models in StepRegistry for validation
-        # Since Preview/Apply already does this implicitly, we can simulation it
-        # or just return "valid" if Pydantic didn't error during request parsing?
-        # Actually Pydantic validates the 'PreviewRequest' body, but 'steps' is Any/Dict.
-        # We need to manually validate each step against its registry model.
-
-        from pyquery_polars.core.registry import StepRegistry
 
         errors = []
         for i, s in enumerate(steps):
@@ -198,7 +190,11 @@ def get_schema(req: PreviewRequest, engine: PyQueryEngine = Depends(get_engine))
         from pyquery_polars.core.models import RecipeStep
 
         steps = cast(List[Union[Dict[str, Any], RecipeStep]], req.steps)
-        schema = engine.get_transformed_schema(req.dataset, steps)
+        lf = engine.datasets.get(req.dataset)
+        if lf is None:
+            raise HTTPException(
+                status_code=404, detail="Dataset not found")
+        schema = engine.processing.get_transformed_schema(lf, steps)
 
         if schema is None:
             raise HTTPException(
