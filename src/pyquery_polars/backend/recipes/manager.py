@@ -105,7 +105,7 @@ class RecipeManager:
         """Iterate over (dataset_name, recipe) pairs."""
         return self._recipes.items()
 
-    def apply_inferred_types(self, dataset_name: str, inferred_types: Dict[str, str], merge_step_id: Optional[str] = None, prepend: bool = False) -> None:
+    def apply_inferred_types(self, dataset_name: str, inferred_types: Dict[str, str], merge_step_id: Optional[str] = None, prepend: bool = False, label: Optional[str] = None) -> None:
         """
         Create or update a CleanCast step based on inferred types.
 
@@ -114,6 +114,7 @@ class RecipeManager:
            inferred_types: Dict of {column: type_str}
            merge_step_id: Optional, if provided, updates this step instead of creating new
            prepend: If True, insert new step at the start (if creating new)
+           label: Optional custom label for the step
         """
         if not inferred_types:
             return
@@ -135,9 +136,9 @@ class RecipeManager:
 
         if changes:
             self.apply_cast_changes(
-                dataset_name, changes, merge_step_id, prepend)
+                dataset_name, changes, merge_step_id, prepend, label)
 
-    def apply_cast_changes(self, dataset_name: str, changes: List["CastChange"], merge_step_id: Optional[str] = None, prepend: bool = False) -> None:
+    def apply_cast_changes(self, dataset_name: str, changes: List["CastChange"], merge_step_id: Optional[str] = None, prepend: bool = False, label: Optional[str] = None) -> None:
         """
         Apply a list of CastChanges to a dataset recipe (merge or new).
 
@@ -146,6 +147,7 @@ class RecipeManager:
             changes: List of CastChange objects
             merge_step_id: Optional step ID to merge into
             prepend: If True, insert new step at start
+            label: Optional custom label for the step
         """
         if not changes:
             return
@@ -181,7 +183,7 @@ class RecipeManager:
             step = RecipeStep(
                 id=step_id,
                 type="clean_cast",
-                label="Auto Clean Types",
+                label=label or "Auto Clean Types",
                 params=params.model_dump()
             )
 
