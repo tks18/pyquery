@@ -6,6 +6,7 @@ import fnmatch
 
 from pyquery_polars.backend import PyQueryEngine
 from pyquery_polars.core.io import ItemFilter, FilterType
+from pyquery_polars.frontend.base.state import StateManager
 
 
 def filter_list_by_regex(items: List[str], pattern: str) -> List[str]:
@@ -18,47 +19,80 @@ def filter_list_by_regex(items: List[str], pattern: str) -> List[str]:
         return [i for i in items if pat_lower in i.lower()]
 
 
-def handle_auto_inference(engine: PyQueryEngine, alias_val: str):
-    """Runs type inference and adds/replaces a clean_cast step if needed."""
-    try:
-        with st.spinner("Auto-detecting types..."):
-            # Use analytics manager directly
-            lf = engine.datasets.get(alias_val)
-            if lf is None:
-                return
+# Reserved label for system-managed auto-infer steps
+AUTO_INFER_LABEL = "[System] Auto-Infer Types"
 
+
+def handle_auto_inference(engine: PyQueryEngine, alias_val: str, state: 'StateManager'):
+    """Runs type inference and adds/replaces the system auto-infer step at position 0."""
+    try:
+        # 1. First, remove any existing system-managed step to ensure a clean refresh
+        remove_auto_inference_step(engine, alias_val, state=state)
+
+        # 2. Get fresh data from backend
+        lf = engine.datasets.get(alias_val)
+        if lf is None:
+            return
+
+        with st.spinner("Auto-detecting types..."):
             inferred = engine.analytics.infer_types(lf, [], sample_size=1000)
 
             if inferred:
-                # Find existing step to update
-                target_id = None
-                try:
-                    current_recipe = engine.recipes.get(alias_val)
-                    for s in current_recipe:
-                        if s.type == "clean_cast" and s.label in ["Auto Clean Types", "Auto-Clean Types"]:
-                            target_id = s.id
-                            break
-                except:
-                    pass
-
-                # Apply via backend
-                # prepend=True ensures if new step created, it is first
+                # 3. Apply via backend as a NEW step at the START (prepend=True)
+                # Since we just removed any old one, this will always be at position 0
                 engine.recipes.apply_inferred_types(
                     alias_val,
                     inferred,
-                    merge_step_id=target_id,
-                    prepend=True
+                    merge_step_id=None,  # Fresh start
+                    prepend=True,
+                    label=AUTO_INFER_LABEL
                 )
 
                 # Sync frontend state
-                from pyquery_polars.frontend.state_manager import sync_all_from_backend
-                sync_all_from_backend()
+                state.sync_all_from_backend()
 
-                st.toast(f"✨ Auto-cleaning updated!", icon="🪄")
+                st.toast(f"✨ Auto-infer refreshed!", icon="🪄")
 
     except Exception as e:
         st.warning(f"Auto infer error: {e}")
-        print(f"Auto infer error: {e}")
+
+
+def remove_auto_inference_step(engine: PyQueryEngine, alias_val: str, state: 'StateManager'):
+    """
+    Removes system-managed auto-infer steps.
+    Surgical: Targets strictly system label, or legacy labels ONLY if they are the first step.
+    """
+    try:
+        current_recipe = engine.recipes.get(alias_val)
+        to_remove = []
+
+        # Legacy labels used by older versions of the auto-infer logic
+        LEGACY_LABELS = ["Auto Clean Types",
+                         "Auto-Clean Types", "Auto Infer Types"]
+
+        steps = getattr(current_recipe, "steps", current_recipe)
+
+        for idx, s in enumerate(steps):
+            label = getattr(s, "label", "")
+            step_type = getattr(s, "type", "")
+
+            if step_type == "clean_cast":
+                # 1. Always remove strictly tagged system steps
+                if label == AUTO_INFER_LABEL:
+                    to_remove.append(s.id)
+                # 2. Remove legacy steps ONLY if they are at position 0 (where system adds them)
+                # This ensures we don't accidentally wipe user-added Clean Cast steps later in the recipe.
+                elif idx == 0 and label in LEGACY_LABELS:
+                    to_remove.append(s.id)
+
+        if to_remove:
+            for step_id in to_remove:
+                engine.recipes.remove_step(alias_val, step_id)
+
+            # Sync frontend state
+            state.sync_all_from_backend()
+    except Exception as e:
+        pass
 
 
 def _check_item_match(name: str, f: ItemFilter) -> bool:

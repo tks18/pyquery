@@ -62,6 +62,16 @@ class RecipeManager:
             return True
         return False
 
+    def remove_step(self, dataset_name: str, step_id: str) -> bool:
+        """Remove a specific step from a recipe."""
+        if dataset_name in self._recipes:
+            original_len = len(self._recipes[dataset_name])
+            self._recipes[dataset_name] = [
+                s for s in self._recipes[dataset_name] if s.id != step_id
+            ]
+            return len(self._recipes[dataset_name]) < original_len
+        return False
+
     def get_all(self) -> Dict[str, List[RecipeStep]]:
         """Get all recipes as a dict (for project export and frontend sync)."""
         return self._recipes.copy()
@@ -95,7 +105,7 @@ class RecipeManager:
         """Iterate over (dataset_name, recipe) pairs."""
         return self._recipes.items()
 
-    def apply_inferred_types(self, dataset_name: str, inferred_types: Dict[str, str], merge_step_id: Optional[str] = None, prepend: bool = False) -> None:
+    def apply_inferred_types(self, dataset_name: str, inferred_types: Dict[str, str], merge_step_id: Optional[str] = None, prepend: bool = False, label: Optional[str] = None) -> None:
         """
         Create or update a CleanCast step based on inferred types.
 
@@ -104,6 +114,7 @@ class RecipeManager:
            inferred_types: Dict of {column: type_str}
            merge_step_id: Optional, if provided, updates this step instead of creating new
            prepend: If True, insert new step at the start (if creating new)
+           label: Optional custom label for the step
         """
         if not inferred_types:
             return
@@ -125,9 +136,9 @@ class RecipeManager:
 
         if changes:
             self.apply_cast_changes(
-                dataset_name, changes, merge_step_id, prepend)
+                dataset_name, changes, merge_step_id, prepend, label)
 
-    def apply_cast_changes(self, dataset_name: str, changes: List["CastChange"], merge_step_id: Optional[str] = None, prepend: bool = False) -> None:
+    def apply_cast_changes(self, dataset_name: str, changes: List["CastChange"], merge_step_id: Optional[str] = None, prepend: bool = False, label: Optional[str] = None) -> None:
         """
         Apply a list of CastChanges to a dataset recipe (merge or new).
 
@@ -136,6 +147,7 @@ class RecipeManager:
             changes: List of CastChange objects
             merge_step_id: Optional step ID to merge into
             prepend: If True, insert new step at start
+            label: Optional custom label for the step
         """
         if not changes:
             return
@@ -171,7 +183,7 @@ class RecipeManager:
             step = RecipeStep(
                 id=step_id,
                 type="clean_cast",
-                label="Auto Clean Types",
+                label=label or "Auto Clean Types",
                 params=params.model_dump()
             )
 

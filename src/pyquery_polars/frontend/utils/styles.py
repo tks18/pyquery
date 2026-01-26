@@ -8,16 +8,15 @@ def inject_custom_css():
     compact_css = """
     <style>
         /* --- GLOBAL --- */
-        html, body, [class*="css"]  {
+        html, body, .stApp {
             font-family: 'Inter', sans-serif;
-            font-size: 15px; /* Slightly larger for readability */
+            font-size: 15px;
         }
 
         /* --- LAYOUT PADDING --- */
-        /* Reduce top padding but keep it reasonable */
         .block-container {
             padding-top: 2rem !important;
-            padding-bottom: 3rem !important;
+            padding-bottom: 5rem !important; /* increased to ensure scrolling clears footer */
             max-width: 95% !important;
         }
         
@@ -27,23 +26,19 @@ def inject_custom_css():
         h3 { font-size: 1.3rem !important; padding-bottom: 0.5rem !important; }
         
         /* --- WIDGET SPACING --- */
-        /* Neutralize massive default spacing without overlap */
         .stElementContainer {
-            margin-bottom: 0.0rem !important; /* From -0.5rem to 0 */
+            margin-bottom: 0.0rem !important;
         }
         
-        /* Sidebar spacing - slightly tighter than main */
+        /* Sidebar spacing */
         section[data-testid="stSidebar"] .stElementContainer {
             margin-bottom: 0.0rem !important;
         }
 
         /* --- BUTTONS --- */
         button {
-            /* Let Streamlit handle height to prevent text cutting */
             height: auto !important; 
         }
-
-
     </style>
     """
     st.markdown(compact_css, unsafe_allow_html=True)
