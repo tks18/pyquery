@@ -62,6 +62,16 @@ class RecipeManager:
             return True
         return False
 
+    def remove_step(self, dataset_name: str, step_id: str) -> bool:
+        """Remove a specific step from a recipe."""
+        if dataset_name in self._recipes:
+            original_len = len(self._recipes[dataset_name])
+            self._recipes[dataset_name] = [
+                s for s in self._recipes[dataset_name] if s.id != step_id
+            ]
+            return len(self._recipes[dataset_name]) < original_len
+        return False
+
     def get_all(self) -> Dict[str, List[RecipeStep]]:
         """Get all recipes as a dict (for project export and frontend sync)."""
         return self._recipes.copy()
