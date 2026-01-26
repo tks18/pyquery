@@ -6,7 +6,6 @@ import polars as pl
 import numpy as np
 import datetime
 import math
-import streamlit as st
 
 
 def get_standard_pyquery_completions() -> List[Dict[str, str]]:
