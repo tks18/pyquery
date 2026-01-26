@@ -3,7 +3,7 @@ JobManager
 
 Manages background export jobs (async file exports with progress tracking).
 """
-from typing import Dict, Optional, List, Union, Callable, Any, Sequence, TYPE_CHECKING
+from typing import Dict, Optional, List, Union, Any, Sequence
 from pydantic import BaseModel
 
 import threading
