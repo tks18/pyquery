@@ -8,7 +8,7 @@ from pyquery_polars.core.models import StepMetadata, TransformContext
 # Type definitions
 BackendFunc = Callable[[pl.LazyFrame, Any,
                         Optional[TransformContext]], pl.LazyFrame]
-FrontendFunc = Callable[[str, Any, Optional[pl.Schema]], Any]
+FrontendFunc = Callable[[str, Any, Optional[pl.Schema], Optional[Any]], Any]
 
 
 class StepDefinition(BaseModel):
