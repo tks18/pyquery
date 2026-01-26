@@ -2,6 +2,63 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.0.0](https://github.com/tks18/pyquery/compare/v3.0.0...v4.0.0) (2026-01-26)
+
+
+### Bug Fixes 🛠
+
+* **backend/recipes:** update infer types step to resolve to a proper label if custom lbl is used ([18a4ce6](https://github.com/tks18/pyquery/commit/18a4ce63793878d9c85c94590f046e5204e621a3))
+* **core/registry:** update frontend func model for proper function signature ([cda3616](https://github.com/tks18/pyquery/commit/cda36163c5c01b769e13ed81d4c08878fb67753a))
+* **frontend/utils:** styles: overflow issue in eda tab fixed ([04303c0](https://github.com/tks18/pyquery/commit/04303c09f4c94f52945445c9e764a90d33b90d62))
+
+
+### Features 🔥
+
+* **backend/recipes:** add a function to remove a recipe step ([ea28b91](https://github.com/tks18/pyquery/commit/ea28b91d6d1d317f7391963e52f9dc023f93677e))
+* **frontend/base:** create a base component class which will provide the context and state ([65af491](https://github.com/tks18/pyquery/commit/65af4910b16a115ed8aefb1d306885105211caa6))
+* **frontend/base:** create a context class that will give access to all shared resources ([dd3f293](https://github.com/tks18/pyquery/commit/dd3f293440271ed95f6216ec0e6776eacfc1caf3))
+* **frontend/base:** state: shared state manager for all components for safe state access ([e96d0ef](https://github.com/tks18/pyquery/commit/e96d0ef259207347183570f9d575ac5763a8e340))
+* **frontend/components:** api-loader: create a class based component ([b5cddec](https://github.com/tks18/pyquery/commit/b5cddec99bbcbe09a967180680ea23ebff301adc))
+* **frontend/components:** create a base dialog loader class ([c22387c](https://github.com/tks18/pyquery/commit/c22387c774965e670fbf6a78f271371b28e98087))
+* **frontend/components:** eda: complete class based reimplementation of eda tab ([5f8c0af](https://github.com/tks18/pyquery/commit/5f8c0afe13afd8786422264d05476212579b77c3))
+* **frontend/components:** export: create a class based component ([572fb09](https://github.com/tks18/pyquery/commit/572fb092900a80b0d62ae41c50421cc0c3043bd8))
+* **frontend/components:** file-loader: create a class based component ([e2b5fc1](https://github.com/tks18/pyquery/commit/e2b5fc1b7ca8900b38c0cd35d0a8a13952fbc1a5))
+* **frontend/components:** loader-utils: fix autoinference and introduce new apis ([77f7268](https://github.com/tks18/pyquery/commit/77f7268e17d341cea7d8efa6ebe6b4074684fbe0))
+* **frontend/components:** profile: create a class based component ([7c97868](https://github.com/tks18/pyquery/commit/7c978686d28b44d1c3c56a2d2238b3d28f9e6421))
+* **frontend/components:** project_dialog: create a class based component ([2b2fa89](https://github.com/tks18/pyquery/commit/2b2fa89a1d70360bfbde6a683685fb0fd934a2da))
+* **frontend/components:** recipe_editor: create a class based component ([e4dacbe](https://github.com/tks18/pyquery/commit/e4dacbe76867ac4fdb2c192453f2d783d21df4b8))
+* **frontend/components:** sidebar: create a class based component ([7b4229f](https://github.com/tks18/pyquery/commit/7b4229f32392c7d039cf78fb8dd1fe6ed854c93f))
+* **frontend/components:** sql_tab: create a class based component ([044d23f](https://github.com/tks18/pyquery/commit/044d23f610fc193b55e51806a1d6a20a416114c4))
+* **frontend/components:** sql-loader: create a class based component ([59a4355](https://github.com/tks18/pyquery/commit/59a4355ca7cbb7bf36967959aeb92b617deb5b4e))
+* **frontend/transforms:** create the base step renderer that will be used by all transform pipeline ([ddbadc8](https://github.com/tks18/pyquery/commit/ddbadc890f87940856478da518f74625090bb4e8))
+* **frontend/transforms:** move every step to transforms folder (apt name) + class based components ([f21bf86](https://github.com/tks18/pyquery/commit/f21bf861490d8d01542b1dca4486a144d0e10a12))
+* **frontend/transforms:** move the registry to transforms + introduce class based access ([73ea061](https://github.com/tks18/pyquery/commit/73ea061f5e6d652cfc42a151cabaeced3300645e))
+
+
+### Styling 🎨
+
+* **backend/jobs:** linter changes ([d85ba8f](https://github.com/tks18/pyquery/commit/d85ba8f7cb1fba791a969955da030303e4cb9812))
+* **frontend/base:** export base abstract & data classes ([7001d11](https://github.com/tks18/pyquery/commit/7001d1125614ec48492deea6a91c1684d94f4106))
+* **frontend/components:** export classes ([4b97595](https://github.com/tks18/pyquery/commit/4b97595fcd68eb09a1814403a47bb05a114e8b3f))
+* **frontend/components:** loader: exports ([8e0c823](https://github.com/tks18/pyquery/commit/8e0c82334ee7e86408e8df2fe1e7f14ac247476a))
+* **frontend/elements:** export all the elements ([63fe048](https://github.com/tks18/pyquery/commit/63fe04805a34b1a1f6b7d3d18995d4d1e865af6a))
+* **frontend/transforms:** export the functions ([beb5d64](https://github.com/tks18/pyquery/commit/beb5d6418fadd12c1e8602717d16dac645a5b616))
+* **frontend/utils:** completions: linter changes ([d043348](https://github.com/tks18/pyquery/commit/d0433482f84e3d5484c4da7d8389d244f7082082))
+
+
+### Code Refactoring 🖌
+
+* **frontend/elements:** move code_editor from custom_components to elements (its apt name) ([6e5403a](https://github.com/tks18/pyquery/commit/6e5403a0c61de97c1e04fe40617e486f1b674165))
+* **frontend/elements:** move editor elements to elements folder ([3bd8dff](https://github.com/tks18/pyquery/commit/3bd8dffb7ec5148d323ec6079aecc6bc4500043d))
+* **frontend/statemanager:** remove legacy state manager code as its replaced by context mgr ([d361768](https://github.com/tks18/pyquery/commit/d361768ad7cc9f4b42ffd5b6586025eea8efdc4a))
+* **frontend/utils:** renderers: update the api for stepregistry ([c70149a](https://github.com/tks18/pyquery/commit/c70149a08800d83f43a63dceddb95ce512092d9f))
+* **frontend:** completely refactor the entry point ([7c50ddc](https://github.com/tks18/pyquery/commit/7c50ddcf9ddeea4252543a99f056ea3e36cf2cb9))
+
+
+### Others 🔧
+
+* **pyversion:** update app version to 4.0.0 ([5e32bf7](https://github.com/tks18/pyquery/commit/5e32bf768e5f95235e2b118a966e32d8580121b8))
+
 ## [3.0.0](https://github.com/tks18/pyquery/compare/v2.8.0...v3.0.0) (2026-01-25)
 
 
