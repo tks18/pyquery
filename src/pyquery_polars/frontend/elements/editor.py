@@ -2,12 +2,14 @@ from typing import List, Optional, Dict, Any, Union
 
 import streamlit as st
 
-from pyquery_polars.frontend.custom_components import code_editor
+from pyquery_polars.frontend.base.state import StateManager
+from pyquery_polars.frontend.elements.code_editor import code_editor
 from pyquery_polars.frontend.utils.completions import get_standard_pyquery_completions, get_sql_completions
 
 
 def _base_editor(
     code: str,
+    state: StateManager,
     language: str = "python",
     key: str = "editor",
     height: Union[int, List[int]] = [10, 20],
@@ -67,8 +69,9 @@ def _base_editor(
         event_id = response_dict.get('id')
         state_key = f"{key}_last_event_id"
 
-        if event_id and st.session_state.get(state_key) != event_id:
-            st.session_state[state_key] = event_id
+        current_event_id = state.get_value(state_key)
+        if event_id and current_event_id != event_id:
+            state.set_value(state_key, event_id)
             return response_dict['text']
 
     return None
@@ -76,6 +79,7 @@ def _base_editor(
 
 def python_editor(
     code: str,
+    state: StateManager,
     key: str,
     height: Union[int, List[int]] = [10, 20],
     read_only: bool = False,
@@ -126,12 +130,14 @@ def python_editor(
         height=height,
         read_only=read_only,
         completions=final_completions,
-        extra_buttons=final_buttons
+        extra_buttons=final_buttons,
+        state=state
     )
 
 
 def sql_editor(
     code: str,
+    state: StateManager,
     key: str,
     height: Union[int, List[int]] = [15, 20],  # Taller default for SQL
     read_only: bool = False,
@@ -175,5 +181,6 @@ def sql_editor(
         height=height,
         read_only=read_only,
         completions=final_completions,
-        extra_buttons=buttons
+        extra_buttons=buttons,
+        state=state
     )
