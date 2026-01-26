@@ -5,7 +5,7 @@ import polars as pl
 from pyquery_polars.core.registry import StepRegistry
 
 
-def render_step_ui(step_type: str, step_id: str, params: Any, schema: Optional[pl.Schema]) -> Any:
+def render_step_ui(step_type: str, step_id: str, params: Any, schema: Optional[pl.Schema], ctx: Any = None) -> Any:
     """
     Generic dispatcher for step UI rendering.
     Looks up the registered frontend function.
@@ -15,8 +15,6 @@ def render_step_ui(step_type: str, step_id: str, params: Any, schema: Optional[p
         return params
 
     if definition.frontend_func:
-        # print(f"DEBUG: Rendering {step_type} with params: {params}")
-
         # 1. Convert Dict -> Model
         if definition.params_model and isinstance(params, dict):
             try:
@@ -30,13 +28,11 @@ def render_step_ui(step_type: str, step_id: str, params: Any, schema: Optional[p
 
         # 2. Render
         updated_model = definition.frontend_func(
-            step_id, model_instance, schema)
+            step_id, model_instance, schema, ctx)
 
         # 3. Return
         if hasattr(updated_model, "model_dump"):
             dumped = updated_model.model_dump()
-            # if dumped != params:
-            #     print(f"DEBUG: Change detected in {step_type}! {params} -> {dumped}")
             return dumped
         return updated_model
 
