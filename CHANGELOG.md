@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.1.0](https://github.com/tks18/pyquery/compare/v4.0.0...v4.1.0) (2026-01-27)
+
+
+### Code Refactoring 🖌
+
+* **cli/branding:** refactor branding to multiple sub modules for development exp ([7de839d](https://github.com/tks18/pyquery/commit/7de839da3fbdb6cf7276be6457d9bbaf2158585e))
+* **cli/headless:** refactor headless completely into submodules for better developer exp ([0801ae2](https://github.com/tks18/pyquery/commit/0801ae215009d45531ddf527cd5e75d37caf5eb7))
+* **cli/main:** refactor the main to use the new parsers, thememanager & headless pipelines ([1f1cfa7](https://github.com/tks18/pyquery/commit/1f1cfa7476824ed6c43035719e66dc4c710cd99f))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 4.1.0 ([1697b23](https://github.com/tks18/pyquery/commit/1697b237249345483e70807b0ce1cde0aed3728b))
+
 ## [4.0.0](https://github.com/tks18/pyquery/compare/v3.0.0...v4.0.0) (2026-01-26)
 
 
