@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.1.2](https://github.com/tks18/pyquery/compare/v4.1.1...v4.1.2) (2026-01-27)
+
+### [4.1.1](https://github.com/tks18/pyquery/compare/v4.1.0...v4.1.1) (2026-01-27)
+
+
+### Docs 📃
+
+* add cli, api, sdk, ui & readme for all modules ([e3c802a](https://github.com/tks18/pyquery/commit/e3c802a3d784c2fd4f94666802731e01dca00ee3))
+
+
+### Others 🔧
+
+* **pyversion:** update app to 4.1.2 ([01e9a20](https://github.com/tks18/pyquery/commit/01e9a20a1b6156dbae809717dc9dd41531ab6785))
+
 ## [4.1.0](https://github.com/tks18/pyquery/compare/v4.0.0...v4.1.0) (2026-01-27)
 
 
