@@ -30,6 +30,19 @@
 
 ---
 
+## 🎮 The Ecosystem (Choose Your Path)
+
+We built a suite of tools so perfect it hurts.
+
+| Path | Vibe | Description | Link |
+| :--- | :--- | :--- | :--- |
+| **CLI** | 🏎️ **Speedrun** | The **Headless Beast**. Run data pipelines in your sleep. | [**CLI Manual**](docs/CLI.md) |
+| **UI** | 🎨 **Creative** | The **Visual Studio**. Drag, drop, analyze, visualize. | [**UI Guide**](docs/UI.md) |
+| **API** | 📡 **Backbone** | The **Server**. Build your own apps on our engine. | [**API Docs**](docs/API.md) |
+| **SDK** | 🐍 **Sorcery** | The **Python Library**. For the code wizards. | [**SDK Guide**](docs/SDK.md) |
+
+---
+
 ## 🧠 TL;DR (For the goldfish attention spans)
 
 > **✨ New Drop: Headless Ghost Mode 👻**
