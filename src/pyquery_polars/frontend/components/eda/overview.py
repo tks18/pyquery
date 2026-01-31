@@ -163,7 +163,7 @@ class OverviewTab(BaseEDATab):
             try:
                 if p_col != "(None)":
                     pivot_res = df.pivot_table(
-                        index=p_row, columns=p_col, values=p_val, aggfunc=p_agg)
+                        index=p_row, columns=p_col, values=p_val, aggfunc=p_agg)  # type: ignore
                     st.plotly_chart(px.imshow(pivot_res, text_auto=True, aspect="auto",
                                               title=f"{p_agg.title()} of {p_val} by {p_row} & {p_col}",
                                               color_continuous_scale="Viridis",
