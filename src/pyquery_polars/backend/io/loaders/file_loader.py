@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import ClassVar, Literal, Optional, Type
 from pydantic import BaseModel
 
 import os
@@ -27,11 +27,15 @@ class Fileloader(BaseLoader[FileLoaderParams, FileloaderOutput]):
     Supports CSV, Excel, Parquet, JSON, NDJSON, IPC 
     """
 
+    name = "File"
+    input_model:  ClassVar[type[BaseModel]] = FileLoaderParams
+    output_model: ClassVar[type[BaseModel]] = FileloaderOutput
+
     def clean_header_name(self, col: str) -> str:
         """Normalize column name by replacing whitespace with single spaces and stripping."""
         return " ".join(col.strip().split())
 
-    def run(self) -> Optional[LoaderOutput[FileloaderOutput]]:
+    def _run_impl(self) -> Optional[LoaderOutput[FileloaderOutput]]:
         """
         Load files into LazyFrame(s).
 

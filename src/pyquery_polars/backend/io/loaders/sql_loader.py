@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import ClassVar, Optional, Type
 
 import connectorx as cx
 import polars as pl
@@ -8,20 +8,24 @@ from pyquery_polars.backend.io.loaders.base import BaseLoader, LoaderOutput
 from pyquery_polars.core.io import SqlLoaderParams
 
 
-class SQLLoaderOutput(BaseModel):
+class SqlLoaderOutput(BaseModel):
     connection_string: str
     query: str
 
 
-class SQLLoader(BaseLoader[SqlLoaderParams, SQLLoaderOutput]):
+class SQLLoader(BaseLoader[SqlLoaderParams, SqlLoaderOutput]):
     """
     Loads data from a SQL source.(SQLite, Postgres, etc.)
     """
 
-    def run(self) -> Optional[LoaderOutput[SQLLoaderOutput]]:
+    name = "SQL"
+    input_model:  ClassVar[type[BaseModel]] = SqlLoaderParams
+    output_model:  ClassVar[type[BaseModel]] = LoaderOutput[SqlLoaderOutput]
+
+    def _run_impl(self) -> Optional[LoaderOutput[SqlLoaderOutput]]:
         connection_string = self.params.conn
         query = self.params.query
-        meta = SQLLoaderOutput(
+        meta = SqlLoaderOutput(
             connection_string=connection_string, query=query)
         try:
             # connectorx returns eager Arrow/DataFrame, we make it lazy
