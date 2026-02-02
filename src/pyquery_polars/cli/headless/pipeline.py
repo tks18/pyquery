@@ -355,8 +355,9 @@ class HeadlessPipeline:
                           recipe_file=args.recipe, steps=getattr(args, 'step', None))
 
     def _add_dataset(self, alias, result, args, recipe_file=None, steps=None):
-        lf_or_lfs, meta = result if isinstance(result, tuple) else (result, {})
-        self.engine.datasets.add(alias, lf_or_lfs, metadata=meta)
+        lf_or_lfs = result.lf
+        self.engine.datasets.add(
+            alias, lf_or_lfs, metadata=result.meta.model_dump())
         self.engine.recipes.ensure_exists(alias)
 
         recipe = []

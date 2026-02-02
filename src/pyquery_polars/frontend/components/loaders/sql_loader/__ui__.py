@@ -93,12 +93,11 @@ class SQLLoader(BaseLoader):
             with st.spinner("Executing query & loading..."):
                 res = self.engine.io.run_loader("Sql", params)
                 if res:
-                    lf_or_lfs, meta = res
 
                     success = self._register_dataset(
                         alias=alias_val,
-                        lf_or_lfs=lf_or_lfs,
-                        meta=meta,
+                        lf_or_lfs=res.lf,
+                        meta=res.meta.model_dump(),
                         loader_params=params,
                         auto_infer=auto_infer,
                         edit_mode=edit_mode,

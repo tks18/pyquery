@@ -954,23 +954,3 @@ def export_worker(lazy_frame: Union[pl.LazyFrame, List[pl.LazyFrame]], params: A
         }]
     except Exception as e:
         result_container['status'] = f"Error: {e}"
-
-
-def export_direct(df: pl.DataFrame, fmt: str, params: Any) -> Dict[str, Any]:
-    """
-    Direct export of a DataFrame (for CLI merge mode).
-    No background thread - synchronous export.
-
-    Args:
-        df: DataFrame to export
-        fmt: Exporter name (Parquet, CSV, etc.)
-        params: Export params (Pydantic model or dict)
-    """
-    result_container = {}
-    lf = df.lazy()
-    export_worker(lf, params, fmt, result_container)
-
-    if str(result_container.get('status', '')).startswith("Error"):
-        raise RuntimeError(result_container['status'])
-
-    return result_container

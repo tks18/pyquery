@@ -7,13 +7,15 @@ Provides a unified interface for:
 - Encoding detection and conversion
 - Export operations
 """
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from pydantic import BaseModel
 
 import polars as pl
 
+from pyquery_polars.backend.io.helpers.staging import StagingManager
 from pyquery_polars.core.io import FileFilter
 from pyquery_polars.core.models import PluginDef
+from pyquery_polars.backend.io.loaders import DEFAULT_LOADERS, BaseLoader, LoaderOutput
 from pyquery_polars.backend.io.plugins import ALL_LOADERS, ALL_EXPORTERS
 from pyquery_polars.backend.io.files import (
     resolve_file_paths,
@@ -24,8 +26,7 @@ from pyquery_polars.backend.io.files import (
     get_staging_dir,
     create_unique_staging_folder,
     cleanup_staging_files,
-    export_worker,
-    export_direct
+    export_worker
 )
 
 
@@ -42,13 +43,13 @@ class IOManager:
     """
 
     def __init__(self):
-        self._loaders: Dict[str, PluginDef] = {}
+        self._loaders: Dict[str, Type[BaseLoader]] = {}
         self._exporters: Dict[str, PluginDef] = {}
         self._register_defaults()
 
     def _register_defaults(self):
         """Register default loaders and exporters."""
-        for l in ALL_LOADERS:
+        for l in DEFAULT_LOADERS:
             self._loaders[l.name] = l
         for e in ALL_EXPORTERS:
             self._exporters[e.name] = e
@@ -63,7 +64,7 @@ class IOManager:
 
     # ========== Loader/Exporter Registry ==========
 
-    def get_loaders(self) -> List[PluginDef]:
+    def get_loaders(self) -> List[Type[BaseLoader]]:
         """Get list of available loaders."""
         return list(self._loaders.values())
 
@@ -75,7 +76,7 @@ class IOManager:
         """Get an exporter by name."""
         return self._exporters.get(name)
 
-    def get_loader(self, name: str) -> Optional[PluginDef]:
+    def get_loader(self, name: str) -> Optional[Type[BaseLoader]]:
         """Get a loader by name."""
         return self._loaders.get(name)
 
@@ -85,7 +86,7 @@ class IOManager:
         self,
         loader_name: str,
         params: Union[Dict[str, Any], BaseModel]
-    ) -> Optional[Tuple[Union[pl.LazyFrame, List[pl.LazyFrame]], Dict[str, Any]]]:
+    ) -> Optional[LoaderOutput]:
         """
         Run a loader plugin to load data.
 
@@ -96,27 +97,16 @@ class IOManager:
         Returns:
             Tuple of (LazyFrame(s), metadata_dict) or None on failure
         """
-        loader = self._loaders.get(loader_name)
-        if not loader:
-            return None
-        if not loader.func:
+        loader_cls = self._loaders.get(loader_name)
+        if not loader_cls:
             return None
         try:
-            if loader.params_model:
-                if isinstance(params, BaseModel):
-                    validated_params = params
-                else:
-                    validated_params = loader.params_model.model_validate(
-                        params)
-                result = loader.func(validated_params)
-            else:
-                result = loader.func(params)
+            loader: BaseLoader = loader_cls(
+                staging_manager=StagingManager(),
+                params=params
+            )
 
-            # Handle Legacy (LF only) vs New (LF, Metadata)
-            if isinstance(result, tuple):
-                return result
-            else:
-                return result, {}  # Default empty metadata
+            return loader.run()
 
         except Exception as e:
             print(f"Loader Error: {e}")
@@ -126,7 +116,7 @@ class IOManager:
         self,
         path: str,
         **params
-    ) -> Optional[Tuple[Union[pl.LazyFrame, List[pl.LazyFrame]], Dict[str, Any]]]:
+    ) -> Optional[LoaderOutput]:
         """
         Load a file using the default File loader.
 
@@ -171,30 +161,3 @@ class IOManager:
     def cleanup_staging(self, max_age_hours: int = 24) -> None:
         """Clean up stale staging files."""
         cleanup_staging_files(max_age_hours)
-
-    # ========== Export Operations ==========
-
-    def export_sync(
-        self,
-        lf_or_df: Union[pl.LazyFrame, pl.DataFrame],
-        format: str,
-        params: Any
-    ) -> Dict[str, Any]:
-        """
-        Synchronous export (for CLI merge mode).
-
-        Args:
-            lf_or_df: LazyFrame or DataFrame to export
-            format: Exporter name (Parquet, CSV, etc.)
-            params: Export params
-
-        Returns:
-            Result dict with status, size_str, etc.
-        """
-        if isinstance(lf_or_df, pl.DataFrame):
-            return export_direct(lf_or_df, format, params)
-        else:
-            # For LazyFrame, use export_worker pattern
-            result = {}
-            export_worker(lf_or_df, params, format, result)
-            return result
