@@ -29,7 +29,7 @@ class Fileloader(BaseLoader[FileLoaderParams, FileloaderOutput]):
 
     name = "File"
     input_model:  ClassVar[type[BaseModel]] = FileLoaderParams
-    output_model: ClassVar[type[BaseModel]] = FileloaderOutput
+    output_model: ClassVar[type[BaseModel]] = LoaderOutput[FileloaderOutput]
 
     def clean_header_name(self, col: str) -> str:
         """Normalize column name by replacing whitespace with single spaces and stripping."""

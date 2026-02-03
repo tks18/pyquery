@@ -70,7 +70,7 @@ class BaseLoader(ABC, Generic[InputT, OutputT]):
 
         try:
             # Validate meta explicitly
-            self.output_model.model_validate(result.meta)
+            self.output_model.model_validate(result)
         except ValidationError as e:
             raise ValueError(
                 f"[{self.__class__.__name__}] Invalid output meta"
