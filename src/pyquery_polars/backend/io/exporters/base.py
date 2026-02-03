@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, List, Optional, TypeAlias, TypeVar, Union, cast, ClassVar
+from typing import Generic, List, Literal, Optional, TypeAlias, TypeVar, cast, ClassVar
 
 import polars as pl
 
@@ -9,35 +9,40 @@ from pyquery_polars.backend.io.helpers.staging import StagingManager
 
 PydanticModel: TypeAlias = type[BaseModel]
 
-# Define TypeVars for Input and Output
 InputT = TypeVar("InputT", bound=BaseModel)
-OutputT = TypeVar("OutputT", bound=BaseModel)
 
 
-class LoaderOutput(BaseModel, Generic[OutputT]):
-    lf: Union[pl.LazyFrame, List[pl.LazyFrame]]
-    meta: OutputT
+class FileDetails(BaseModel):
+    name: str
+    path: str
+    size: int
 
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        frozen=True
-    )
+    model_config = ConfigDict(frozen=True)
 
 
-class BaseLoader(ABC, Generic[InputT, OutputT]):
+class ExporterOutput(BaseModel):
+    status: Literal["COMPLETED", "FAILED"]
+    error: Optional[str] = None
+    size_str: str
+    file_details: List[FileDetails]
+
+    model_config = ConfigDict(frozen=True)
+
+
+class BaseExporter(ABC, Generic[InputT]):
     """
-    Base class for all Loader Plugins.
+    Base class for all Exporter Plugins.
 
     This class uses Generics to ensure strict typing for both input parameters
     and output results
 
-    Subclasses must implement the `run` method.
+    Subclasses must implement the `_run_impl` method.
     """
 
     # Explicit contracts (must be set by subclasses)
     name: str
     input_model: ClassVar[PydanticModel]
-    output_model: ClassVar[PydanticModel]
+    output_model = ExporterOutput
 
     def __init__(self, staging_manager: StagingManager, params: InputT | dict) -> None:
         self.params = self._validate_input(params)
@@ -57,20 +62,20 @@ class BaseLoader(ABC, Generic[InputT, OutputT]):
             ) from e
 
     def _validate_output(
-        self, result: Optional[LoaderOutput[OutputT]]
-    ) -> Optional[LoaderOutput[OutputT]]:
+        self, result: Optional[ExporterOutput]
+    ) -> Optional[ExporterOutput]:
 
         if result is None:
             return None
 
-        if not isinstance(result, LoaderOutput):
+        if not isinstance(result, ExporterOutput):
             raise TypeError(
-                f"[{self.__class__.__name__}] Must return LoaderOutput"
+                f"[{self.__class__.__name__}] Must return ExporterOutput"
             )
 
         try:
             # Validate meta explicitly
-            self.output_model.model_validate(result.meta)
+            self.output_model.model_validate(result)
         except ValidationError as e:
             raise ValueError(
                 f"[{self.__class__.__name__}] Invalid output meta"
@@ -78,14 +83,14 @@ class BaseLoader(ABC, Generic[InputT, OutputT]):
 
         return result
 
-    def run(self) -> Optional[LoaderOutput[OutputT]]:
+    def run(self) -> Optional[ExporterOutput]:
         raw = self._run_impl()
         return self._validate_output(raw)
 
     @abstractmethod
-    def _run_impl(self) -> Optional[LoaderOutput[OutputT]]:
+    def _run_impl(self) -> Optional[ExporterOutput]:
         """
-        Execute the loader logic.
+        Execute the Exporter logic.
 
         Returns:
             The loaded data or result.
