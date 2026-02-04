@@ -10,7 +10,6 @@ from pyquery_polars.backend.utils.parsing import (
     robust_time_parser, robust_excel_date_parser, robust_excel_datetime_parser,
     robust_excel_time_parser
 )
-from pyquery_polars.backend.io.files import clean_header_name
 import ast
 import math
 import datetime
@@ -116,6 +115,10 @@ def sanitize_cols_func(lf: pl.LazyFrame, params: SanitizeColsParams, context: Op
 
     # Lazy rename requires schema access or a mapping
     # Since clean_header_name is pure data-independent, we can just apply it to the selected cols
+
+    def clean_header_name(col: str) -> str:
+        return " ".join(col.strip().split())
+
     rename_map = {c: clean_header_name(c) for c in params.cols}
     return lf.rename(rename_map)
 

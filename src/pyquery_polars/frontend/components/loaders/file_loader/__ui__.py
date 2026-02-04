@@ -470,7 +470,7 @@ class FileLoader(BaseLoader):
                     pass
 
             self.engine.datasets.add(
-                name, res[0], res[1], loader_type="File", loader_params=params
+                name, res.lf, res.meta.model_dump(), loader_type="File", loader_params=params
             )
 
             if params.get("auto_infer"):
@@ -543,7 +543,7 @@ class FileLoader(BaseLoader):
                 res = self.engine.io.run_loader("File", curr)
                 if res:
                     self.engine.datasets.add(
-                        alias, res[0], res[1], loader_type="File", loader_params=curr
+                        alias, res.lf, res.meta.model_dump(), loader_type="File", loader_params=curr
                     )
                     if params.get("auto_infer"):
                         handle_auto_inference(
@@ -579,7 +579,7 @@ class FileLoader(BaseLoader):
         res = self.engine.io.run_loader("File", params)
         if res:
             self.engine.datasets.add(
-                alias, res[0], res[1], loader_type="File", loader_params=params
+                alias, res.lf, res.meta.model_dump(), loader_type="File", loader_params=params
             )
             if auto_infer:
                 handle_auto_inference(self.engine, alias, state=self.state)

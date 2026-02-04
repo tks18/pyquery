@@ -307,12 +307,12 @@ class StatsEngine:
             values = gdf[val_col].values.astype(float)
 
             # cleanup
-            values = values[values > 0]
+            values = values[values > 0]  # type: ignore
             if len(values) == 0:
                 return {}
 
             # Sort desc
-            values = np.sort(values.astype(float))[::-1]
+            values = np.sort(values.astype(float))[::-1]  # type: ignore
             total = values.sum()
             if total == 0:
                 return {}
